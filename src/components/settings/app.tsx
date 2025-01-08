@@ -26,6 +26,25 @@ import {
 } from "@fluentui/react"
 import DangerButton from "../utils/danger-button"
 
+import { translateText } from '../services/googleTranslate';
+
+class AppSettings extends React.Component {
+  async componentDidMount() {
+    const translatedText = await translateText('Hello World', 'fr');
+    console.log(translatedText);
+  }
+
+  render() {
+    return (
+      <div>
+        {/* Your component code */}
+      </div>
+    );
+  }
+}
+
+export default AppSettings;
+
 type AppTabProps = {
     setLanguage: (option: string) => void
     setFetchInterval: (interval: number) => void
