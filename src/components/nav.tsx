@@ -5,6 +5,21 @@ import { AppState } from "../scripts/models/app"
 import { ProgressIndicator, IObjectWithKey } from "@fluentui/react"
 import { getWindowBreakpoint } from "../scripts/utils"
 import { WindowStateListenerType } from "../schema-types"
+import { translateText } from "../services/googleTranslate"
+
+translatePage = async () => {
+  try {
+    const elements = document.querySelectorAll("body *");
+    for (const element of elements) {
+      if (element.innerText) {
+        const translatedText = await translateText(element.innerText, 'fr'); // Use the target language code
+        element.innerText = translatedText;
+      }
+    }
+  } catch (error) {
+    console.error("Error translating page:", error);
+  }
+}
 
 type NavProps = {
     state: AppState
@@ -235,6 +250,23 @@ class Nav extends React.Component<NavProps, NavState> {
                         onClick={this.close}>
                         <Icon iconName="Cancel" />
                     </a>
+
+                    <a
+                        className="btn"
+                        title={intl.get("nav.translate")}
+                        onClick={this.translatePage}>
+                        <Icon iconName="Globe" />
+                    </a>
+                    <a
+                        className="btn"
+                        title={intl.get("nav.settings")}
+                        onClick={this.props.settings}>
+                        <Icon iconName="Settings" />
+                    </a>
+
+
+
+                    
                 </div>
                 {!this.canFetch() && (
                     <ProgressIndicator
