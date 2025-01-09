@@ -1,0 +1,37 @@
+name: Build and Package for Windows
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build the project
+      run: npm run build
+
+    - name: Package the application for Windows
+      run: npm run package-win
+
+    - name: Upload packaged application
+      uses: actions/upload-artifact@v2
+      with:
+        name: fluent-reader-windows
+        path: dist/*
