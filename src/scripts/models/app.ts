@@ -35,6 +35,8 @@ import {
 import { getCurrentLocale, setThemeDefaultFont } from "../settings"
 import locales from "../i18n/_locales"
 import { SYNC_SERVICE, ServiceActionTypes } from "./service"
+import { generateEnhancedDigest } from "../digest-service"
+import { pushToDingTalk, pushToWeCom } from "../push-service"
 
 export const enum ContextMenuType {
     Hidden,
@@ -97,6 +99,7 @@ export class AppState {
         notify: false,
         logs: new Array<AppLog>(),
     }
+    digestOn = false
 
     contextMenu: {
         type: ContextMenuType
@@ -185,6 +188,11 @@ export const TOGGLE_MENU = "TOGGLE_MENU"
 
 export interface MenuActionTypes {
     type: typeof TOGGLE_MENU
+}
+
+export const TOGGLE_DIGEST = "TOGGLE_DIGEST"
+export interface ToggleDigestAction {
+    type: typeof TOGGLE_DIGEST
 }
 
 export const TOGGLE_SETTINGS = "TOGGLE_SETTINGS"
@@ -277,6 +285,7 @@ export function toggleMenu(): AppThunk {
 }
 
 export const toggleLogMenu = () => ({ type: TOGGLE_LOGS })
+export const toggleDigest = () => ({ type: TOGGLE_DIGEST })
 export const saveSettings = () => ({ type: SAVE_SETTINGS })
 
 export const toggleSettings = (open = true, sids = new Array<number>()) => ({
@@ -334,6 +343,49 @@ export function setupAutoFetch(): AppThunk {
         setupTimeout()
     }
 }
+
+let digestInterval: NodeJS.Timeout
+export function setupScheduledDigest(): AppThunk {
+    return (dispatch, getState) => {
+        if (digestInterval) clearInterval(digestInterval)
+        digestInterval = setInterval(async () => {
+            const settings = window.settings.getIntegrationSettings()
+            if (!settings.autoPushEnabled || !settings.openaiApiKey || !settings.digestTime) return
+
+            const now = new Date()
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+            const dateStr = now.toDateString()
+
+            if (timeStr === settings.digestTime && settings.lastDigestDate !== dateStr) {
+                // Trigger auto digest
+                try {
+                    console.log("Triggering scheduled daily digest...")
+                    const topics = settings.digestTopics ? settings.digestTopics.split(',').map(t => t.trim()) : []
+                    const briefing = await generateEnhancedDigest({
+                        apiKey: settings.openaiApiKey,
+                        language: getState().app.locale,
+                        topics: topics,
+                        dalleEnabled: settings.dalleEnabled
+                    })
+
+                    // Push to enabled services
+                    if (settings.dingtalkWebhook) {
+                        await pushToDingTalk(settings.dingtalkWebhook, "Daily AI Briefing", briefing.content)
+                    }
+                    if (settings.wecomWebhook) {
+                        await pushToWeCom(settings.wecomWebhook, briefing.content)
+                    }
+
+                    // Update last push date
+                    window.settings.setIntegrationSettings({ ...settings, lastDigestDate: dateStr })
+                } catch (e) {
+                    console.error("Scheduled digest failed:", e)
+                }
+            }
+        }, 60000) // Check every minute
+    }
+}
+
 
 export function pushNotification(item: RSSItem): AppThunk {
     return (dispatch, getState) => {
@@ -408,6 +460,7 @@ export function initApp(): AppThunk {
             })
             .then(() => {
                 dispatch(updateFavicon())
+                dispatch(setupScheduledDigest())
             })
     }
 }
@@ -426,8 +479,14 @@ export function appReducer(
         | PageActionTypes
         | SourceGroupActionTypes
         | ServiceActionTypes
+        | ToggleDigestAction
 ): AppState {
     switch (action.type) {
+        case TOGGLE_DIGEST:
+            return {
+                ...state,
+                digestOn: !state.digestOn,
+            }
         case INIT_INTL:
             return {
                 ...state,
@@ -555,17 +614,17 @@ export function appReducer(
                             action.items.length == 0
                                 ? state.logMenu
                                 : {
-                                      ...state.logMenu,
-                                      logs: [
-                                          ...state.logMenu.logs,
-                                          new AppLog(
-                                              AppLogType.Info,
-                                              intl.get("log.fetchSuccess", {
-                                                  count: action.items.length,
-                                              })
-                                          ),
-                                      ],
-                                  },
+                                    ...state.logMenu,
+                                    logs: [
+                                        ...state.logMenu.logs,
+                                        new AppLog(
+                                            AppLogType.Info,
+                                            intl.get("log.fetchSuccess", {
+                                                count: action.items.length,
+                                            })
+                                        ),
+                                    ],
+                                },
                     }
                 case ActionStatus.Intermediate:
                     return {

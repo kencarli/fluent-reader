@@ -204,3 +204,12 @@ ipcMain.on("get-nedb-status", event => {
 ipcMain.handle("set-nedb-status", (_, flag: boolean) => {
     store.set(NEDB_STATUS_STORE_KEY, flag)
 })
+
+import { IntegrationSettings } from "../schema-types"
+const INTEGRATION_STORE_KEY = "integration"
+ipcMain.on("get-integration-settings", event => {
+    event.returnValue = store.get(INTEGRATION_STORE_KEY, {})
+})
+ipcMain.handle("set-integration-settings", (_, settings: IntegrationSettings) => {
+    store.set(INTEGRATION_STORE_KEY, settings)
+})

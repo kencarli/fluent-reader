@@ -10,7 +10,7 @@ import {
     itemShortcuts,
 } from "../scripts/models/item"
 import { AppDispatch } from "../scripts/utils"
-import { dismissItem, showOffsetItem } from "../scripts/models/page"
+import { dismissItem, showOffsetItem, searchTag, findSimilar } from "../scripts/models/page"
 import Article from "../components/article"
 import {
     openTextMenu,
@@ -71,6 +71,8 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
                 updateSource({ ...source, textDir: direction } as RSSSource)
             )
         },
+        search: (tag: string) => dispatch(searchTag(tag)),
+        findSimilar: (item: RSSItem) => dispatch(findSimilar(item)),
     }
 }
 

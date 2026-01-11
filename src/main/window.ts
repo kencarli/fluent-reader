@@ -48,8 +48,8 @@ export class WindowManager {
                     process.platform === "darwin"
                         ? "#00000000"
                         : nativeTheme.shouldUseDarkColors
-                        ? "#282828"
-                        : "#faf9f8",
+                            ? "#282828"
+                            : "#faf9f8",
                 vibrancy: "sidebar",
                 x: this.mainWindowState.x,
                 y: this.mainWindowState.y,
@@ -65,10 +65,8 @@ export class WindowManager {
                     webviewTag: true,
                     contextIsolation: true,
                     spellcheck: false,
-                    preload: path.join(
-                        app.getAppPath(),
-                        (app.isPackaged ? "dist/" : "") + "preload.js"
-                    ),
+                    defaultEncoding: "utf-8",
+                    preload: path.join(__dirname, "preload.js"),
                 },
             })
             this.mainWindowState.manage(this.mainWindow)
@@ -77,9 +75,7 @@ export class WindowManager {
                 this.mainWindow.focus()
                 if (!app.isPackaged) this.mainWindow.webContents.openDevTools()
             })
-            this.mainWindow.loadFile(
-                (app.isPackaged ? "dist/" : "") + "index.html"
-            )
+            this.mainWindow.loadFile(path.join(__dirname, "index.html"))
 
             this.mainWindow.on("maximize", () => {
                 this.mainWindow.webContents.send("maximized")

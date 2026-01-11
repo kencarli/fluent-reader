@@ -5,6 +5,7 @@ import {
     SearchEngines,
     ServiceConfigs,
     ViewConfigs,
+    IntegrationSettings,
 } from "../schema-types"
 import { ipcRenderer } from "electron"
 
@@ -130,6 +131,13 @@ const settingsBridge = {
 
     setAll: configs => {
         ipcRenderer.invoke("import-all-settings", configs)
+    },
+
+    getIntegrationSettings: (): IntegrationSettings => {
+        return ipcRenderer.sendSync("get-integration-settings")
+    },
+    setIntegrationSettings: (settings: IntegrationSettings) => {
+        ipcRenderer.invoke("set-integration-settings", settings)
     },
 }
 

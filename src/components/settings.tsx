@@ -9,6 +9,7 @@ import GroupsTabContainer from "../containers/settings/groups-container"
 import AppTabContainer from "../containers/settings/app-container"
 import RulesTabContainer from "../containers/settings/rules-container"
 import ServiceTabContainer from "../containers/settings/service-container"
+import IntegrationTab from "./settings/integration"
 import { initTouchBarWithTexts } from "../scripts/utils"
 
 type SettingsProps = {
@@ -90,6 +91,11 @@ class Settings extends React.Component<SettingsProps> {
                             headerText={intl.get("settings.service")}
                             itemIcon="CloudImportExport">
                             <ServiceTabContainer />
+                        </PivotItem>
+                        <PivotItem
+                            headerText={intl.get("settings.integrations.name")}
+                            itemIcon="PlugConnected">
+                            <IntegrationTab />
                         </PivotItem>
                         <PivotItem
                             headerText={intl.get("settings.app")}

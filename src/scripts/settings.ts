@@ -161,3 +161,12 @@ export async function importAll() {
     }
     return false
 }
+import { IntegrationSettings } from "../schema-types"
+
+export function getIntegrationSettings(): IntegrationSettings {
+    return window.settings.getIntegrationSettings()
+}
+
+export function setIntegrationSettings(settings: IntegrationSettings) {
+    window.settings.setIntegrationSettings(settings)
+}

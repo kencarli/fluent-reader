@@ -9,6 +9,8 @@ import {
     AppThunk,
     platformCtrl,
 } from "../utils"
+import { extractTextFromHtml, generateTags } from "../summary"
+import { embeddingQueue } from "../embedding-queue"
 import { RSSSource, updateSource, updateUnreadCounts } from "./source"
 import { FeedActionTypes, INIT_FEED, LOAD_MORE, dismissItems } from "./feed"
 import {
@@ -39,6 +41,7 @@ export class RSSItem {
     starred: boolean
     hidden: boolean
     notify: boolean
+    tags: string
     serviceRef?: string
 
     constructor(item: MyParserItem, source: RSSSource) {
@@ -56,6 +59,7 @@ export class RSSItem {
         this.starred = false
         this.hidden = false
         this.notify = false
+        this.tags = ""
     }
 
     static parseContent(item: RSSItem, parsed: MyParserItem) {
@@ -70,6 +74,14 @@ export class RSSItem {
             item.content = parsed.content || ""
             item.snippet = htmlDecode(parsed.contentSnippet || "")
         }
+
+        // Auto-Tagging
+        // Only tag if content is substantial (> 200 chars)
+        if (item.content.length > 200) {
+            const text = extractTextFromHtml(item.content)
+            item.tags = generateTags(text, 5).join(",")
+        }
+
         if (parsed.thumb) {
             item.thumb = parsed.thumb
         } else if (parsed.image?.$?.url) {
@@ -225,17 +237,17 @@ export function fetchItems(
             let sources =
                 sids === null
                     ? Object.values(sourcesState).filter(s => {
-                          let last = s.lastFetched ? s.lastFetched.getTime() : 0
-                          return (
-                              !s.serviceRef &&
-                              (last > timenow ||
-                                  last + (s.fetchFrequency || 0) * 60000 <=
-                                      timenow)
-                          )
-                      })
+                        let last = s.lastFetched ? s.lastFetched.getTime() : 0
+                        return (
+                            !s.serviceRef &&
+                            (last > timenow ||
+                                last + (s.fetchFrequency || 0) * 60000 <=
+                                timenow)
+                        )
+                    })
                     : sids
-                          .map(sid => sourcesState[sid])
-                          .filter(s => !s.serviceRef)
+                        .map(sid => sourcesState[sid])
+                        .filter(s => !s.serviceRef)
             for (let source of sources) {
                 let promise = RSSSource.fetchItems(source)
                 promise.then(() =>
@@ -278,6 +290,18 @@ export function fetchItems(
                         } else {
                             dispatch(dismissItems())
                         }
+
+                        // Trigger background embedding generation
+                        try {
+                            const apiKey = window.settings.getIntegrationSettings().openaiApiKey
+                            if (apiKey) {
+                                embeddingQueue.setApiKey(apiKey)
+                                embeddingQueue.enqueue(inserted)
+                            }
+                        } catch (error) {
+                            console.error("Failed to enqueue embeddings:", error)
+                        }
+
                         dispatch(setupAutoFetch())
                     })
                     .catch(err => {

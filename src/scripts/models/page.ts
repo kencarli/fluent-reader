@@ -22,6 +22,7 @@ export const SHOW_OFFSET_ITEM = "SHOW_OFFSET_ITEM"
 export const DISMISS_ITEM = "DISMISS_ITEM"
 export const APPLY_FILTER = "APPLY_FILTER"
 export const TOGGLE_SEARCH = "TOGGLE_SEARCH"
+export const TOGGLE_SEMANTIC_SEARCH = "TOGGLE_SEMANTIC_SEARCH"
 
 export enum PageType {
     AllArticles,
@@ -67,6 +68,9 @@ interface DismissItemAction {
 interface ToggleSearchAction {
     type: typeof TOGGLE_SEARCH
 }
+interface ToggleSemanticSearchAction {
+    type: typeof TOGGLE_SEMANTIC_SEARCH
+}
 
 export type PageActionTypes =
     | SelectPageAction
@@ -75,6 +79,7 @@ export type PageActionTypes =
     | DismissItemAction
     | ApplyFilterAction
     | ToggleSearchAction
+    | ToggleSemanticSearchAction
     | SetViewConfigsAction
 
 export function selectAllArticles(init = false): AppThunk {
@@ -255,17 +260,55 @@ export function toggleFilter(filter: FilterType): AppThunk {
     }
 }
 
+export const toggleSemanticSearch = (): AppThunk => {
+    return (dispatch, getState) => {
+        dispatch({ type: TOGGLE_SEMANTIC_SEARCH })
+    }
+}
+
+export function findSimilar(item: RSSItem): AppThunk {
+    return (dispatch, getState) => {
+        let state = getState()
+        if (!state.page.searchOn) dispatch(toggleSearch())
+        if (!state.page.semanticSearchOn) dispatch(toggleSemanticSearch())
+        dispatch(performSearch(item.title))
+    }
+}
+
 export function performSearch(query: string): AppThunk {
     return (dispatch, getState) => {
         let state = getState()
         if (state.page.searchOn) {
+            let filterType = state.page.filter.type
+            if (state.page.semanticSearchOn) {
+                filterType |= FilterType.SemanticSearch
+            } else {
+                filterType &= ~FilterType.SemanticSearch
+            }
             dispatch(
                 applyFilter({
                     ...state.page.filter,
                     search: query,
+                    type: filterType,
                 })
             )
         }
+    }
+}
+
+export function searchTag(tag: string): AppThunk {
+    return (dispatch, getState) => {
+        let state = getState()
+        if (!state.page.searchOn) {
+            dispatch({ type: TOGGLE_SEARCH })
+        }
+        dispatch(
+            applyFilter({
+                ...state.page.filter,
+                search: tag,
+                type: state.page.filter.type | FilterType.FullSearch
+            })
+        )
     }
 }
 
@@ -279,6 +322,7 @@ export class PageState {
     itemId = null as number
     itemFromFeed = true
     searchOn = false
+    semanticSearchOn = false
 }
 
 export function pageReducer(
@@ -333,8 +377,8 @@ export function pageReducer(
                         ...state,
                         itemId:
                             action.feed._id === state.feedId &&
-                            action.items.filter(i => i._id === state.itemId)
-                                .length === 0
+                                action.items.filter(i => i._id === state.itemId)
+                                    .length === 0
                                 ? null
                                 : state.itemId,
                     }
@@ -351,6 +395,11 @@ export function pageReducer(
             return {
                 ...state,
                 searchOn: !state.searchOn,
+            }
+        case TOGGLE_SEMANTIC_SEARCH:
+            return {
+                ...state,
+                semanticSearchOn: !state.semanticSearchOn,
             }
         default:
             return state

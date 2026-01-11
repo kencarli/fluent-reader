@@ -8,6 +8,8 @@ import SettingsContainer from "../containers/settings-container"
 import { RootState } from "../scripts/reducer"
 import { ContextMenu } from "./context-menu"
 import LogMenu from "./log-menu"
+import DigestView from "./utils/digest-view"
+
 
 const Root = ({ locale, dispatch }) =>
     locale && (
@@ -20,6 +22,7 @@ const Root = ({ locale, dispatch }) =>
             <LogMenu />
             <MenuContainer />
             <SettingsContainer />
+            <DigestView />
             <ContextMenu />
         </div>
     )

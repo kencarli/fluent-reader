@@ -13,6 +13,9 @@
     "more": "更多",
     "close": "关闭",
     "search": "搜索",
+    "semantic_search": "语义搜索",
+    "enable_semantic": "启用语义搜索",
+    "disable_semantic": "停用语义搜索",
     "loadMore": "加载更多",
     "dangerButton": "确认{action}？",
     "confirmMarkAll": "确认将本页所有文章标为已读？",
@@ -66,13 +69,18 @@
         "fontSize": "字体大小",
         "loadWebpage": "加载网页",
         "loadFull": "抓取全文",
+        "translate": "翻译",
         "notify": "后台抓取时发送通知",
         "dontNotify": "不发送通知",
         "textDir": "文本方向",
         "LTR": "从左到右",
         "RTL": "从右到左",
         "Vertical": "纵书",
-        "font": "字体"
+        "font": "字体",
+        "loadWebpageWithTranslate": "加载译文"
+    },
+    "export": {
+        "markdown": "导出为 Markdown"
     },
     "context": {
         "share": "分享",
@@ -119,7 +127,32 @@
         "version": "版本",
         "shortcuts": "快捷键",
         "openSource": "开源项目",
-        "feedback": "反馈"
+        "feedback": "反馈",
+        "feedback": "反馈",
+        "integrations": {
+            "name": "集成",
+            "obsidianIntegration": "Obsidian 集成",
+            "vaultName": "仓库名称",
+            "obsidianDescription": "输入 Obsidian 仓库名称。“导出到 Obsidian”功能需要此项。",
+            "notionIntegration": "Notion 集成",
+            "integrationToken": "集成令牌（Secret）",
+            "notionTokenDescription": "来自 Notion Developers 的内部集成令牌。",
+            "databaseId": "数据库 ID",
+            "notionDatabaseDescription": "将创建页面的数据库 ID。",
+            "aiPushServices": "AI 与推送服务",
+            "openaiApiKey": "OpenAI API 密钥",
+            "openaiDescription": "用于语义搜索和每日 AI 摘要的 API 密钥。",
+            "dingtalkWebhook": "钉钉 Webhook",
+            "dingtalkDescription": "可选：钉钉每日新闻摘要的 Webhook URL。",
+            "wecomWebhook": "企业微信 Webhook",
+            "wecomDescription": "可选：企业微信每日新闻摘要的 Webhook URL。",
+            "dailyBriefingAutomation": "每日简报自动化",
+            "scheduledTime": "计划时间",
+            "autoPushEnabled": "自动推送已启用",
+            "useDalle": "使用 DALL-E (AI 封面)",
+            "interestTopics": "感兴趣的主题（逗号分隔）",
+            "interestTopicsDescription": "可选：使用语义发现优先处理与这些主题匹配的文章。"
+        }
     },
     "sources": {
         "serviceWarning": "此处导入或添加的订阅源将不会与服务端同步",
@@ -233,7 +266,7 @@
         "badUrl": "请正确输入URL",
         "pac": "PAC地址",
         "setPac": "设置PAC",
-        "pacHint": "对于Socks代理建议PAC返回“SOCKS5”以启用代理端解析。关闭代理需重启应用后生效。",
+        "pacHint": "对于Socks代理建议PAC返回\"SOCKS5\"以启用代理端解析。关闭代理需重启应用后生效。",
         "fetchInterval": "自动抓取频率",
         "never": "从不"
     }

@@ -1,9 +1,24 @@
 {
-    "compilerOptions": {
-      "jsx": "react",
-      "resolveJsonModule": true,
-      "esModuleInterop": true,
-      "target": "ES2019",
-      "module": "CommonJS"
+  "compilerOptions": {
+    "jsx": "react",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "target": "ES2019",
+    "module": "CommonJS",
+    "baseUrl": ".",
+    "paths": {
+      "*": [
+        "node_modules/*",
+        "src/types/*"
+      ]
     }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "RSSHub_temp"
+  ]
 }

@@ -1,5 +1,6 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin")
+const path = require("path")
 
 module.exports = [
     {
@@ -20,7 +21,7 @@ module.exports = [
         },
         output: {
             devtoolModuleFilenameTemplate: "[absolute-resource-path]",
-            path: __dirname + "/dist",
+            path: path.join(__dirname, "dist"),
             filename: "electron.js",
         },
         node: {
@@ -44,7 +45,7 @@ module.exports = [
             ],
         },
         output: {
-            path: __dirname + "/dist",
+            path: path.join(__dirname, "dist"),
             filename: "preload.js",
         },
     },
@@ -69,7 +70,7 @@ module.exports = [
             ],
         },
         output: {
-            path: __dirname + "/dist",
+            path: path.join(__dirname, "dist"),
             filename: "index.js",
         },
         plugins: [

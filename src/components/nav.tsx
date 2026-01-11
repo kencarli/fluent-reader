@@ -16,6 +16,7 @@ type NavProps = {
     logs: () => void
     views: () => void
     settings: () => void
+    digest: () => void
 }
 
 type NavState = {
@@ -198,6 +199,13 @@ class Nav extends React.Component<NavProps, NavState> {
                                 e.stopPropagation()
                         }}>
                         <Icon iconName="View" />
+                    </a>
+                    <a
+                        className="btn"
+                        id="digest-toggle"
+                        title="Daily News Briefing"
+                        onClick={this.props.digest}>
+                        <Icon iconName="LightningBolt" />
                     </a>
                     <a
                         className="btn"

@@ -67,6 +67,20 @@ export interface ServiceConfigs {
     importGroups?: boolean
 }
 
+export interface IntegrationSettings {
+    obsidianVaultName?: string
+    notionSecret?: string
+    notionDatabaseId?: string
+    openaiApiKey?: string
+    dingtalkWebhook?: string
+    wecomWebhook?: string
+    digestTime?: string
+    digestTopics?: string
+    autoPushEnabled?: boolean
+    dalleEnabled?: boolean
+    lastDigestDate?: string
+}
+
 export const enum WindowStateListenerType {
     Maximized,
     Focused,
@@ -98,4 +112,5 @@ export type SchemaTypes = {
     filterType: number
     listViewConfigs: ViewConfigs
     useNeDB: boolean
+    integration: IntegrationSettings
 }

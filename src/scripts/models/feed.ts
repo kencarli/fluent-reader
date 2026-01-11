@@ -17,6 +17,7 @@ import {
 } from "./item"
 import { ActionStatus, AppThunk, mergeSortedArrays } from "../utils"
 import { PageActionTypes, SELECT_PAGE, PageType, APPLY_FILTER } from "./page"
+import { semanticSearch } from "../semantic-search"
 
 export enum FilterType {
     None,
@@ -26,11 +27,12 @@ export enum FilterType {
     FullSearch = 1 << 3,
     CaseInsensitive = 1 << 4,
     CreatorSearch = 1 << 5,
+    SemanticSearch = 1 << 6,
 
     Default = ShowRead | ShowNotStarred,
     UnreadOnly = ShowNotStarred,
     StarredOnly = ShowRead,
-    Toggles = ShowHidden | FullSearch | CaseInsensitive,
+    Toggles = ShowHidden | FullSearch | CaseInsensitive | SemanticSearch,
 }
 export class FeedFilter {
     type: FilterType
@@ -63,7 +65,8 @@ export class FeedFilter {
                 predicates.push(
                     lf.op.or(
                         db.items.title.match(regex),
-                        db.items.snippet.match(regex)
+                        db.items.snippet.match(regex),
+                        db.items.tags.match(regex)
                     )
                 )
             } else {
@@ -84,7 +87,7 @@ export class FeedFilter {
             const regex = RegExp(filter.search, flags)
             if (type & FilterType.FullSearch) {
                 flag =
-                    flag && (regex.test(item.title) || regex.test(item.snippet))
+                    flag && (regex.test(item.title) || regex.test(item.snippet) || regex.test(item.tags || ""))
             } else if (type & FilterType.CreatorSearch) {
                 flag = flag && regex.test(item.creator || "")
             } else {
@@ -119,6 +122,33 @@ export class RSSFeed {
     }
 
     static async loadFeed(feed: RSSFeed, skip = 0): Promise<RSSItem[]> {
+        if (feed.filter.search && (feed.filter.type & FilterType.SemanticSearch)) {
+            const apiKey = window.settings.getIntegrationSettings().openaiApiKey
+            if (apiKey) {
+                // To perform semantic search, we need all items in the current source pool.
+                const allItems = (await db.itemsDB
+                    .select()
+                    .from(db.items)
+                    .where(db.items.source.in(feed.sids))
+                    .exec()) as RSSItem[]
+
+                const itemMap: { [_id: number]: RSSItem } = {}
+                for (const item of allItems) {
+                    itemMap[item._id] = item
+                }
+
+                // Perform semantic search
+                const semanticResults = await semanticSearch(feed.filter.search, apiKey, itemMap, LOAD_QUANTITY + skip)
+
+                // Return results (skipping based on pagination)
+                const items = semanticResults.map(r => r.item).slice(skip)
+
+                // Note: We might want to pass similarity scores later, 
+                // but for now we just return RSSItem[] for compatibility.
+                return items
+            }
+        }
+
         const predicates = FeedFilter.toPredicates(feed.filter)
         predicates.push(db.items.source.in(feed.sids))
         return (await db.itemsDB
@@ -486,13 +516,13 @@ export function feedReducer(
                 case PageType.AllArticles:
                     return action.init
                         ? {
-                              ...state,
-                              [ALL]: {
-                                  ...state[ALL],
-                                  loaded: false,
-                                  filter: action.filter,
-                              },
-                          }
+                            ...state,
+                            [ALL]: {
+                                ...state[ALL],
+                                loaded: false,
+                                filter: action.filter,
+                            },
+                        }
                         : state
                 default:
                     return state

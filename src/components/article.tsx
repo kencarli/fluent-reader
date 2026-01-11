@@ -19,6 +19,10 @@ import {
 } from "../scripts/models/source"
 import { shareSubmenu } from "./context-menu"
 import { platformCtrl, decodeFetchResponse } from "../scripts/utils"
+import { translateHtml } from "../scripts/translate"
+import { extractTextFromHtml, summarizeText } from "../scripts/summary"
+import { generateFrontmatter, htmlToMarkdown } from "../scripts/exporter"
+import { getObsidianUri, exportToNotion } from "../scripts/integrations"
 
 const FONT_SIZE_OPTIONS = [12, 13, 14, 15, 16, 17, 18, 19, 20]
 
@@ -32,6 +36,7 @@ type ArticleProps = {
     toggleHasRead: (item: RSSItem) => void
     toggleStarred: (item: RSSItem) => void
     toggleHidden: (item: RSSItem) => void
+
     textMenu: (position: [number, number], text: string, url: string) => void
     imageMenu: (position: [number, number]) => void
     dismissContextMenu: () => void
@@ -39,6 +44,8 @@ type ArticleProps = {
         source: RSSSource,
         direction: SourceTextDirection
     ) => void
+    search: (tag: string) => void
+    findSimilar: (item: RSSItem) => void
 }
 
 type ArticleState = {
@@ -50,6 +57,12 @@ type ArticleState = {
     loaded: boolean
     error: boolean
     errorDescription: string
+    translating: boolean
+    translation: string
+    showTranslation: boolean
+    summarizing: boolean
+    summary: string
+    showSummary: boolean
 }
 
 class Article extends React.Component<ArticleProps, ArticleState> {
@@ -66,6 +79,12 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             loaded: false,
             error: false,
             errorDescription: "",
+            translating: false,
+            translation: null,
+            showTranslation: false,
+            summarizing: false,
+            summary: null,
+            showSummary: false,
         }
         window.utils.addWebviewContextListener(this.contextMenuHandler)
         window.utils.addWebviewKeydownListener(this.keyDownHandler)
@@ -142,6 +161,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
 
     moreMenuProps = (): IContextualMenuProps => ({
         items: [
+
             {
                 key: "openInBrowser",
                 text: intl.get("openExternal"),
@@ -151,6 +171,14 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                         this.props.item.link,
                         platformCtrl(e)
                     )
+                },
+            },
+            {
+                key: "findSimilar",
+                text: "Find similar articles",
+                iconProps: { iconName: "WaitlistConfirm" },
+                onClick: () => {
+                    this.props.findSimilar(this.props.item)
                 },
             },
             {
@@ -196,6 +224,66 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             },
             {
                 key: "divider_1",
+                itemType: ContextualMenuItemType.Divider,
+            },
+            {
+                key: "exportMarkdown",
+                text: intl.get("export.markdown") || "Copy Markdown", // Fallback if no intl key
+                iconProps: { iconName: "MarkdownLogo" },
+                onClick: () => {
+                    const content = this.state.loadFull ? this.state.fullContent : this.props.item.content
+                    const md = htmlToMarkdown(content)
+                    const fm = generateFrontmatter(this.props.item, this.props.source)
+                    window.utils.writeClipboard(fm + md)
+                }
+            },
+            {
+                key: "exportObsidian",
+                text: "Export to Obsidian",
+                iconProps: { iconName: "OneNoteLogo" }, // Use OneNote as placeholder
+                disabled: !window.settings.getIntegrationSettings().obsidianVaultName,
+                title: !window.settings.getIntegrationSettings().obsidianVaultName ? "Configure Vault Name in Settings > Integrations" : "Open in Obsidian",
+                onClick: () => {
+                    const vault = window.settings.getIntegrationSettings().obsidianVaultName
+                    if (vault) {
+                        const uri = getObsidianUri(this.props.item, vault)
+                        window.utils.openExternal(uri)
+                    }
+                }
+            },
+            {
+                key: "exportNotion",
+                text: "Export to Notion",
+                iconProps: { iconName: "Database" },
+                disabled: !window.settings.getIntegrationSettings().notionSecret,
+                title: !window.settings.getIntegrationSettings().notionSecret ? "Configure Notion API in Settings > Integrations" : "Upload to Notion",
+                onClick: async () => {
+                    try {
+                        await exportToNotion(this.props.item, window.settings.getIntegrationSettings())
+                        window.utils.showMessageBox("Success", "Article exported to Notion", "OK", "", false)
+                    } catch (e) {
+                        window.utils.showMessageBox("Export Failed", e.message, "OK", "", false, "error")
+                    }
+                }
+            },
+            {
+                key: "saveMarkdown",
+                text: "Save as Markdown",
+                iconProps: { iconName: "Download" },
+                onClick: () => {
+                    const content = this.state.loadFull ? this.state.fullContent : this.props.item.content
+                    const md = htmlToMarkdown(content)
+                    const fm = generateFrontmatter(this.props.item, this.props.source)
+                    const blob = new Blob([fm + md], { type: "text/markdown;charset=utf-8" })
+                    const a = document.createElement("a")
+                    a.href = URL.createObjectURL(blob)
+                    const safeTitle = (this.props.item.title || "article").replace(/[\\/:*?"<>|]/g, "_")
+                    a.download = `${safeTitle}.md`
+                    a.click()
+                }
+            },
+            {
+                key: "divider_export",
                 itemType: ContextualMenuItemType.Divider,
             },
             ...shareSubmenu(this.props.item),
@@ -290,6 +378,12 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 loadFull:
                     this.props.source.openTarget ===
                     SourceOpenTarget.FullContent,
+                translating: false,
+                translation: null,
+                showTranslation: false,
+                summarizing: false,
+                summary: null,
+                showSummary: false,
             })
             if (this.props.source.openTarget === SourceOpenTarget.FullContent)
                 this.loadFull()
@@ -326,6 +420,87 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             this.loadFull()
         }
     }
+    toggleTranslation = async () => {
+        if (this.state.loadWebpage) return
+        if (this.state.showTranslation) {
+            this.setState({ showTranslation: false })
+        } else if (this.state.translation) {
+            this.setState({ showTranslation: true })
+        } else {
+            this.setState({ translating: true })
+            try {
+                const content = this.state.loadFull
+                    ? this.state.fullContent
+                    : this.props.item.content
+                const translation = await translateHtml(content)
+                this.setState({
+                    translation: translation,
+                    showTranslation: true,
+                })
+                if (this.state.showSummary) {
+                    this.generateSummary(translation)
+                }
+            } catch (e) {
+                console.error(e)
+            } finally {
+                this.setState({ translating: false })
+            }
+        }
+    }
+
+    generateSummary = async (htmlContent: string) => {
+        this.setState({ summarizing: true })
+        try {
+            const text = extractTextFromHtml(htmlContent)
+            // Use setTimeout to avoid freezing UI (basic async)
+            await new Promise(resolve => setTimeout(resolve, 10))
+            const summary = summarizeText(text, 5) // Extract 5 top sentences
+            this.setState({
+                summary: summary,
+                showSummary: true,
+            })
+        } catch (e) {
+            console.error(e)
+        } finally {
+            this.setState({ summarizing: false })
+        }
+    }
+
+    toggleSummary = async () => {
+        if (this.state.loadWebpage) return
+        if (this.state.showSummary) {
+            this.setState({ showSummary: false })
+        } else if (this.state.summary && !this.state.showTranslation) {
+            // If we have a summary and not translating, just show it.
+            // But if we are translating, strict sync might require re-check,
+            // However, let's assume if it exists and matches mode it's fine.
+            // Actually, simplest is to always regenerate if switching on?
+            // Or optimize.
+            // Use case: Translate ON -> Summary ON. Need translated summary.
+            // Use case: Summary ON -> Translate ON. Handler in toggleTranslation does it.
+            // Use case: Translate OFF -> Summary ON. Need original summary.
+
+            // Check if we need to regenerate
+            const content = this.state.showTranslation && this.state.translation
+                ? this.state.translation
+                : this.state.loadFull
+                    ? this.state.fullContent
+                    : this.props.item.content
+
+            // For now simple logic: if we have a summary, show it. 
+            // Ideally we should track "summaryLanguage" or similar.
+            // Let's just always generate to ensure sync, speed is fast enough for local textrank.
+            this.generateSummary(content)
+        } else {
+            const content = this.state.showTranslation && this.state.translation
+                ? this.state.translation
+                : this.state.loadFull
+                    ? this.state.fullContent
+                    : this.props.item.content
+            this.generateSummary(content)
+        }
+    }
+
     loadFull = async () => {
         this.setState({ fullContent: "", loaded: false, error: false })
         const link = this.props.item.link
@@ -348,11 +523,13 @@ class Article extends React.Component<ArticleProps, ArticleState> {
     }
 
     articleView = () => {
-        const a = encodeURIComponent(
-            this.state.loadFull
-                ? this.state.fullContent
-                : this.props.item.content
-        )
+        const content =
+            this.state.showTranslation && this.state.translation
+                ? this.state.translation
+                : this.state.loadFull
+                    ? this.state.fullContent
+                    : this.props.item.content
+        const a = encodeURIComponent(content)
         const h = encodeURIComponent(
             renderToString(
                 <>
@@ -363,15 +540,49 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             { hour12: !this.props.locale.startsWith("zh") }
                         )}
                     </p>
+                    {this.state.showSummary && this.state.summary && (
+                        <div className="article-summary-block" style={{
+                            padding: "12px 16px",
+                            margin: "16px 0",
+                            background: "var(--bg-secondary)",
+                            borderLeft: "4px solid var(--theme-primary)",
+                            borderRadius: "4px",
+                            fontSize: "0.95em",
+                            lineHeight: "1.6",
+                            color: "var(--text-primary)"
+                        }}>
+                            <strong style={{ display: "block", marginBottom: "8px", opacity: 0.8 }}>AI Summary</strong>
+                            {this.state.summary}
+                        </div>
+                    )}
+                    {this.props.item.tags && this.props.item.tags.length > 0 && (
+                        <div className="tags" style={{ marginBottom: 16 }}>
+                            {this.props.item.tags.split(",").map(t => (
+                                <span key={t}
+                                    onClick={() => this.props.search(t)}
+                                    style={{
+                                        display: "inline-block",
+                                        padding: "2px 8px",
+                                        marginRight: 8,
+                                        borderRadius: 12,
+                                        fontSize: "0.85em",
+                                        background: "var(--bg-secondary)",
+                                        color: "var(--text-secondary)",
+                                        border: "1px solid var(--border-color)",
+                                        cursor: "pointer",
+                                        userSelect: "none"
+                                    }}>#{t}</span>
+                            ))}
+                        </div>
+                    )}
                     <article></article>
                 </>
             )
         )
         return `article/article.html?a=${a}&h=${h}&f=${encodeURIComponent(
             this.state.fontFamily
-        )}&s=${this.state.fontSize}&d=${this.props.source.textDir}&u=${
-            this.props.item.link
-        }&m=${this.state.loadFull ? 1 : 0}`
+        )}&s=${this.state.fontSize}&d=${this.props.source.textDir}&u=${this.props.item.link
+            }&m=${this.state.loadFull ? 1 : 0}`
     }
 
     render = () => (
@@ -413,12 +624,12 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             this.props.item.hasRead
                                 ? { iconName: "StatusCircleRing" }
                                 : {
-                                      iconName: "RadioBtnOn",
-                                      style: {
-                                          fontSize: 14,
-                                          textAlign: "center",
-                                      },
-                                  }
+                                    iconName: "RadioBtnOn",
+                                    style: {
+                                        fontSize: 14,
+                                        textAlign: "center",
+                                    },
+                                }
                         }
                         onClick={() =>
                             this.props.toggleHasRead(this.props.item)
@@ -452,11 +663,39 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                         onClick={this.toggleWebpage}
                     />
                     <CommandBarButton
+                        title={
+                            this.state.translating
+                                ? intl.get("article.translating") ||
+                                "Translating..."
+                                : intl.get("article.translate") || "Translate"
+                        }
+                        className={this.state.showTranslation ? "active" : ""}
+                        iconProps={{ iconName: "Dictionary" }}
+                        disabled={
+                            this.state.loadWebpage || this.state.translating
+                        }
+                        onClick={this.toggleTranslation}
+                    />
+                    <CommandBarButton
+                        title={
+                            this.state.summarizing
+                                ? "Summarizing..."
+                                : "AI Summary"
+                        }
+                        className={this.state.showSummary ? "active" : ""}
+                        iconProps={{ iconName: "LightningBolt" }}
+                        disabled={
+                            this.state.loadWebpage || this.state.summarizing
+                        }
+                        onClick={this.toggleSummary}
+                    />
+                    <CommandBarButton
                         title={intl.get("more")}
                         iconProps={{ iconName: "More" }}
                         menuIconProps={{ style: { display: "none" } }}
                         menuProps={this.moreMenuProps()}
                     />
+
                 </Stack>
                 <Stack horizontal horizontalAlign="end" style={{ width: 112 }}>
                     <CommandBarButton
@@ -481,7 +720,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             : this.articleView()
                     }
                     allowpopups={"true" as unknown as boolean}
-                    webpreferences="contextIsolation,disableDialogs,autoplayPolicy=document-user-activation-required"
+                    webpreferences="contextIsolation,autoplayPolicy=document-user-activation-required"
                     partition={this.state.loadWebpage ? "sandbox" : undefined}
                 />
             )}

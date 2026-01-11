@@ -13,6 +13,9 @@
     "more": "More",
     "close": "Close",
     "search": "Search",
+    "semantic_search": "Semantic Search",
+    "enable_semantic": "Enable Semantic Search",
+    "disable_semantic": "Disable Semantic Search",
     "loadMore": "Load more",
     "dangerButton": "Confirm {action}?",
     "confirmMarkAll": "Do you really want to mark all articles on this page as read?",
@@ -66,6 +69,7 @@
         "fontSize": "Font size",
         "loadWebpage": "Load webpage",
         "loadFull": "Load full content",
+        "translate": "Translate",
         "notify": "Notify if fetched in background",
         "dontNotify": "Don't notify",
         "textDir": "Text direction",
@@ -73,6 +77,9 @@
         "RTL": "Right-to-left",
         "Vertical": "Vertical",
         "font": "Font"
+    },
+    "export": {
+        "markdown": "Export as Markdown"
     },
     "context": {
         "share": "Share",
@@ -121,7 +128,32 @@
         "version": "Version",
         "shortcuts": "Shortcuts",
         "openSource": "Open source",
-        "feedback": "Feedback"
+        "feedback": "Feedback",
+        "feedback": "Feedback",
+        "integrations": {
+            "name": "Integrations",
+            "obsidianIntegration": "Obsidian Integration",
+            "vaultName": "Vault Name",
+            "obsidianDescription": "Enter the name of your Obsidian Vault. Required for 'Export to Obsidian' to work.",
+            "notionIntegration": "Notion Integration",
+            "integrationToken": "Integration Token (Secret)",
+            "notionTokenDescription": "Your internal integration token from Notion Developers.",
+            "databaseId": "Database ID",
+            "notionDatabaseDescription": "The ID of the database where pages will be created.",
+            "aiPushServices": "AI & Push Services",
+            "openaiApiKey": "OpenAI API Key",
+            "openaiDescription": "API key for semantic search and daily AI summaries.",
+            "dingtalkWebhook": "DingTalk Webhook",
+            "dingtalkDescription": "Optional: Webhook URL for DingTalk Daily News Digest.",
+            "wecomWebhook": "WeCom (WeChat) Webhook",
+            "wecomDescription": "Optional: Webhook URL for WeCom Daily News Digest.",
+            "dailyBriefingAutomation": "Daily Briefing Automation",
+            "scheduledTime": "Scheduled Time",
+            "autoPushEnabled": "Auto-push Enabled",
+            "useDalle": "Use DALL-E (AI Cover)",
+            "interestTopics": "Interest Topics (Comma separated)",
+            "interestTopicsDescription": "Optional: Prioritize articles matching these topics using semantic discovery."
+        }
     },
     "sources": {
         "serviceWarning": "Sources imported or added here will not be synced with your service.",
