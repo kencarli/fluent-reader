@@ -2,6 +2,7 @@ import * as React from "react"
 import intl from "react-intl-universal"
 import { Label, Stack, TextField, PrimaryButton, Toggle } from "@fluentui/react"
 import { IntegrationSettings } from "../../schema-types"
+import { testObsidianConnection, testNotionConnection } from "../../scripts/integrations"
 
 type IntegrationTabState = {
     settings: IntegrationSettings
@@ -40,6 +41,86 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
         })
     }
 
+
+    handleTestObsidianConnection = async () => {
+        const { obsidianVaultName } = this.state.settings
+        if (!obsidianVaultName) {
+            window.utils.showMessageBox(
+                intl.get("settings.integrations.testConnection"),
+                "Obsidian Vault Name is not configured.",
+                intl.get("confirm"),
+                "",
+                false,
+                "error"
+            )
+            return
+        }
+        try {
+            const success = testObsidianConnection(this.state.settings)
+            if (success) {
+                window.utils.showMessageBox(
+                    intl.get("settings.integrations.testConnection"),
+                    "Obsidian connection successful!",
+                    intl.get("confirm"),
+                    "",
+                    false
+                )
+            } else {
+                window.utils.showMessageBox(
+                    intl.get("settings.integrations.testConnection"),
+                    "Obsidian vault name is not set.",
+                    intl.get("confirm"),
+                    "",
+                    false,
+                    "error"
+                )
+            }
+        } catch (error) {
+            window.utils.showMessageBox(
+                intl.get("settings.integrations.testConnection"),
+                `Obsidian connection failed: ${error.message}`,
+                intl.get("confirm"),
+                "",
+                false,
+                "error"
+            )
+        }
+    }
+
+    handleTestNotionConnection = async () => {
+        const { notionSecret, notionDatabaseId } = this.state.settings
+        if (!notionSecret || !notionDatabaseId) {
+            window.utils.showMessageBox(
+                intl.get("settings.integrations.testConnection"),
+                "Notion Integration Token or Database ID is not configured.",
+                intl.get("confirm"),
+                "",
+                false,
+                "error"
+            )
+            return
+        }
+        try {
+            await testNotionConnection(this.state.settings)
+            window.utils.showMessageBox(
+                intl.get("settings.integrations.testConnection"),
+                "Notion connection successful!",
+                intl.get("confirm"),
+                "",
+                false
+            )
+        } catch (error) {
+            window.utils.showMessageBox(
+                intl.get("settings.integrations.testConnection"),
+                `Notion connection failed: ${error.message}`,
+                intl.get("confirm"),
+                "",
+                false,
+                "error"
+            )
+        }
+    }
+
     render() {
         return (
             <div className="tab-body">
@@ -54,6 +135,17 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                         value={this.state.settings.obsidianVaultName || ""}
                         onChange={this.handleInputChange}
                         description={intl.get("settings.integrations.obsidianDescription")}
+                    />
+                    <Toggle
+                        label={intl.get("settings.integrations.autoSyncAfterRead")}
+                        checked={this.state.settings.obsidianAutoSync || false}
+                        onChange={(e, checked) => this.handleToggleChange(e, checked, "obsidianAutoSync")}
+                    />
+                    <PrimaryButton
+                        text={intl.get("settings.integrations.testConnection")}
+                        onClick={this.handleTestObsidianConnection}
+                        allowDisabledFocus
+                        disabled={!this.state.settings.obsidianVaultName}
                     />
                 </Stack>
 
@@ -78,6 +170,34 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                         value={this.state.settings.notionDatabaseId || ""}
                         onChange={this.handleInputChange}
                         description={intl.get("settings.integrations.notionDatabaseDescription")}
+                    />
+                    <TextField
+                        label={intl.get("settings.integrations.notionTitlePropertyName")}
+                        name="notionTitlePropertyName"
+                        value={this.state.settings.notionTitlePropertyName || ""}
+                        onChange={this.handleInputChange}
+                        placeholder="Name"
+                        description={intl.get("settings.integrations.notionTitlePropertyNameDescription")}
+                    />
+                    <TextField
+                        label={intl.get("settings.integrations.notionUrlPropertyName")}
+                        name="notionUrlPropertyName"
+                        value={this.state.settings.notionUrlPropertyName || ""}
+                        onChange={this.handleInputChange}
+                        placeholder="URL"
+                        description={intl.get("settings.integrations.notionUrlPropertyNameDescription")}
+                    />
+
+                    <Toggle
+                        label={intl.get("settings.integrations.autoSyncAfterRead")}
+                        checked={this.state.settings.notionAutoSync || false}
+                        onChange={(e, checked) => this.handleToggleChange(e, checked, "notionAutoSync")}
+                    />
+                    <PrimaryButton
+                        text={intl.get("settings.integrations.testConnection")}
+                        onClick={this.handleTestNotionConnection}
+                        allowDisabledFocus
+                        disabled={!this.state.settings.notionSecret || !this.state.settings.notionDatabaseId}
                     />
                 </Stack>
 
