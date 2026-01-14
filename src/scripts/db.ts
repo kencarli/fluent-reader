@@ -3,6 +3,7 @@ import Datastore from "nedb"
 import lf from "lovefield"
 import { RSSSource } from "./models/source"
 import { RSSItem } from "./models/item"
+import { initHighlightsDB } from "./highlights-db"
 import { initVectorDB } from "./vector-db"
 
 const sdbSchema = lf.schema.create("sourcesDB", 3)
@@ -23,7 +24,7 @@ sdbSchema
     .addNullable(["iconurl", "serviceRef", "rules"])
     .addIndex("idxURL", ["url"], true)
 
-const idbSchema = lf.schema.create("itemsDB", 3)
+const idbSchema = lf.schema.create("itemsDB", 4);
 idbSchema
     .createTable("items")
     .addColumn("_id", lf.Type.INTEGER)
@@ -43,22 +44,23 @@ idbSchema
     .addColumn("notify", lf.Type.BOOLEAN)
     .addColumn("serviceRef", lf.Type.STRING)
     .addColumn("tags", lf.Type.STRING)
-    .addNullable(["thumb", "creator", "serviceRef", "tags"])
+    .addColumn("syncStatus", lf.Type.NUMBER)
+    .addNullable(["thumb", "creator", "serviceRef", "tags", "syncStatus"])
     .addIndex("idxDate", ["date"], false, lf.Order.DESC)
-    .addIndex("idxService", ["serviceRef"], false)
+    .addIndex("idxService", ["serviceRef"], false);
 
-export let sourcesDB: lf.Database
-export let sources: lf.schema.Table
-export let itemsDB: lf.Database
-export let items: lf.schema.Table
+export let sourcesDB: lf.Database;
+export let sources: lf.schema.Table;
+export let itemsDB: lf.Database;
+export let items: lf.schema.Table;
 
 async function onUpgradeSourceDB(rawDb: lf.raw.BackStore) {
-    const version = rawDb.getVersion()
+    const version = rawDb.getVersion();
     if (version < 2) {
-        await rawDb.addTableColumn("sources", "textDir", 0)
+        await rawDb.addTableColumn("sources", "textDir", 0);
     }
     if (version < 3) {
-        await rawDb.addTableColumn("sources", "hidden", false)
+        await rawDb.addTableColumn("sources", "hidden", false);
     }
 }
 
@@ -67,25 +69,8 @@ async function onUpgradeItemDB(rawDb: lf.raw.BackStore) {
     if (version < 2) {
         await rawDb.addTableColumn("items", "tags", null)
     }
-    if (version < 3) {
-        // Look, if we are upgrading from v2 (OBJECT) to v3 (STRING), 
-        // Lovefield might NOT support converting column type via addTableColumn.
-        // But since we just added it, maybe drop and re-add?
-        // rawDb.dropTableColumn? Not supported usually.
-        // However, JS is loose. If we just continue, it might be fine or we ignore v2 data.
-        // To be safe, let's assume v2 didn't exist widely (only in this session).
-        // If we really need migration, we'd need to read/write.
-        // For this task, assuming clean slate for tags is acceptable or just add if missing.
-        // But wait, if version 2 was created, 'tags' exists as Object.
-        // If I change schema to String, Lovefield might complain on connect.
-        // Let's rely on standard upgrade:
-        if (version < 3) {
-            // If column already exists (from v2), we can't 'add' it again.
-            // We can check if we can alter? No.
-            // Given this is a prototype session, I will assume we can ignore v2->v3 migration complexity
-            // OR I will simply use a NEW column name 'tagStr' to avoid conflict?
-            // 'tagStr' is safer.
-        }
+    if (version < 4) {
+        await rawDb.addTableColumn("items", "syncStatus", 0)
     }
 }
 // Wait, to be clean, if I use `tags` as STRING, and it was OBJECT, Lovefield will error.
@@ -102,6 +87,8 @@ export async function init() {
     sources = sourcesDB.getSchema().table("sources")
     itemsDB = await idbSchema.connect({ onUpgrade: onUpgradeItemDB })
     items = itemsDB.getSchema().table("items")
+
+    await initHighlightsDB();
 
     // Initialize vector database for semantic search
     try {

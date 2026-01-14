@@ -43,6 +43,7 @@ export class RSSItem {
     notify: boolean
     tags: string
     serviceRef?: string
+    syncStatus?: SyncStatus
 
     constructor(item: MyParserItem, source: RSSSource) {
         for (let field of ["title", "link", "creator"]) {
@@ -60,6 +61,7 @@ export class RSSItem {
         this.hidden = false
         this.notify = false
         this.tags = ""
+        this.syncStatus = SyncStatus.None
     }
 
     static parseContent(item: RSSItem, parsed: MyParserItem) {
@@ -115,6 +117,13 @@ export class RSSItem {
     }
 }
 
+export enum SyncStatus {
+    None,
+    Syncing,
+    Synced,
+    Failed,
+}
+
 export type ItemState = {
     [_id: number]: RSSItem
 }
@@ -125,6 +134,7 @@ export const MARK_ALL_READ = "MARK_ALL_READ"
 export const MARK_UNREAD = "MARK_UNREAD"
 export const TOGGLE_STARRED = "TOGGLE_STARRED"
 export const TOGGLE_HIDDEN = "TOGGLE_HIDDEN"
+export const UPDATE_SYNC_STATUS = "UPDATE_SYNC_STATUS"
 
 interface FetchItemsAction {
     type: typeof FETCH_ITEMS
@@ -163,6 +173,12 @@ interface ToggleHiddenAction {
     item: RSSItem
 }
 
+interface UpdateSyncStatusAction {
+    type: typeof UPDATE_SYNC_STATUS
+    item: RSSItem
+    status: SyncStatus
+}
+
 export type ItemActionTypes =
     | FetchItemsAction
     | MarkReadAction
@@ -170,6 +186,16 @@ export type ItemActionTypes =
     | MarkUnreadAction
     | ToggleStarredAction
     | ToggleHiddenAction
+    | UpdateSyncStatusAction
+
+export function updateSyncStatus(item: RSSItem, status: SyncStatus): ItemActionTypes {
+    return {
+        type: UPDATE_SYNC_STATUS,
+        item: item,
+        status: status,
+    }
+}
+
 
 export function fetchItemsRequest(fetchCount = 0): ItemActionTypes {
     return {
@@ -302,6 +328,11 @@ export function fetchItems(
                             console.error("Failed to enqueue embeddings:", error)
                         }
 
+                        // Evaluate rules for new items
+                        for (const item of inserted) {
+                            dispatch(evaluateRules(item));
+                        }
+
                         dispatch(setupAutoFetch())
                     })
                     .catch(err => {
@@ -328,6 +359,9 @@ const markUnreadDone = (item: RSSItem): ItemActionTypes => ({
     item: item,
 })
 
+import { sendToObsidian, sendToNotion } from "../integrations"
+import { evaluateRules } from "../rules-engine"
+
 export function markRead(item: RSSItem): AppThunk {
     return (dispatch, getState) => {
         item = getState().items[item._id]
@@ -341,6 +375,7 @@ export function markRead(item: RSSItem): AppThunk {
             if (item.serviceRef) {
                 dispatch(dispatch(getServiceHooks()).markRead?.(item))
             }
+            dispatch(evaluateRules(item));
         }
     }
 }
@@ -526,6 +561,15 @@ export function itemReducer(
                     state[action.item._id],
                     action.type
                 ),
+            }
+        }
+        case UPDATE_SYNC_STATUS: {
+            return {
+                ...state,
+                [action.item._id]: {
+                    ...state[action.item._id],
+                    syncStatus: action.status,
+                },
             }
         }
         case MARK_ALL_READ: {

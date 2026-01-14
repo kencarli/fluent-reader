@@ -2,6 +2,8 @@ import * as React from "react"
 import intl from "react-intl-universal"
 import { renderToString } from "react-dom/server"
 import { RSSItem } from "../scripts/models/item"
+import { Highlight } from "../scripts/models/highlight"
+import { highlightsDB, highlights } from "../scripts/highlights-db"
 import {
     Stack,
     CommandBarButton,
@@ -22,7 +24,8 @@ import { platformCtrl, decodeFetchResponse } from "../scripts/utils"
 import { translateHtml } from "../scripts/translate"
 import { extractTextFromHtml, summarizeText } from "../scripts/summary"
 import { generateFrontmatter, htmlToMarkdown } from "../scripts/exporter"
-import { getObsidianUri, exportToNotion } from "../scripts/integrations"
+import { sendToObsidian, sendToNotion } from "../scripts/integrations"
+import SyncStatusIcon from "./utils/sync-status-icon"
 
 const FONT_SIZE_OPTIONS = [12, 13, 14, 15, 16, 17, 18, 19, 20]
 
@@ -36,6 +39,8 @@ type ArticleProps = {
     toggleHasRead: (item: RSSItem) => void
     toggleStarred: (item: RSSItem) => void
     toggleHidden: (item: RSSItem) => void
+    sendToNotion: (item: RSSItem) => void
+    sendToObsidian: (item: RSSItem) => void
 
     textMenu: (position: [number, number], text: string, url: string) => void
     imageMenu: (position: [number, number]) => void
@@ -63,6 +68,7 @@ type ArticleState = {
     summarizing: boolean
     summary: string
     showSummary: boolean
+    highlights: Highlight[]
 }
 
 class Article extends React.Component<ArticleProps, ArticleState> {
@@ -85,12 +91,37 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             summarizing: false,
             summary: null,
             showSummary: false,
+            highlights: [],
         }
         window.utils.addWebviewContextListener(this.contextMenuHandler)
         window.utils.addWebviewKeydownListener(this.keyDownHandler)
         window.utils.addWebviewErrorListener(this.webviewError)
+        window.utils.addHighlightCreatedListener(this.saveHighlight)
         if (props.source.openTarget === SourceOpenTarget.FullContent)
             this.loadFull()
+    }
+
+    saveHighlight = (itemId: number, text: string, range: string) => {
+        if (itemId !== this.props.item._id) return
+        const row = highlights.createRow({
+            _id: Date.now(),
+            itemId: itemId,
+            text: text,
+            note: "",
+            range: range,
+            createdDate: new Date(),
+        })
+        highlightsDB.insertOrReplace().into(highlights).values([row]).exec()
+        this.loadHighlights()
+    }
+
+    loadHighlights = async () => {
+        const result = await highlightsDB
+            .select()
+            .from(highlights)
+            .where(highlights.itemId.eq(this.props.item._id))
+            .exec()
+        this.setState({ highlights: result as Highlight[] })
     }
 
     setFontSize = (size: number) => {
@@ -241,14 +272,10 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 key: "exportObsidian",
                 text: "Export to Obsidian",
                 iconProps: { iconName: "OneNoteLogo" }, // Use OneNote as placeholder
-                disabled: !window.settings.getIntegrationSettings().obsidianVaultName,
-                title: !window.settings.getIntegrationSettings().obsidianVaultName ? "Configure Vault Name in Settings > Integrations" : "Open in Obsidian",
+                disabled: !window.settings.getIntegrationSettings().obsidianVaultPath,
+                title: !window.settings.getIntegrationSettings().obsidianVaultPath ? "Configure Vault Path in Settings > Integrations" : "Open in Obsidian",
                 onClick: () => {
-                    const vault = window.settings.getIntegrationSettings().obsidianVaultName
-                    if (vault) {
-                        const uri = getObsidianUri(this.props.item, vault)
-                        window.utils.openExternal(uri)
-                    }
+                    this.props.sendToObsidian(this.props.item)
                 }
             },
             {
@@ -257,13 +284,9 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 iconProps: { iconName: "Database" },
                 disabled: !window.settings.getIntegrationSettings().notionSecret,
                 title: !window.settings.getIntegrationSettings().notionSecret ? "Configure Notion API in Settings > Integrations" : "Upload to Notion",
-                onClick: async () => {
-                    try {
-                        await exportToNotion(this.props.item, window.settings.getIntegrationSettings())
-                        window.utils.showMessageBox("Success", "Article exported to Notion", "OK", "", false)
-                    } catch (e) {
-                        window.utils.showMessageBox("Export Failed", e.message, "OK", "", false, "error")
-                    }
+                onClick: () => {
+                    this.props.sendToNotion(this.props.item)
+                    window.utils.showMessageBox("Success", "Article sent to Notion.", "OK", "", false)
                 }
             },
             {
@@ -355,6 +378,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
     }
 
     componentDidMount = () => {
+        this.loadHighlights()
         let webview = document.getElementById("article") as Electron.WebviewTag
         if (webview != this.webview) {
             this.webview = webview
@@ -372,6 +396,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
     }
     componentDidUpdate = (prevProps: ArticleProps) => {
         if (prevProps.item._id != this.props.item._id) {
+            this.loadHighlights()
             this.setState({
                 loadWebpage:
                     this.props.source.openTarget === SourceOpenTarget.Webpage,
@@ -582,7 +607,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         return `article/article.html?a=${a}&h=${h}&f=${encodeURIComponent(
             this.state.fontFamily
         )}&s=${this.state.fontSize}&d=${this.props.source.textDir}&u=${this.props.item.link
-            }&m=${this.state.loadFull ? 1 : 0}`
+            }&m=${this.state.loadFull ? 1 : 0}&hl=${encodeURIComponent(JSON.stringify(this.state.highlights))}&itemId=${this.props.item._id}`
     }
 
     render = () => (
@@ -612,6 +637,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                                     {this.props.item.creator}
                                 </span>
                             )}
+                            <SyncStatusIcon item={this.props.item} />
                         </span>
                     </Stack.Item>
                     <CommandBarButton

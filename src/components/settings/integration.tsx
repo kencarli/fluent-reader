@@ -1,11 +1,14 @@
 import * as React from "react"
 import intl from "react-intl-universal"
-import { Label, Stack, TextField, PrimaryButton, Toggle } from "@fluentui/react"
+import { Label, Stack, TextField, PrimaryButton, Toggle, Dropdown } from "@fluentui/react"
 import { IntegrationSettings } from "../../schema-types"
 import { testObsidianConnection, testNotionConnection } from "../../scripts/integrations"
 
 type IntegrationTabState = {
-    settings: IntegrationSettings
+    settings: IntegrationSettings,
+    notionDatabases: { key: string, text: string }[],
+    notionProperties: any,
+    isLoadingDatabases: boolean,
 }
 
 class IntegrationTab extends React.Component<{}, IntegrationTabState> {
@@ -13,6 +16,9 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
         super(props)
         this.state = {
             settings: window.settings.getIntegrationSettings() || {},
+            notionDatabases: [],
+            notionProperties: {},
+            isLoadingDatabases: false,
         }
     }
 
@@ -30,7 +36,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
 
     handleToggleChange = (
         event: React.FormEvent<HTMLElement>,
-        checked?: boolean,
+        checked: any,
         name?: string
     ) => {
         if (!name) name = (event.currentTarget as HTMLInputElement).name
@@ -43,11 +49,11 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
 
 
     handleTestObsidianConnection = async () => {
-        const { obsidianVaultName } = this.state.settings
-        if (!obsidianVaultName) {
+        const { obsidianVaultPath } = this.state.settings
+        if (!obsidianVaultPath) {
             window.utils.showMessageBox(
                 intl.get("settings.integrations.testConnection"),
-                "Obsidian Vault Name is not configured.",
+                "Obsidian Vault Path is not configured.",
                 intl.get("confirm"),
                 "",
                 false,
@@ -68,7 +74,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
             } else {
                 window.utils.showMessageBox(
                     intl.get("settings.integrations.testConnection"),
-                    "Obsidian vault name is not set.",
+                    "Obsidian vault path is not set.",
                     intl.get("confirm"),
                     "",
                     false,
@@ -121,6 +127,51 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
         }
     }
 
+    loadNotionDatabases = async () => {
+        if (!this.state.settings.notionSecret) {
+            window.utils.showMessageBox("Error", "Please enter your Notion Integration Token first.", "OK", "", false, "error");
+            return;
+        }
+        this.setState({ isLoadingDatabases: true });
+        try {
+            const dbs = await window.utils.getNotionDatabases(this.state.settings.notionSecret);
+            this.setState({
+                notionDatabases: dbs.map(db => ({ key: db.id, text: db.title[0]?.plain_text || "Untitled" })),
+                isLoadingDatabases: false,
+            });
+        } catch (err: unknown) {
+            let errorMessage = String(err);
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            } else if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as any).message === 'string') {
+                errorMessage = (err as any).message;
+            }
+            window.utils.showMessageBox("Error loading databases", errorMessage, "OK", "", false, "error");
+            this.setState({ isLoadingDatabases: false });
+        }
+    }
+
+    loadNotionProperties = async (databaseId: string) => {
+        if (!this.state.settings.notionSecret) return;
+        try {
+            const props = await window.utils.getNotionDatabaseProperties(this.state.settings.notionSecret, databaseId);
+            this.setState({ notionProperties: props });
+        } catch (err: unknown) {
+            let errorMessage = String(err);
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            } else if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as any).message === 'string') {
+                errorMessage = (err as any).message;
+            }
+            window.utils.showMessageBox("Error loading properties", errorMessage, "OK", "", false, "error");
+        }
+    }
+
+    handleNotionDbChange = (_, option) => {
+        this.handleToggleChange(_, option.key, "notionDatabaseId");
+        this.loadNotionProperties(option.key);
+    }
+
     render() {
         return (
             <div className="tab-body">
@@ -129,23 +180,72 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                     {intl.get("settings.integrations.obsidianIntegration")}
                 </Label>
                 <Stack tokens={{ childrenGap: 16 }}>
+                    <Stack horizontal tokens={{ childrenGap: 8 }}>
+                        <TextField
+                            label={intl.get("settings.integrations.vaultPath")}
+                            name="obsidianVaultPath"
+                            value={this.state.settings.obsidianVaultPath || ""}
+                            onChange={this.handleInputChange}
+                            description={intl.get("settings.integrations.obsidianPathDescription")}
+                            styles={{ root: { flexGrow: 1 } }}
+                        />
+                        <PrimaryButton
+                            text={intl.get("settings.integrations.browse")}
+                            onClick={async () => {
+                                const path = await window.utils.showFolderDialog()
+                                if (path) {
+                                    this.setState(prevState => {
+                                        const newSettings = { ...prevState.settings, obsidianVaultPath: path }
+                                        window.settings.setIntegrationSettings(newSettings)
+                                        return { settings: newSettings }
+                                    })
+                                }
+                            }}
+                            allowDisabledFocus
+                            style={{ alignSelf: 'flex-end', marginBottom: 3 }}
+                        />
+                    </Stack>
                     <TextField
-                        label={intl.get("settings.integrations.vaultName")}
-                        name="obsidianVaultName"
-                        value={this.state.settings.obsidianVaultName || ""}
+                        label={intl.get("settings.integrations.template")}
+                        name="obsidianTemplate"
+                        multiline
+                        rows={10}
+                        value={this.state.settings.obsidianTemplate || ""}
                         onChange={this.handleInputChange}
-                        description={intl.get("settings.integrations.obsidianDescription")}
+                        description={intl.get("settings.integrations.obsidianTemplateDescription")}
+                        placeholder={`---
+title: "{{title}}"
+url: "{{url}}"
+tags: [{{tags}}]
+---
+
+# {{title}}
+
+{{content}}
+
+## Highlights
+{{#highlights}}
+> {{text}}
+{{#note}}
+- Note: {{note}}
+{{/note}}
+---
+{{/highlights}}`}
                     />
-                    <Toggle
-                        label={intl.get("settings.integrations.autoSyncAfterRead")}
-                        checked={this.state.settings.obsidianAutoSync || false}
-                        onChange={(e, checked) => this.handleToggleChange(e, checked, "obsidianAutoSync")}
+                    <Dropdown
+                        label={intl.get("settings.integrations.imageStrategy")}
+                        selectedKey={this.state.settings.obsidianImageStrategy || "hotlink"}
+                        options={[
+                            { key: "hotlink", text: intl.get("settings.integrations.imageStrategyHotlink") },
+                            { key: "download", text: intl.get("settings.integrations.imageStrategyDownload") },
+                        ]}
+                        onChange={(e, option) => this.handleToggleChange(e, option.key, "obsidianImageStrategy")}
                     />
                     <PrimaryButton
                         text={intl.get("settings.integrations.testConnection")}
                         onClick={this.handleTestObsidianConnection}
                         allowDisabledFocus
-                        disabled={!this.state.settings.obsidianVaultName}
+                        disabled={!this.state.settings.obsidianVaultPath}
                     />
                 </Stack>
 
@@ -164,34 +264,84 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                         onChange={this.handleInputChange}
                         description={intl.get("settings.integrations.notionTokenDescription")}
                     />
-                    <TextField
+                    <PrimaryButton
+                        text={this.state.isLoadingDatabases ? "Loading..." : "Load Databases"}
+                        onClick={this.loadNotionDatabases}
+                        disabled={!this.state.settings.notionSecret || this.state.isLoadingDatabases}
+                    />
+                    <Dropdown
                         label={intl.get("settings.integrations.databaseId")}
-                        name="notionDatabaseId"
-                        value={this.state.settings.notionDatabaseId || ""}
-                        onChange={this.handleInputChange}
-                        description={intl.get("settings.integrations.notionDatabaseDescription")}
+                        selectedKey={this.state.settings.notionDatabaseId || ""}
+                        options={this.state.notionDatabases}
+                        onChange={this.handleNotionDbChange}
+                        placeholder="Select a database after loading"
+                        disabled={this.state.notionDatabases.length === 0}
                     />
-                    <TextField
+                    <Dropdown
                         label={intl.get("settings.integrations.notionTitlePropertyName")}
-                        name="notionTitlePropertyName"
-                        value={this.state.settings.notionTitlePropertyName || ""}
-                        onChange={this.handleInputChange}
-                        placeholder="Name"
-                        description={intl.get("settings.integrations.notionTitlePropertyNameDescription")}
+                        selectedKey={this.state.settings.notionTitlePropertyName || ""}
+                        options={Object.keys(this.state.notionProperties)
+                            .filter(p => this.state.notionProperties[p].type === 'title')
+                            .map(p => ({ key: p, text: p }))
+                        }
+                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionTitlePropertyName")}
+                        placeholder="Select a title property"
+                        disabled={Object.keys(this.state.notionProperties).length === 0}
                     />
-                    <TextField
+                    <Dropdown
                         label={intl.get("settings.integrations.notionUrlPropertyName")}
-                        name="notionUrlPropertyName"
-                        value={this.state.settings.notionUrlPropertyName || ""}
-                        onChange={this.handleInputChange}
-                        placeholder="URL"
-                        description={intl.get("settings.integrations.notionUrlPropertyNameDescription")}
+                        selectedKey={this.state.settings.notionUrlPropertyName || ""}
+                        options={Object.keys(this.state.notionProperties)
+                            .filter(p => this.state.notionProperties[p].type === 'url')
+                            .map(p => ({ key: p, text: p }))
+                        }
+                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionUrlPropertyName")}
+                        placeholder="Select a URL property"
+                        disabled={Object.keys(this.state.notionProperties).length === 0}
                     />
-
-                    <Toggle
-                        label={intl.get("settings.integrations.autoSyncAfterRead")}
-                        checked={this.state.settings.notionAutoSync || false}
-                        onChange={(e, checked) => this.handleToggleChange(e, checked, "notionAutoSync")}
+                    <Dropdown
+                        label="Tags Property"
+                        selectedKey={this.state.settings.notionTagsPropertyName || ""}
+                        options={Object.keys(this.state.notionProperties)
+                            .filter(p => this.state.notionProperties[p].type === 'multi_select')
+                            .map(p => ({ key: p, text: p }))
+                        }
+                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionTagsPropertyName")}
+                        placeholder="Select a tags property (multi-select)"
+                        disabled={Object.keys(this.state.notionProperties).length === 0}
+                    />
+                    <Dropdown
+                        label="Author Property"
+                        selectedKey={this.state.settings.notionAuthorPropertyName || ""}
+                        options={Object.keys(this.state.notionProperties)
+                            .filter(p => this.state.notionProperties[p].type === 'rich_text')
+                            .map(p => ({ key: p, text: p }))
+                        }
+                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionAuthorPropertyName")}
+                        placeholder="Select an author property (text)"
+                        disabled={Object.keys(this.state.notionProperties).length === 0}
+                    />
+                    <Dropdown
+                        label="Date Property"
+                        selectedKey={this.state.settings.notionDatePropertyName || ""}
+                        options={Object.keys(this.state.notionProperties)
+                            .filter(p => this.state.notionProperties[p].type === 'date')
+                            .map(p => ({ key: p, text: p }))
+                        }
+                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionDatePropertyName")}
+                        placeholder="Select a date property (date)"
+                        disabled={Object.keys(this.state.notionProperties).length === 0}
+                    />
+                    <Dropdown
+                        label="Source Property"
+                        selectedKey={this.state.settings.notionSourcePropertyName || ""}
+                        options={Object.keys(this.state.notionProperties)
+                            .filter(p => this.state.notionProperties[p].type === 'select')
+                            .map(p => ({ key: p, text: p }))
+                        }
+                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionSourcePropertyName")}
+                        placeholder="Select a source property (select)"
+                        disabled={Object.keys(this.state.notionProperties).length === 0}
                     />
                     <PrimaryButton
                         text={intl.get("settings.integrations.testConnection")}

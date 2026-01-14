@@ -139,6 +139,10 @@
             "notionTokenDescription": "来自 Notion Developers 的内部集成令牌。",
             "databaseId": "数据库 ID",
             "notionDatabaseDescription": "将创建页面的数据库 ID。",
+            "notionTitlePropertyName": "Notion 标题属性名称",
+            "notionTitlePropertyNameDescription": "Notion 数据库中文章标题属性的名称。默认为“Name”。",
+            "notionUrlPropertyName": "Notion URL 属性名称",
+            "notionUrlPropertyNameDescription": "Notion 数据库中文章 URL 属性的名称。默认为“URL”。",
             "aiPushServices": "AI 与推送服务",
             "openaiApiKey": "OpenAI API 密钥",
             "openaiDescription": "用于语义搜索和每日 AI 摘要的 API 密钥。",
@@ -151,7 +155,9 @@
             "autoPushEnabled": "自动推送已启用",
             "useDalle": "使用 DALL-E (AI 封面)",
             "interestTopics": "感兴趣的主题（逗号分隔）",
-            "interestTopicsDescription": "可选：使用语义发现优先处理与这些主题匹配的文章。"
+            "interestTopicsDescription": "可选：使用语义发现优先处理与这些主题匹配的文章。",
+            "autoSyncAfterRead": "阅读后自动同步",
+            "testConnection": "测试连接"
         }
     },
     "sources": {

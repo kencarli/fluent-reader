@@ -133,13 +133,24 @@
         "integrations": {
             "name": "Integrations",
             "obsidianIntegration": "Obsidian Integration",
-            "vaultName": "Vault Name",
-            "obsidianDescription": "Enter the name of your Obsidian Vault. Required for 'Export to Obsidian' to work.",
+            "vaultPath": "Vault Path",
+            "obsidianPathDescription": "The absolute path to your Obsidian Vault.",
+            "browse": "Browse...",
+            "template": "Template",
+            "obsidianTemplateDescription": "Define the template for the note. Available placeholders: {{title}}, {{url}}, {{author}}, {{content}}, {{tags}}, {{feedTitle}}, {{publicationDate}}. Use {{#highlights}}...{{/highlights}} to loop through highlights, with {{text}} and {{note}} available inside.",
+            "imageStrategy": "Image Handling",
+            "imageStrategyHotlink": "Hotlink to original URL",
+            "imageStrategyDownload": "Download locally",
+            "imageStrategyDescription": "Choose how images from the article are handled when exported.",
             "notionIntegration": "Notion Integration",
             "integrationToken": "Integration Token (Secret)",
             "notionTokenDescription": "Your internal integration token from Notion Developers.",
             "databaseId": "Database ID",
             "notionDatabaseDescription": "The ID of the database where pages will be created.",
+            "notionTitlePropertyName": "Notion Title Property Name",
+            "notionTitlePropertyNameDescription": "The name of the Notion database property for the article title. Defaults to 'Name'.",
+            "notionUrlPropertyName": "Notion URL Property Name",
+            "notionUrlPropertyNameDescription": "The name of the Notion database property for the article URL. Defaults to 'URL'.",
             "aiPushServices": "AI & Push Services",
             "openaiApiKey": "OpenAI API Key",
             "openaiDescription": "API key for semantic search and daily AI summaries.",
@@ -152,7 +163,9 @@
             "autoPushEnabled": "Auto-push Enabled",
             "useDalle": "Use DALL-E (AI Cover)",
             "interestTopics": "Interest Topics (Comma separated)",
-            "interestTopicsDescription": "Optional: Prioritize articles matching these topics using semantic discovery."
+            "interestTopicsDescription": "Optional: Prioritize articles matching these topics using semantic discovery.",
+            "autoSyncAfterRead": "Auto Sync after Read",
+            "testConnection": "Test Connection"
         }
     },
     "sources": {

@@ -59,6 +59,22 @@ const utilsBridge = {
         return (await ipcRenderer.invoke("show-open-dialog", filters)) as string
     },
 
+    showFolderDialog: async () => {
+        return (await ipcRenderer.invoke("show-folder-dialog")) as string
+    },
+
+    writeFile: async (filePath: string, content: string): Promise<boolean> => {
+        return (await ipcRenderer.invoke("write-file", filePath, content)) as boolean
+    },
+
+    getNotionDatabases: async (token: string): Promise<any[]> => {
+        return (await ipcRenderer.invoke("get-notion-databases", token)) as any[]
+    },
+
+    getNotionDatabaseProperties: async (token: string, databaseId: string): Promise<any> => {
+        return (await ipcRenderer.invoke("get-notion-database-properties", token, databaseId)) as any
+    },
+
     getCacheSize: async (): Promise<number> => {
         return await ipcRenderer.invoke("get-cache")
     },
@@ -174,11 +190,27 @@ const utilsBridge = {
     initFontList: (): Promise<Array<string>> => {
         return ipcRenderer.invoke("init-font-list")
     },
+
+    createHighlight: (itemId: number, text: string, range: string) => {
+        return ipcRenderer.invoke("create-highlight", itemId, text, range)
+    },
+
+    addHighlightCreatedListener: (callback: (itemId: number, text: string, range: string) => any) => {
+        ipcRenderer.removeAllListeners("highlight-created")
+        ipcRenderer.on("highlight-created", (_, itemId, text, range) => {
+            callback(itemId, text, range)
+        })
+    },
 }
 
 declare global {
     interface Window {
-        utils: typeof utilsBridge
+        utils: typeof utilsBridge & {
+            showFolderDialog: () => Promise<string | null>;
+            writeFile: (filePath: string, content: string) => Promise<boolean>;
+            getNotionDatabases: (token: string) => Promise<any[]>;
+            getNotionDatabaseProperties: (token: string, databaseId: string) => Promise<any>;
+        }
         fontList: Array<string>
     }
 }

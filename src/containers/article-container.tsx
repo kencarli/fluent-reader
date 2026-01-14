@@ -44,6 +44,11 @@ const makeMapStateToProps = () => {
     )
 }
 
+import {
+    sendToNotion,
+    sendToObsidian,
+} from "../scripts/integrations"
+
 const mapDispatchToProps = (dispatch: AppDispatch) => {
     return {
         shortcuts: (item: RSSItem, e: KeyboardEvent) =>
@@ -73,6 +78,8 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
         },
         search: (tag: string) => dispatch(searchTag(tag)),
         findSimilar: (item: RSSItem) => dispatch(findSimilar(item)),
+        sendToNotion: (item: RSSItem) => dispatch(sendToNotion(item)),
+        sendToObsidian: (item: RSSItem) => dispatch(sendToObsidian(item)),
     }
 }
 

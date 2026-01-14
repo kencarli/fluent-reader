@@ -142,6 +142,39 @@ export function setUtilsListeners(manager: WindowManager) {
         }
     )
 
+    ipcMain.handle("show-folder-dialog", async () => {
+        if (manager.hasWindow()) {
+            const response = await dialog.showOpenDialog(manager.mainWindow, {
+                properties: ["openDirectory"],
+            })
+            if (!response.canceled) {
+                return response.filePaths[0]
+            }
+        }
+        return null
+    })
+
+    ipcMain.handle("write-file", async (_, filePath: string, content: string) => {
+        try {
+            await fs.promises.writeFile(filePath, content, "utf-8")
+            return true
+        } catch (err) {
+            console.error("Failed to write file:", err)
+            dialog.showErrorBox("File Write Error", `Failed to write to ${filePath}: ${err.message}`)
+            return false
+        }
+    })
+
+    // This is not ideal, but for now we import directly from integrations.ts
+    // In a larger refactor, this logic might move to the main process entirely.
+    const integrations = require("../scripts/integrations")
+    ipcMain.handle("get-notion-databases", async (_, token: string) => {
+        return await integrations.getNotionDatabases(token)
+    })
+    ipcMain.handle("get-notion-database-properties", async (_, token: string, databaseId: string) => {
+        return await integrations.getNotionDatabaseProperties(token, databaseId)
+    })
+
     ipcMain.handle("get-cache", async () => {
         return await session.defaultSession.getCacheSize()
     })
@@ -307,5 +340,11 @@ export function setUtilsListeners(manager: WindowManager) {
         return fontList.getFonts({
             disableQuoting: true,
         })
+    })
+
+    ipcMain.handle("create-highlight", (_, itemId, text, range) => {
+        if (manager.hasWindow()) {
+            manager.mainWindow.webContents.send("highlight-created", itemId, text, range)
+        }
     })
 }

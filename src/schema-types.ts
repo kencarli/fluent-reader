@@ -68,9 +68,17 @@ export interface ServiceConfigs {
 }
 
 export interface IntegrationSettings {
-    obsidianVaultName?: string
+    obsidianVaultPath?: string
+    obsidianTemplate?: string
+    obsidianImageStrategy?: "hotlink" | "download"
     notionSecret?: string
     notionDatabaseId?: string
+    notionTitlePropertyName?: string
+    notionUrlPropertyName?: string
+    notionTagsPropertyName?: string
+    notionAuthorPropertyName?: string
+    notionDatePropertyName?: string
+    notionSourcePropertyName?: string
     openaiApiKey?: string
     dingtalkWebhook?: string
     wecomWebhook?: string
@@ -79,7 +87,26 @@ export interface IntegrationSettings {
     autoPushEnabled?: boolean
     dalleEnabled?: boolean
     lastDigestDate?: string
+    syncRules?: SyncRule[]
 }
+
+export type SyncRuleCondition = {
+    field: "sourceId" | "title" | "content" | "author";
+    operator: "is" | "isNot" | "contains" | "notContains";
+    value: string;
+};
+
+export type SyncRuleAction = {
+    type: "sendToObsidian" | "sendToNotion";
+    destination?: string; // e.g., Notion Database ID
+};
+
+export type SyncRule = {
+    id: string;
+    name: string;
+    conditions: SyncRuleCondition[];
+    action: SyncRuleAction;
+};
 
 export const enum WindowStateListenerType {
     Maximized,

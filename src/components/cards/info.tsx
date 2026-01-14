@@ -2,6 +2,7 @@ import * as React from "react"
 import Time from "../utils/time"
 import { RSSSource } from "../../scripts/models/source"
 import { RSSItem } from "../../scripts/models/item"
+import SyncStatusIcon from "../utils/sync-status-icon"
 
 type CardInfoProps = {
     source: RSSSource
@@ -23,6 +24,7 @@ const CardInfo: React.FunctionComponent<CardInfoProps> = props => (
             <span className="starred-indicator"></span>
         ) : null}
         {props.item.hasRead ? null : <span className="read-indicator"></span>}
+        <SyncStatusIcon item={props.item} />
         {props.hideTime ? null : <Time date={props.item.date} />}
     </p>
 )
