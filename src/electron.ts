@@ -1,5 +1,7 @@
-// Polyfill 'self' for libraries that expect a browser environment.
+import { JSDOM } from "jsdom"
+const dom = new JSDOM()
 ;(global as any).self = global
+;(global as any).DOMParser = dom.window.DOMParser
 
 import { app, ipcMain, Menu, nativeTheme } from "electron"
 import { ThemeSettings, SchemaTypes } from "./schema-types"
@@ -107,6 +109,8 @@ if (process.platform === "darwin") {
 }
 
 const winManager = new WindowManager()
+
+export { winManager }
 
 app.on("window-all-closed", () => {
     if (winManager.hasWindow()) {

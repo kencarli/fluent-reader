@@ -9,7 +9,7 @@ import Parser from "@postlight/parser"
 
 // Sanitize title for use as a filename
 function sanitizeTitle(title: string): string {
-    return title.replace(/[\\/:"*?<>|]+/g, "-")
+    return title.replace(/[\\/:\"*?<>|]+/g, "-")
 }
 
 export function sendToObsidian(item: RSSItem): AppThunk<Promise<void>> {
@@ -62,6 +62,7 @@ tags: [${data.tags.split(',').map(t => t.trim()).filter(t => t).join(', ')}]
 ---
 
 `
+
             const finalContent = frontmatter + Mustache.render(obsidianTemplate, data)
             const fileName = sanitizeTitle(data.title) + ".md"
             const filePath = path.join(obsidianVaultPath, fileName)
@@ -178,9 +179,8 @@ export function sendToNotion(item: RSSItem): AppThunk<Promise<void>> {
 
             // L2: Structured Metadata
             const properties: any = {
-                [notionTitlePropertyName || "Name"]: {
-                    title: [{ text: { content: title } }],
-                },
+                [notionTitlePropertyName || "Name"]:
+                    { title: [{ text: { content: title } }] },
             };
 
             if (notionUrlPropertyName) {
