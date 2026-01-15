@@ -1,3 +1,6 @@
+// Polyfill 'self' for libraries that expect a browser environment.
+;(global as any).self = global
+
 import { app, ipcMain, Menu, nativeTheme } from "electron"
 import { ThemeSettings, SchemaTypes } from "./schema-types"
 import { store } from "./main/settings"
