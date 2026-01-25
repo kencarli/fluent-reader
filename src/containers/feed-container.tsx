@@ -8,6 +8,8 @@ import { showItem } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
 import { Feed } from "../components/feeds/feed"
 
+import { AppDispatch } from "../scripts/utils"
+
 interface FeedContainerProps {
     feedId: string
     viewType: ViewType
@@ -44,14 +46,18 @@ const makeMapStateToProps = () => {
         })
     )
 }
-const mapDispatchToProps = dispatch => {
+const mapDispatchToProps = (dispatch: AppDispatch) => {
     return {
         shortcuts: (item: RSSItem, e: KeyboardEvent) =>
             dispatch(itemShortcuts(item, e)),
         markRead: (item: RSSItem) => dispatch(markRead(item)),
         contextMenu: (feedId: string, item: RSSItem, e) =>
             dispatch(openItemMenu(item, feedId, e)),
-        loadMore: (feed: RSSFeed) => dispatch(loadMore(feed)),
+        loadMore: (
+            feed: RSSFeed,
+            onSuccess: () => void,
+            onError: (err: Error) => void
+        ) => dispatch(loadMore(feed, onSuccess, onError)),
         showItem: (fid: string, item: RSSItem) => dispatch(showItem(fid, item)),
     }
 }

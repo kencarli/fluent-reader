@@ -96,7 +96,7 @@ export class RSSItem {
             )
             if (images.length > 0) item.thumb = images[0].$.url
         }
-        if (!item.thumb) {
+        if (!item.thumb && item.content) {
             let dom = domParser.parseFromString(item.content, "text/html")
             let baseEl = dom.createElement("base")
             baseEl.setAttribute(
@@ -464,6 +464,7 @@ export function toggleStarred(item: RSSItem): AppThunk {
             if (item.starred) dispatch(hooks.unstar?.(item))
             else dispatch(hooks.star?.(item))
         }
+        dispatch(evaluateRules(item))
     }
 }
 

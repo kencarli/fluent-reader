@@ -168,7 +168,7 @@ export const feedbinServiceHooks: ServiceHooks = {
             const starred: Set<number> = new Set(await starredResponse.json())
             const parsedItems = new Array<RSSItem>()
             items.forEach(i => {
-                if (i.content === null) return
+                if (!i.content) return
                 const source = fidMap.get(String(i.feed_id))
                 const dom = domParser.parseFromString(i.content, "text/html")
                 const item = {

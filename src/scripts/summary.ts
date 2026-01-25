@@ -82,6 +82,7 @@ function jaccardSimilarity(a: string[], b: string[]): number {
 }
 
 export function extractTextFromHtml(html: string): string {
+    if (!html) return ""
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, "text/html")
     // Simple text extraction, logic similar to what we did in translate.ts or just TEXT_NODE iteration

@@ -139,23 +139,25 @@ export const feverServiceHooks: ServiceHooks = {
                     serviceRef: String(i.id),
                 } as RSSItem
                 // Try to get the thumbnail of the item
-                let dom = domParser.parseFromString(item.content, "text/html")
-                let baseEl = dom.createElement("base")
-                baseEl.setAttribute(
-                    "href",
-                    item.link.split("/").slice(0, 3).join("/")
-                )
-                dom.head.append(baseEl)
-                let img = dom.querySelector("img")
-                if (img && img.src) {
-                    item.thumb = img.src
-                } else if (configs.useInt32) {
-                    // TTRSS Fever Plugin attachments
-                    let a = dom.querySelector(
-                        "body>ul>li:first-child>a"
-                    ) as HTMLAnchorElement
-                    if (a && /, image\/generic$/.test(a.innerText) && a.href)
-                        item.thumb = a.href
+                if (item.content) {
+                    let dom = domParser.parseFromString(item.content, "text/html")
+                    let baseEl = dom.createElement("base")
+                    baseEl.setAttribute(
+                        "href",
+                        item.link.split("/").slice(0, 3).join("/")
+                    )
+                    dom.head.append(baseEl)
+                    let img = dom.querySelector("img")
+                    if (img && img.src) {
+                        item.thumb = img.src
+                    } else if (configs.useInt32) {
+                        // TTRSS Fever Plugin attachments
+                        let a = dom.querySelector(
+                            "body>ul>li:first-child>a"
+                        ) as HTMLAnchorElement
+                        if (a && /, image\/generic$/.test(a.innerText) && a.href)
+                            item.thumb = a.href
+                    }
                 }
                 // Apply rules and sync back to the service
                 if (source.rules) SourceRule.applyAll(source.rules, item)

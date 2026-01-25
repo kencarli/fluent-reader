@@ -17,7 +17,11 @@ export type FeedProps = FeedReduxProps & {
     shortcuts: (item: RSSItem, e: KeyboardEvent) => void
     markRead: (item: RSSItem) => void
     contextMenu: (feedId: string, item: RSSItem, e) => void
-    loadMore: (feed: RSSFeed) => void
+    loadMore: (
+        feed: RSSFeed,
+        onSuccess: () => void,
+        onError: (err: Error) => void
+    ) => void
     showItem: (fid: string, item: RSSItem) => void
 }
 

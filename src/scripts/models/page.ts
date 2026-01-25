@@ -8,7 +8,7 @@ import {
     FeedActionTypes,
     INIT_FEED,
 } from "./feed"
-import { getWindowBreakpoint, AppThunk, ActionStatus } from "../utils"
+import { getWindowBreakpoint, AppThunk, AppDispatch, ActionStatus } from "../utils"
 import { RSSItem, markRead } from "./item"
 import { SourceActionTypes, DELETE_SOURCE } from "./source"
 import { toggleMenu } from "./app"
@@ -178,6 +178,7 @@ export const toggleSearch = (): AppThunk => {
 
 export function showOffsetItem(offset: number): AppThunk {
     return (dispatch, getState) => {
+        const typedDispatch = dispatch as AppDispatch // Explicitly cast dispatch
         let state = getState()
         if (!state.page.itemFromFeed) return
         let [itemId, feedId] = [state.page.itemId, state.page.feedId]
@@ -205,19 +206,25 @@ export function showOffsetItem(offset: number): AppThunk {
         if (newIndex >= 0) {
             if (newIndex < iids.length) {
                 let item = state.items[iids[newIndex]]
-                dispatch(markRead(item))
-                dispatch(showItem(feedId, item))
+                typedDispatch(markRead(item))
+                typedDispatch(showItem(feedId, item))
                 return
             } else if (!feed.allLoaded) {
-                dispatch(loadMore(feed))
-                    .then(() => {
-                        dispatch(showOffsetItem(offset))
-                    })
-                    .catch(() => dispatch(dismissItem()))
+                typedDispatch(
+                    loadMore(
+                        feed,
+                        () => {
+                            typedDispatch(showOffsetItem(offset))
+                        },
+                        () => {
+                            typedDispatch(dismissItem())
+                        }
+                    )
+                )
                 return
             }
         }
-        dispatch(dismissItem())
+        typedDispatch(dismissItem())
     }
 }
 

@@ -205,7 +205,7 @@ body.darwin #root > nav span.title {
 .btn-group {
     display: inline-block;
     user-select: none;
-    -webkit-app-region: none;
+    -webkit-app-region: no-drag;
 }
 .btn-group .seperator {
     display: inline-block;

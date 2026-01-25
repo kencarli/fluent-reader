@@ -39,12 +39,19 @@ export async function semanticSearch(
         // Step 3: Calculate similarities
         const results: SemanticSearchResult[] = []
 
-        for (const record of vectorRecords) {
+        const YIELD_INTERVAL = 100
+        for (let i = 0; i < vectorRecords.length; i++) {
+            const record = vectorRecords[i]
             const item = items[record.itemId]
             if (!item) continue // Item might have been deleted
 
             const similarity = cosineSimilarity(queryEmbedding, record.embedding)
             results.push({ item, similarity })
+
+            // Yield control to the event loop periodically
+            if ((i + 1) % YIELD_INTERVAL === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0))
+            }
         }
 
         // Step 4: Sort by similarity (descending) and return top K

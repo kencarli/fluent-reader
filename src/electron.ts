@@ -1,8 +1,4 @@
-import { JSDOM } from "jsdom"
-const dom = new JSDOM()
-;(global as any).self = global
-;(global as any).DOMParser = dom.window.DOMParser
-
+import "./main/polyfills"
 import { app, ipcMain, Menu, nativeTheme } from "electron"
 import { ThemeSettings, SchemaTypes } from "./schema-types"
 import { store } from "./main/settings"

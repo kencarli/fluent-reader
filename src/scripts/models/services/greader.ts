@@ -241,6 +241,7 @@ export const gReaderServiceHooks: ServiceHooks = {
             items.map(i => {
                 const source = fidMap.get(i.origin.streamId)
                 if (source === undefined) return
+                if (!i.summary || !i.summary.content) return
                 const dom = domParser.parseFromString(
                     i.summary.content,
                     "text/html"

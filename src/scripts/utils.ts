@@ -46,7 +46,7 @@ export async function decodeFetchResponse(response: Response, isHTML = false) {
         ctype && CHARSET_RE.test(ctype) ? CHARSET_RE.exec(ctype)[1] : undefined
     let content = new TextDecoder(charset).decode(buffer)
     if (charset === undefined) {
-        if (isHTML) {
+        if (isHTML && content) {
             const dom = domParser.parseFromString(content, "text/html")
             charset = dom
                 .querySelector("meta[charset]")
@@ -101,6 +101,7 @@ export async function fetchFavicon(url: string) {
         let result = await fetch(url, { credentials: "omit" })
         if (result.ok) {
             let html = await result.text()
+            if (!html) return null
             let dom = domParser.parseFromString(html, "text/html")
             let links = dom.getElementsByTagName("link")
             for (let link of links) {
@@ -145,6 +146,7 @@ export async function validateFavicon(url: string) {
 }
 
 export function htmlDecode(input: string) {
+    if (!input) return ""
     var doc = domParser.parseFromString(input, "text/html")
     return doc.documentElement.textContent
 }

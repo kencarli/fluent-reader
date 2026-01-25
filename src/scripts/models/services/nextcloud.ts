@@ -154,8 +154,8 @@ export const nextcloudServiceHooks: ServiceHooks = {
             const response = await fetchAPI(
                 configs,
                 "/items/updated?lastModified=" +
-                    configs.lastModified +
-                    "&type=3"
+                configs.lastModified +
+                "&type=3"
             )
             if (response.status !== 200) throw APIError()
             lastFetched = (await response.json()).items
@@ -180,7 +180,7 @@ export const nextcloudServiceHooks: ServiceHooks = {
 
             const parsedItems = new Array<RSSItem>()
             items.forEach(i => {
-                if (i.body === null || i.url === null) return
+                if (!i.body || !i.url) return
                 const unreadItem = i.unread
                 const starredItem = i.starred
                 const source = fidMap.get(String(i.feedId))

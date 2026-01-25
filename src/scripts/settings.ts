@@ -76,9 +76,11 @@ export function getThemeSettings(): ThemeSettings {
 export function applyThemeSettings() {
     loadTheme(window.settings.shouldUseDarkColors() ? darkTheme : lightTheme)
 }
-window.settings.addThemeUpdateListener(shouldDark => {
-    loadTheme(shouldDark ? darkTheme : lightTheme)
-})
+if (window.settings) {
+    window.settings.addThemeUpdateListener(shouldDark => {
+        loadTheme(shouldDark ? darkTheme : lightTheme)
+    })
+}
 
 export function getCurrentLocale() {
     let locale = window.settings.getCurrentLocale()

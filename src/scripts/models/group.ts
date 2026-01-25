@@ -237,6 +237,10 @@ export function importOPML(): AppThunk {
         window.utils.showOpenDialog(filters).then(data => {
             if (data) {
                 dispatch(saveSettings())
+                if (!data.trim()) {
+                    // Empty string check
+                    return
+                }
                 let doc = domParser
                     .parseFromString(data, "text/xml")
                     .getElementsByTagName("body")
@@ -329,10 +333,8 @@ export function exportOPML(): AppThunk {
             .then(write => {
                 if (write) {
                     let state = getState()
-                    let xml = domParser.parseFromString(
-                        '<?xml version="1.0" encoding="UTF-8"?><opml version="1.0"><head><title>Fluent Reader Export</title></head><body></body></opml>',
-                        "text/xml"
-                    )
+                    let xmlStr = '<?xml version="1.0" encoding="UTF-8"?><opml version="1.0"><head><title>Fluent Reader Export</title></head><body></body></opml>'
+                    let xml = domParser.parseFromString(xmlStr, "text/xml")
                     let body = xml.getElementsByTagName("body")[0]
                     for (let group of state.groups) {
                         if (group.isMultiple) {
@@ -398,9 +400,9 @@ export function groupReducer(
                     sids:
                         i == action.groupIndex
                             ? [
-                                  ...g.sids.filter(sid => sid !== action.sid),
-                                  action.sid,
-                              ]
+                                ...g.sids.filter(sid => sid !== action.sid),
+                                action.sid,
+                            ]
                             : g.sids.filter(sid => sid !== action.sid),
                 }))
                 .filter(g => g.isMultiple || g.sids.length > 0)
@@ -436,9 +438,9 @@ export function groupReducer(
             return state.map((g, i) =>
                 i == action.groupIndex
                     ? {
-                          ...g,
-                          expanded: !g.expanded,
-                      }
+                        ...g,
+                        expanded: !g.expanded,
+                    }
                     : g
             )
         default:

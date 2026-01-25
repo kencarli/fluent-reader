@@ -49,32 +49,32 @@ export class FeedFilter {
         this.search = search
     }
 
-    static toPredicates(filter: FeedFilter) {
-        let type = filter.type
-        const predicates = new Array<lf.Predicate>()
-        if (!(type & FilterType.ShowRead))
-            predicates.push(db.items.hasRead.eq(false))
-        if (!(type & FilterType.ShowNotStarred))
-            predicates.push(db.items.starred.eq(true))
-        if (!(type & FilterType.ShowHidden))
-            predicates.push(db.items.hidden.eq(false))
-        if (filter.search !== "") {
-            const flags = type & FilterType.CaseInsensitive ? "i" : ""
-            const regex = RegExp(filter.search, flags)
-            if (type & FilterType.FullSearch) {
-                predicates.push(
-                    lf.op.or(
-                        db.items.title.match(regex),
-                        db.items.snippet.match(regex),
-                        db.items.tags.match(regex)
-                    )
+static toPredicates(filter: FeedFilter) {
+    let type = filter.type
+    const predicates = new Array<lf.Predicate>()
+    if (!(type & FilterType.ShowRead))
+        predicates.push(db.items.hasRead.eq(false))
+    if (!(type & FilterType.ShowNotStarred))
+        predicates.push(db.items.starred.eq(true))
+    if (!(type & FilterType.ShowHidden))
+        predicates.push(db.items.hidden.eq(false))
+    if (filter.search !== "") {
+        const flags = type & FilterType.CaseInsensitive ? "i" : ""
+        const regex = RegExp(filter.search, flags)
+        if (type & FilterType.FullSearch) {
+            predicates.push(
+                lf.op.or(
+                    db.items.title.match(regex),
+                    db.items.snippet.match(regex),
+                    lf.op.and(db.items.tags.isNotNull(), db.items.tags.match(regex))
                 )
-            } else {
-                predicates.push(db.items.title.match(regex))
-            }
+            )
+        } else {
+            predicates.push(db.items.title.match(regex))
         }
-        return predicates
     }
+    return predicates
+}
 
     static testItem(filter: FeedFilter, item: RSSItem) {
         let type = filter.type
@@ -87,7 +87,10 @@ export class FeedFilter {
             const regex = RegExp(filter.search, flags)
             if (type & FilterType.FullSearch) {
                 flag =
-                    flag && (regex.test(item.title) || regex.test(item.snippet) || regex.test(item.tags || ""))
+                    flag &&
+                    (regex.test(item.title) ||
+                        regex.test(item.snippet) ||
+                        regex.test(item.tags || ""))
             } else if (type & FilterType.CreatorSearch) {
                 flag = flag && regex.test(item.creator || "")
             } else {
@@ -122,10 +125,12 @@ export class RSSFeed {
     }
 
     static async loadFeed(feed: RSSFeed, skip = 0): Promise<RSSItem[]> {
-        if (feed.filter.search && (feed.filter.type & FilterType.SemanticSearch)) {
+        if (
+            feed.filter.search &&
+            feed.filter.type & FilterType.SemanticSearch
+        ) {
             const apiKey = window.settings.getIntegrationSettings().openaiApiKey
             if (apiKey) {
-                // To perform semantic search, we need all items in the current source pool.
                 const allItems = (await db.itemsDB
                     .select()
                     .from(db.items)
@@ -134,31 +139,40 @@ export class RSSFeed {
 
                 const itemMap: { [_id: number]: RSSItem } = {}
                 for (const item of allItems) {
-                    itemMap[item._id] = item
+                    if (item && item._id !== undefined) {
+                        itemMap[item._id] = item
+                    }
                 }
 
-                // Perform semantic search
-                const semanticResults = await semanticSearch(feed.filter.search, apiKey, itemMap, LOAD_QUANTITY + skip)
-
-                // Return results (skipping based on pagination)
-                const items = semanticResults.map(r => r.item).slice(skip)
-
-                // Note: We might want to pass similarity scores later, 
-                // but for now we just return RSSItem[] for compatibility.
+                const semanticResults = await semanticSearch(
+                    feed.filter.search,
+                    apiKey,
+                    itemMap,
+                    LOAD_QUANTITY + skip
+                )
+                const items = semanticResults
+                    .map(r => r.item)
+                    .filter(item => item && item._id !== undefined)
+                    .slice(skip)
                 return items
             }
         }
 
         const predicates = FeedFilter.toPredicates(feed.filter)
         predicates.push(db.items.source.in(feed.sids))
-        return (await db.itemsDB
-            .select()
-            .from(db.items)
-            .where(lf.op.and.apply(null, predicates))
-            .orderBy(db.items.date, lf.Order.DESC)
-            .skip(skip)
-            .limit(LOAD_QUANTITY)
-            .exec()) as RSSItem[]
+        try {
+            return (await db.itemsDB
+                .select()
+                .from(db.items)
+                .where(lf.op.and.apply(null, predicates))
+                .orderBy(db.items.date, lf.Order.DESC)
+                .skip(skip)
+                .limit(LOAD_QUANTITY)
+                .exec()) as RSSItem[]
+        } catch (error) {
+            console.error("Database query error:", error)
+            return []
+        }
     }
 }
 
@@ -309,7 +323,11 @@ export function loadMoreFailure(feed: RSSFeed, err): FeedActionTypes {
     }
 }
 
-export function loadMore(feed: RSSFeed): AppThunk<Promise<void>> {
+export function loadMore(
+    feed: RSSFeed,
+    onSuccess: () => void,
+    onError: (err: Error) => void
+): AppThunk<Promise<void>> {
     return (dispatch, getState) => {
         if (feed.loaded && !feed.loading && !feed.allLoaded) {
             dispatch(loadMoreRequest(feed))
@@ -320,10 +338,16 @@ export function loadMore(feed: RSSFeed): AppThunk<Promise<void>> {
             return RSSFeed.loadFeed(feed, skipNum)
                 .then(items => {
                     dispatch(loadMoreSuccess(feed, items))
+                    if (onSuccess) {
+                        onSuccess()
+                    }
                 })
                 .catch(e => {
                     console.log(e)
                     dispatch(loadMoreFailure(feed, e))
+                    if (onError) {
+                        onError(e)
+                    }
                 })
         }
         return new Promise((_, reject) => {
@@ -516,13 +540,13 @@ export function feedReducer(
                 case PageType.AllArticles:
                     return action.init
                         ? {
-                            ...state,
-                            [ALL]: {
-                                ...state[ALL],
-                                loaded: false,
-                                filter: action.filter,
-                            },
-                        }
+                              ...state,
+                              [ALL]: {
+                                  ...state[ALL],
+                                  loaded: false,
+                                  filter: action.filter,
+                              },
+                          }
                         : state
                 default:
                     return state

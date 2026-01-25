@@ -5,7 +5,11 @@ import { AppThunk } from "./utils"
 
 function checkCondition(item: RSSItem, condition): boolean {
     const { field, operator, value } = condition;
-    const itemValue = item[field] || "";
+    let itemValue = item[field] || "";
+
+    if (field === "starred") {
+        itemValue = String(!!item.starred);
+    }
 
     switch (operator) {
         case "is":

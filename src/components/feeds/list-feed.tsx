@@ -94,7 +94,21 @@ class ListFeed extends React.Component<FeedProps> {
                                 text={intl.get("loadMore")}
                                 disabled={this.props.feed.loading}
                                 onClick={() =>
-                                    this.props.loadMore(this.props.feed)
+                                    this.props.loadMore(
+                                        this.props.feed,
+                                        () => {},
+                                        err => {
+                                            err &&
+                                                window.utils.showMessageBox(
+                                                    "Error loading more articles",
+                                                    err.message,
+                                                    "OK",
+                                                    "",
+                                                    false,
+                                                    "error"
+                                                )
+                                        }
+                                    )
                                 }
                             />
                         </div>

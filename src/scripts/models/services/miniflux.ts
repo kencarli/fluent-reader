@@ -200,15 +200,17 @@ export const minifluxServiceHooks: ServiceHooks = {
             } as RSSItem
 
             // Try to get the thumbnail of the item
-            let dom = domParser.parseFromString(item.content, "text/html")
-            let baseEl = dom.createElement("base")
-            baseEl.setAttribute(
-                "href",
-                parsedItem.link.split("/").slice(0, 3).join("/")
-            )
-            dom.head.append(baseEl)
-            let img = dom.querySelector("img")
-            if (img && img.src) parsedItem.thumb = img.src
+            if (item.content) {
+                let dom = domParser.parseFromString(item.content, "text/html")
+                let baseEl = dom.createElement("base")
+                baseEl.setAttribute(
+                    "href",
+                    parsedItem.link.split("/").slice(0, 3).join("/")
+                )
+                dom.head.append(baseEl)
+                let img = dom.querySelector("img")
+                if (img && img.src) parsedItem.thumb = img.src
+            }
 
             if (source.rules) {
                 SourceRule.applyAll(source.rules, parsedItem)

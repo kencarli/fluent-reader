@@ -91,7 +91,7 @@ export interface IntegrationSettings {
 }
 
 export type SyncRuleCondition = {
-    field: "sourceId" | "title" | "content" | "author";
+    field: "sourceId" | "title" | "content" | "author" | "starred";
     operator: "is" | "isNot" | "contains" | "notContains";
     value: string;
 };

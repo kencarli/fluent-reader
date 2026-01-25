@@ -46,13 +46,15 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
 
     private getColumns = (): IColumn[] => [
         { key: 'name', name: 'Name', fieldName: 'name', minWidth: 100, maxWidth: 200, isResizable: true },
-        { key: 'action', name: 'Action', minWidth: 100, maxWidth: 200, isResizable: true, onRender: (rule: SyncRule) => {
-            switch (rule.action.type) {
-                case 'sendToNotion': return 'Send to Notion';
-                case 'sendToObsidian': return 'Send to Obsidian';
-                default: return 'Unknown Action';
+        {
+            key: 'action', name: 'Action', minWidth: 100, maxWidth: 200, isResizable: true, onRender: (rule: SyncRule) => {
+                switch (rule.action.type) {
+                    case 'sendToNotion': return 'Send to Notion';
+                    case 'sendToObsidian': return 'Send to Obsidian';
+                    default: return 'Unknown Action';
+                }
             }
-        }},
+        },
     ];
 
     private saveRules = (rules: SyncRule[]) => {
@@ -79,7 +81,7 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
         const ruleToEdit = this.state.rules[selectedIndex];
         this.setState({ isEditing: true, editingRule: { ...ruleToEdit } });
     }
-    
+
     private onDeleteRules = () => {
         const newRules = this.state.rules.filter((_, index) => !this.state.selectedIndices.includes(index));
         this.saveRules(newRules);
@@ -119,6 +121,7 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
                                 { key: 'content', text: 'Content' },
                                 { key: 'author', text: 'Author' },
                                 { key: 'sourceId', text: 'Source ID' },
+                                { key: 'starred', text: 'Starred' },
                             ]}
                             selectedKey={cond.field}
                             onChange={(e, option) => this.updateCondition(index, 'field', option.key as string)}
@@ -133,11 +136,23 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
                             selectedKey={cond.operator}
                             onChange={(e, option) => this.updateCondition(index, 'operator', option.key as string)}
                         />
-                        <TextField
-                            value={cond.value}
-                            onChange={(e, newValue) => this.updateCondition(index, 'value', newValue)}
-                            placeholder="Value"
-                        />
+                        {cond.field === 'starred' ? (
+                            <Dropdown
+                                options={[
+                                    { key: 'true', text: 'True' },
+                                    { key: 'false', text: 'False' },
+                                ]}
+                                selectedKey={cond.value}
+                                onChange={(e, option) => this.updateCondition(index, 'value', option.key as string)}
+                                placeholder="Value"
+                            />
+                        ) : (
+                            <TextField
+                                value={cond.value}
+                                onChange={(e, newValue) => this.updateCondition(index, 'value', newValue)}
+                                placeholder="Value"
+                            />
+                        )}
                     </Stack>
                 ))}
                 <Label>Action</Label>
@@ -156,7 +171,7 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
             </Stack>
         );
     }
-    
+
     private updateCondition = (index: number, field: keyof SyncRuleCondition, value: string) => {
         const conditions = [...this.state.editingRule.conditions];
         conditions[index] = { ...conditions[index], [field]: value };

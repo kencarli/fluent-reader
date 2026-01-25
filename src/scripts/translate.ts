@@ -23,6 +23,7 @@ export async function translateText(
 }
 
 export async function translateHtml(html: string, toLang: string = "zh-CN"): Promise<string> {
+    if (!html) return ""
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, "text/html")
     const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null)
