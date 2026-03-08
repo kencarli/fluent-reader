@@ -41,6 +41,8 @@ type ArticleProps = {
     toggleHidden: (item: RSSItem) => void
     sendToNotion: (item: RSSItem) => void
     sendToObsidian: (item: RSSItem) => void
+    sendToOneNote: (item: RSSItem) => void
+    sendToEvernote: (item: RSSItem) => void
 
     textMenu: (position: [number, number], text: string, url: string) => void
     imageMenu: (position: [number, number]) => void
@@ -270,23 +272,45 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             },
             {
                 key: "exportObsidian",
-                text: "Export to Obsidian",
-                iconProps: { iconName: "OneNoteLogo" }, // Use OneNote as placeholder
+                text: intl.get("export.exportToObsidian"),
+                iconProps: { iconName: "OneNoteLogo" },
                 disabled: !window.settings.getIntegrationSettings().obsidianVaultPath,
-                title: !window.settings.getIntegrationSettings().obsidianVaultPath ? "Configure Vault Path in Settings > Integrations" : "Open in Obsidian",
+                title: !window.settings.getIntegrationSettings().obsidianVaultPath ? intl.get("export.configureObsidianPath") : intl.get("export.openInObsidian"),
                 onClick: () => {
                     this.props.sendToObsidian(this.props.item)
                 }
             },
             {
                 key: "exportNotion",
-                text: "Export to Notion",
+                text: intl.get("export.exportToNotion"),
                 iconProps: { iconName: "Database" },
                 disabled: !window.settings.getIntegrationSettings().notionSecret,
-                title: !window.settings.getIntegrationSettings().notionSecret ? "Configure Notion API in Settings > Integrations" : "Upload to Notion",
+                title: !window.settings.getIntegrationSettings().notionSecret ? intl.get("export.configureNotionAPI") : intl.get("export.uploadToNotion"),
                 onClick: () => {
                     this.props.sendToNotion(this.props.item)
-                    window.utils.showMessageBox("Success", "Article sent to Notion.", "OK", "", false)
+                    window.utils.showMessageBox(intl.get("export.success"), intl.get("export.articleSentToNotion"), "OK", "", false)
+                }
+            },
+            {
+                key: "exportOneNote",
+                text: intl.get("export.exportToOneNote"),
+                iconProps: { iconName: "OneNoteLogo" },
+                disabled: !window.settings.getIntegrationSettings().onenoteAccessToken,
+                title: !window.settings.getIntegrationSettings().onenoteAccessToken ? intl.get("export.configureNotionAPI") : intl.get("export.uploadToNotion"),
+                onClick: () => {
+                    this.props.sendToOneNote(this.props.item)
+                    window.utils.showMessageBox(intl.get("export.success"), intl.get("export.articleSentToOneNote"), "OK", "", false)
+                }
+            },
+            {
+                key: "exportEvernote",
+                text: intl.get("export.exportToEvernote"),
+                iconProps: { iconName: "FileImage" },
+                disabled: !window.settings.getIntegrationSettings().evernoteToken,
+                title: !window.settings.getIntegrationSettings().evernoteToken ? intl.get("export.configureNotionAPI") : intl.get("export.uploadToNotion"),
+                onClick: () => {
+                    this.props.sendToEvernote(this.props.item)
+                    window.utils.showMessageBox(intl.get("export.success"), intl.get("export.articleSentToEvernote"), "OK", "", false)
                 }
             },
             {
@@ -413,7 +437,11 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             if (this.props.source.openTarget === SourceOpenTarget.FullContent)
                 this.loadFull()
         }
-        this.componentDidMount()
+        // Only call mount logic if webview changed
+        let webview = document.getElementById("article") as Electron.WebviewTag
+        if (webview != this.webview) {
+            this.componentDidMount()
+        }
     }
 
     componentWillUnmount = () => {
@@ -446,7 +474,10 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         }
     }
     toggleTranslation = async () => {
-        if (this.state.loadWebpage) return
+        if (this.state.loadWebpage) {
+            console.warn('Translation not available in webpage mode')
+            return
+        }
         if (this.state.showTranslation) {
             this.setState({ showTranslation: false })
         } else if (this.state.translation) {
@@ -457,18 +488,34 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 const content = this.state.loadFull
                     ? this.state.fullContent
                     : this.props.item.content
+                    
+                if (!content) {
+                    console.error('No content to translate')
+                    this.setState({ translating: false })
+                    return
+                }
+                
                 const translation = await translateHtml(content)
                 this.setState({
                     translation: translation,
                     showTranslation: true,
+                    translating: false,
                 })
                 if (this.state.showSummary) {
                     this.generateSummary(translation)
                 }
             } catch (e) {
-                console.error(e)
-            } finally {
+                console.error('Translation failed:', e)
                 this.setState({ translating: false })
+                // Show error to user
+                window.utils.showMessageBox(
+                    "Translation Error",
+                    "Failed to translate article. Please try again.",
+                    "OK",
+                    "",
+                    false,
+                    "error"
+                )
             }
         }
     }
@@ -527,21 +574,60 @@ class Article extends React.Component<ArticleProps, ArticleState> {
     }
 
     loadFull = async () => {
+        // Check if we already have the content loaded
+        if (this.state.fullContent) {
+            return
+        }
+
         this.setState({ fullContent: "", loaded: false, error: false })
         const link = this.props.item.link
+        const cacheKey = `fullcontent_${this.props.item._id}`
+        const timeout = 15000 // 15 秒超时
+
+        // Try to get from cache first
         try {
-            const result = await fetch(link)
-            if (!result || !result.ok) throw new Error()
+            const cached = await window.utils.getCache(cacheKey)
+            if (cached && cached.html) {
+                if (link === this.props.item.link) {
+                    this.setState({ fullContent: cached.html, loaded: true })
+                    return
+                }
+            }
+        } catch (e) {
+            // Cache not available, continue with fetch
+        }
+
+        try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+            const result = await fetch(link, {
+                signal: controller.signal,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            })
+            clearTimeout(timeoutId)
+
+            if (!result || !result.ok) throw new Error(`HTTP ${result?.status || 'unknown'}`)
             const html = await decodeFetchResponse(result, true)
             if (link === this.props.item.link) {
-                this.setState({ fullContent: html })
+                // Cache the result
+                try {
+                    await window.utils.setCache(cacheKey, { html }, 86400000) // Cache for 24 hours
+                } catch (e) {
+                    // Ignore cache errors
+                }
+                this.setState({ fullContent: html, loaded: true })
             }
-        } catch {
+        } catch (error) {
             if (link === this.props.item.link) {
                 this.setState({
                     loaded: true,
                     error: true,
-                    errorDescription: "MERCURY_PARSER_FAILURE",
+                    errorDescription: error.name === 'AbortError'
+                        ? "REQUEST_TIMEOUT (15s)"
+                        : "MERCURY_PARSER_FAILURE",
                 })
             }
         }
@@ -698,7 +784,9 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                         className={this.state.showTranslation ? "active" : ""}
                         iconProps={{ iconName: "Dictionary" }}
                         disabled={
-                            this.state.loadWebpage || this.state.translating
+                            this.state.loadWebpage || 
+                            this.state.translating ||
+                            !this.props.item.content
                         }
                         onClick={this.toggleTranslation}
                     />

@@ -5,6 +5,7 @@ import RulesTab from "../../components/settings/rules"
 import { AppDispatch } from "../../scripts/utils"
 import { RSSSource, updateSource } from "../../scripts/models/source"
 import { SourceRule } from "../../scripts/models/rule"
+import { SyncRule } from "../../schema-types"
 
 const getSources = (state: RootState) => state.sources
 

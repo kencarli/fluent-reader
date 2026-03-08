@@ -67,6 +67,11 @@ export class WindowManager {
                     spellcheck: false,
                     defaultEncoding: "utf-8",
                     preload: path.join(__dirname, "preload.js"),
+                    zoomFactor: 1.0,
+                    defaultFontSize: 16,
+                    defaultMonospaceFontSize: 13,
+                    minimumFontSize: 0,
+                    disableBlinkFeatures: 'Auxclick'
                 },
             })
             this.mainWindowState.manage(this.mainWindow)

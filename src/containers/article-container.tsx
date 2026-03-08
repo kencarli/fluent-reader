@@ -47,6 +47,8 @@ const makeMapStateToProps = () => {
 import {
     sendToNotion,
     sendToObsidian,
+    sendToOneNote,
+    sendToEvernote,
 } from "../scripts/integrations"
 
 const mapDispatchToProps = (dispatch: AppDispatch) => {
@@ -80,6 +82,8 @@ const mapDispatchToProps = (dispatch: AppDispatch) => {
         findSimilar: (item: RSSItem) => dispatch(findSimilar(item)),
         sendToNotion: (item: RSSItem) => dispatch(sendToNotion(item)),
         sendToObsidian: (item: RSSItem) => dispatch(sendToObsidian(item)),
+        sendToOneNote: (item: RSSItem) => dispatch(sendToOneNote(item)),
+        sendToEvernote: (item: RSSItem) => dispatch(sendToEvernote(item)),
     }
 }
 

@@ -1,14 +1,32 @@
 import * as React from "react"
 import intl from "react-intl-universal"
-import { Label, Stack, TextField, PrimaryButton, Toggle, Dropdown } from "@fluentui/react"
+import {
+    Label,
+    Stack,
+    TextField,
+    PrimaryButton,
+    Toggle,
+    Dropdown,
+    DefaultButton,
+} from "@fluentui/react"
 import { IntegrationSettings } from "../../schema-types"
 import { testObsidianConnection, testNotionConnection } from "../../scripts/integrations"
+import ObsidianSettingsModal from "./obsidian-modal"
+import NotionSettingsModal from "./notion-modal"
+import AIServicesModal from "./ai-services-modal"
+import DailyBriefingModal from "./daily-briefing-modal"
+import CloudNoteServicesModal from "./cloud-note-services-modal"
 
 type IntegrationTabState = {
     settings: IntegrationSettings,
     notionDatabases: { key: string, text: string }[],
     notionProperties: any,
     isLoadingDatabases: boolean,
+    isObsidianModalOpen: boolean,
+    isNotionModalOpen: boolean,
+    isAIServicesModalOpen: boolean,
+    isDailyBriefingModalOpen: boolean,
+    isCloudNoteServicesModalOpen: boolean,
 }
 
 class IntegrationTab extends React.Component<{}, IntegrationTabState> {
@@ -19,6 +37,11 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
             notionDatabases: [],
             notionProperties: {},
             isLoadingDatabases: false,
+            isObsidianModalOpen: false,
+            isNotionModalOpen: false,
+            isAIServicesModalOpen: false,
+            isDailyBriefingModalOpen: false,
+            isCloudNoteServicesModalOpen: false,
         }
     }
 
@@ -39,12 +62,122 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
         checked: any,
         name?: string
     ) => {
-        if (!name) name = (event.currentTarget as HTMLInputElement).name
+        if (!name && event) name = (event.currentTarget as HTMLInputElement).name
         this.setState(prevState => {
             const newSettings = { ...prevState.settings, [name]: checked }
             window.settings.setIntegrationSettings(newSettings)
             return { settings: newSettings }
         })
+    }
+
+    openObsidianModal = () => {
+        this.setState({ isObsidianModalOpen: true })
+    }
+
+    closeObsidianModal = () => {
+        this.setState({ isObsidianModalOpen: false })
+    }
+
+    saveObsidianSettings = (settings: IntegrationSettings) => {
+        this.setState({ settings })
+        window.settings.setIntegrationSettings(settings)
+    }
+
+    openNotionModal = () => {
+        this.setState({ isNotionModalOpen: true })
+    }
+
+    closeNotionModal = () => {
+        this.setState({ isNotionModalOpen: false })
+    }
+
+    saveNotionSettings = (settings: IntegrationSettings) => {
+        this.setState({ settings })
+        window.settings.setIntegrationSettings(settings)
+    }
+
+    handleLoadNotionDatabases = async () => {
+        if (!this.state.settings.notionSecret) {
+            window.utils.showMessageBox("Error", intl.get("settings.integrations.pleaseEnterNotionToken"), "OK", "", false, "error");
+            return;
+        }
+        this.setState({ isLoadingDatabases: true });
+        try {
+            const dbs = await window.utils.getNotionDatabases(this.state.settings.notionSecret);
+            this.setState({
+                notionDatabases: dbs.map(db => ({ key: db.id, text: db.title[0]?.plain_text || "Untitled" })),
+                isLoadingDatabases: false,
+            });
+        } catch (err: unknown) {
+            let errorMessage = String(err);
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            } else if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as any).message === 'string') {
+                errorMessage = (err as any).message;
+            }
+            window.utils.showMessageBox(intl.get("settings.integrations.errorLoadingDatabases"), errorMessage, "OK", "", false, "error");
+            this.setState({ isLoadingDatabases: false });
+        }
+    }
+
+    handleLoadNotionProperties = async (databaseId: string) => {
+        if (!this.state.settings.notionSecret) return;
+        try {
+            const props = await window.utils.getNotionDatabaseProperties(this.state.settings.notionSecret, databaseId);
+            this.setState({ notionProperties: props });
+        } catch (err: unknown) {
+            let errorMessage = String(err);
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            } else if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as any).message === 'string') {
+                errorMessage = (err as any).message;
+            }
+            window.utils.showMessageBox(intl.get("settings.integrations.errorLoadingProperties"), errorMessage, "OK", "", false, "error");
+        }
+    }
+
+    handleNotionDbChange = (databaseId: string) => {
+        this.handleToggleChange(null, databaseId, "notionDatabaseId");
+        this.handleLoadNotionProperties(databaseId);
+    }
+
+    openAIServicesModal = () => {
+        this.setState({ isAIServicesModalOpen: true })
+    }
+
+    closeAIServicesModal = () => {
+        this.setState({ isAIServicesModalOpen: false })
+    }
+
+    saveAIServicesSettings = (settings: IntegrationSettings) => {
+        this.setState({ settings })
+        window.settings.setIntegrationSettings(settings)
+    }
+
+    openDailyBriefingModal = () => {
+        this.setState({ isDailyBriefingModalOpen: true })
+    }
+
+    closeDailyBriefingModal = () => {
+        this.setState({ isDailyBriefingModalOpen: false })
+    }
+
+    saveDailyBriefingSettings = (settings: IntegrationSettings) => {
+        this.setState({ settings })
+        window.settings.setIntegrationSettings(settings)
+    }
+
+    openCloudNoteServicesModal = () => {
+        this.setState({ isCloudNoteServicesModalOpen: true })
+    }
+
+    closeCloudNoteServicesModal = () => {
+        this.setState({ isCloudNoteServicesModalOpen: false })
+    }
+
+    saveCloudNoteServicesSettings = (settings: IntegrationSettings) => {
+        this.setState({ settings })
+        window.settings.setIntegrationSettings(settings)
     }
 
 
@@ -127,126 +260,80 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
         }
     }
 
-    loadNotionDatabases = async () => {
-        if (!this.state.settings.notionSecret) {
-            window.utils.showMessageBox("Error", "Please enter your Notion Integration Token first.", "OK", "", false, "error");
-            return;
-        }
-        this.setState({ isLoadingDatabases: true });
-        try {
-            const dbs = await window.utils.getNotionDatabases(this.state.settings.notionSecret);
-            this.setState({
-                notionDatabases: dbs.map(db => ({ key: db.id, text: db.title[0]?.plain_text || "Untitled" })),
-                isLoadingDatabases: false,
-            });
-        } catch (err: unknown) {
-            let errorMessage = String(err);
-            if (err instanceof Error) {
-                errorMessage = err.message;
-            } else if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as any).message === 'string') {
-                errorMessage = (err as any).message;
-            }
-            window.utils.showMessageBox("Error loading databases", errorMessage, "OK", "", false, "error");
-            this.setState({ isLoadingDatabases: false });
-        }
-    }
-
-    loadNotionProperties = async (databaseId: string) => {
-        if (!this.state.settings.notionSecret) return;
-        try {
-            const props = await window.utils.getNotionDatabaseProperties(this.state.settings.notionSecret, databaseId);
-            this.setState({ notionProperties: props });
-        } catch (err: unknown) {
-            let errorMessage = String(err);
-            if (err instanceof Error) {
-                errorMessage = err.message;
-            } else if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as any).message === 'string') {
-                errorMessage = (err as any).message;
-            }
-            window.utils.showMessageBox("Error loading properties", errorMessage, "OK", "", false, "error");
-        }
-    }
-
-    handleNotionDbChange = (_, option) => {
-        this.handleToggleChange(_, option.key, "notionDatabaseId");
-        this.loadNotionProperties(option.key);
-    }
-
     render() {
+        const { settings } = this.state
         return (
             <div className="tab-body">
+                <ObsidianSettingsModal
+                    isOpen={this.state.isObsidianModalOpen}
+                    settings={this.state.settings}
+                    onDismiss={this.closeObsidianModal}
+                    onSave={this.saveObsidianSettings}
+                />
+
+                <NotionSettingsModal
+                    isOpen={this.state.isNotionModalOpen}
+                    settings={this.state.settings}
+                    notionDatabases={this.state.notionDatabases}
+                    notionProperties={this.state.notionProperties}
+                    isLoadingDatabases={this.state.isLoadingDatabases}
+                    onDismiss={this.closeNotionModal}
+                    onSave={this.saveNotionSettings}
+                    onLoadDatabases={this.handleLoadNotionDatabases}
+                    onDatabaseChange={this.handleNotionDbChange}
+                />
+
+                <AIServicesModal
+                    isOpen={this.state.isAIServicesModalOpen}
+                    settings={this.state.settings}
+                    onDismiss={this.closeAIServicesModal}
+                    onSave={this.saveAIServicesSettings}
+                />
+
+                <DailyBriefingModal
+                    isOpen={this.state.isDailyBriefingModalOpen}
+                    settings={this.state.settings}
+                    onDismiss={this.closeDailyBriefingModal}
+                    onSave={this.saveDailyBriefingSettings}
+                />
+
+                <CloudNoteServicesModal
+                    isOpen={this.state.isCloudNoteServicesModalOpen}
+                    settings={this.state.settings}
+                    onDismiss={this.closeCloudNoteServicesModal}
+                    onSave={this.saveCloudNoteServicesSettings}
+                />
+
                 <Label
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
                     {intl.get("settings.integrations.obsidianIntegration")}
                 </Label>
-                <Stack tokens={{ childrenGap: 16 }}>
-                    <Stack horizontal tokens={{ childrenGap: 8 }}>
+                <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
+                    <Stack.Item grow>
                         <TextField
                             label={intl.get("settings.integrations.vaultPath")}
-                            name="obsidianVaultPath"
-                            value={this.state.settings.obsidianVaultPath || ""}
-                            onChange={this.handleInputChange}
-                            description={intl.get("settings.integrations.obsidianPathDescription")}
-                            styles={{ root: { flexGrow: 1 } }}
+                            value={settings.obsidianVaultPath || intl.get("settings.integrations.notConfigured")}
+                            disabled
+                            styles={{ field: { color: settings.obsidianVaultPath ? "var(--neutralPrimary)" : "var(--neutralTertiary)" } }}
                         />
+                    </Stack.Item>
+                    <Stack.Item>
                         <PrimaryButton
-                            text={intl.get("settings.integrations.browse")}
-                            onClick={async () => {
-                                const path = await window.utils.showFolderDialog()
-                                if (path) {
-                                    this.setState(prevState => {
-                                        const newSettings = { ...prevState.settings, obsidianVaultPath: path }
-                                        window.settings.setIntegrationSettings(newSettings)
-                                        return { settings: newSettings }
-                                    })
-                                }
-                            }}
+                            text={intl.get("settings.integrations.configure")}
+                            onClick={this.openObsidianModal}
                             allowDisabledFocus
-                            style={{ alignSelf: 'flex-end', marginBottom: 3 }}
+                            style={{ alignSelf: "flex-end" }}
                         />
-                    </Stack>
-                    <TextField
-                        label={intl.get("settings.integrations.template")}
-                        name="obsidianTemplate"
-                        multiline
-                        rows={10}
-                        value={this.state.settings.obsidianTemplate || ""}
-                        onChange={this.handleInputChange}
-                        description={intl.get("settings.integrations.obsidianTemplateDescription")}
-                        placeholder={`---
-title: "{{title}}"
-url: "{{url}}"
-tags: [{{tags}}]
----
-
-# {{title}}
-
-{{content}}
-
-## Highlights
-{{#highlights}}
-> {{text}}
-{{#note}}
-- Note: {{note}}
-{{/note}}
----
-{{/highlights}}`}
-                    />
-                    <Dropdown
-                        label={intl.get("settings.integrations.imageStrategy")}
-                        selectedKey={this.state.settings.obsidianImageStrategy || "hotlink"}
-                        options={[
-                            { key: "hotlink", text: intl.get("settings.integrations.imageStrategyHotlink") },
-                            { key: "download", text: intl.get("settings.integrations.imageStrategyDownload") },
-                        ]}
-                        onChange={(e, option) => this.handleToggleChange(e, option.key, "obsidianImageStrategy")}
-                    />
-                    <PrimaryButton
-                        text={intl.get("settings.integrations.testConnection")}
-                        onClick={this.handleTestObsidianConnection}
-                        allowDisabledFocus
-                        disabled={!this.state.settings.obsidianVaultPath}
-                    />
+                    </Stack.Item>
+                    {settings.obsidianVaultPath && (
+                        <Stack.Item>
+                            <DefaultButton
+                                text={intl.get("settings.integrations.testConnection")}
+                                onClick={this.handleTestObsidianConnection}
+                                allowDisabledFocus
+                            />
+                        </Stack.Item>
+                    )}
                 </Stack>
 
                 <div style={{ height: 24 }}></div>
@@ -255,100 +342,38 @@ tags: [{{tags}}]
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
                     {intl.get("settings.integrations.notionIntegration")}
                 </Label>
-                <Stack tokens={{ childrenGap: 16 }}>
-                    <TextField
-                        label={intl.get("settings.integrations.integrationToken")}
-                        name="notionSecret"
-                        type="password"
-                        value={this.state.settings.notionSecret || ""}
-                        onChange={this.handleInputChange}
-                        description={intl.get("settings.integrations.notionTokenDescription")}
-                    />
-                    <PrimaryButton
-                        text={this.state.isLoadingDatabases ? "Loading..." : "Load Databases"}
-                        onClick={this.loadNotionDatabases}
-                        disabled={!this.state.settings.notionSecret || this.state.isLoadingDatabases}
-                    />
-                    <Dropdown
-                        label={intl.get("settings.integrations.databaseId")}
-                        selectedKey={this.state.settings.notionDatabaseId || ""}
-                        options={this.state.notionDatabases}
-                        onChange={this.handleNotionDbChange}
-                        placeholder="Select a database after loading"
-                        disabled={this.state.notionDatabases.length === 0}
-                    />
-                    <Dropdown
-                        label={intl.get("settings.integrations.notionTitlePropertyName")}
-                        selectedKey={this.state.settings.notionTitlePropertyName || ""}
-                        options={Object.keys(this.state.notionProperties)
-                            .filter(p => this.state.notionProperties[p].type === 'title')
-                            .map(p => ({ key: p, text: p }))
-                        }
-                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionTitlePropertyName")}
-                        placeholder="Select a title property"
-                        disabled={Object.keys(this.state.notionProperties).length === 0}
-                    />
-                    <Dropdown
-                        label={intl.get("settings.integrations.notionUrlPropertyName")}
-                        selectedKey={this.state.settings.notionUrlPropertyName || ""}
-                        options={Object.keys(this.state.notionProperties)
-                            .filter(p => this.state.notionProperties[p].type === 'url')
-                            .map(p => ({ key: p, text: p }))
-                        }
-                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionUrlPropertyName")}
-                        placeholder="Select a URL property"
-                        disabled={Object.keys(this.state.notionProperties).length === 0}
-                    />
-                    <Dropdown
-                        label="Tags Property"
-                        selectedKey={this.state.settings.notionTagsPropertyName || ""}
-                        options={Object.keys(this.state.notionProperties)
-                            .filter(p => this.state.notionProperties[p].type === 'multi_select')
-                            .map(p => ({ key: p, text: p }))
-                        }
-                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionTagsPropertyName")}
-                        placeholder="Select a tags property (multi-select)"
-                        disabled={Object.keys(this.state.notionProperties).length === 0}
-                    />
-                    <Dropdown
-                        label="Author Property"
-                        selectedKey={this.state.settings.notionAuthorPropertyName || ""}
-                        options={Object.keys(this.state.notionProperties)
-                            .filter(p => this.state.notionProperties[p].type === 'rich_text')
-                            .map(p => ({ key: p, text: p }))
-                        }
-                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionAuthorPropertyName")}
-                        placeholder="Select an author property (text)"
-                        disabled={Object.keys(this.state.notionProperties).length === 0}
-                    />
-                    <Dropdown
-                        label="Date Property"
-                        selectedKey={this.state.settings.notionDatePropertyName || ""}
-                        options={Object.keys(this.state.notionProperties)
-                            .filter(p => this.state.notionProperties[p].type === 'date')
-                            .map(p => ({ key: p, text: p }))
-                        }
-                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionDatePropertyName")}
-                        placeholder="Select a date property (date)"
-                        disabled={Object.keys(this.state.notionProperties).length === 0}
-                    />
-                    <Dropdown
-                        label="Source Property"
-                        selectedKey={this.state.settings.notionSourcePropertyName || ""}
-                        options={Object.keys(this.state.notionProperties)
-                            .filter(p => this.state.notionProperties[p].type === 'select')
-                            .map(p => ({ key: p, text: p }))
-                        }
-                        onChange={(e, option) => this.handleToggleChange(e, option.key, "notionSourcePropertyName")}
-                        placeholder="Select a source property (select)"
-                        disabled={Object.keys(this.state.notionProperties).length === 0}
-                    />
-                    <PrimaryButton
-                        text={intl.get("settings.integrations.testConnection")}
-                        onClick={this.handleTestNotionConnection}
-                        allowDisabledFocus
-                        disabled={!this.state.settings.notionSecret || !this.state.settings.notionDatabaseId}
-                    />
+                <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
+                    <Stack.Item grow>
+                        <TextField
+                            label={intl.get("settings.integrations.databaseId")}
+                            value={
+                                settings.notionDatabaseId
+                                    ? this.state.notionDatabases.find(
+                                          (db) => db.key === settings.notionDatabaseId
+                                      )?.text || settings.notionDatabaseId
+                                    : intl.get("settings.integrations.notConfigured")
+                            }
+                            disabled
+                            styles={{ field: { color: settings.notionDatabaseId ? "var(--neutralPrimary)" : "var(--neutralTertiary)" } }}
+                        />
+                    </Stack.Item>
+                    <Stack.Item>
+                        <PrimaryButton
+                            text={intl.get("settings.integrations.configure")}
+                            onClick={this.openNotionModal}
+                            allowDisabledFocus
+                            style={{ alignSelf: "flex-end" }}
+                        />
+                    </Stack.Item>
+                    {settings.notionSecret && settings.notionDatabaseId && (
+                        <Stack.Item>
+                            <DefaultButton
+                                text={intl.get("settings.integrations.testConnection")}
+                                onClick={this.handleTestNotionConnection}
+                                allowDisabledFocus
+                            />
+                        </Stack.Item>
+                    )}
                 </Stack>
 
                 <div style={{ height: 24 }}></div>
@@ -357,31 +382,25 @@ tags: [{{tags}}]
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
                     {intl.get("settings.integrations.aiPushServices")}
                 </Label>
-                <Stack tokens={{ childrenGap: 16 }}>
-                    <TextField
-                        label={intl.get("settings.integrations.openaiApiKey")}
-                        name="openaiApiKey"
-                        type="password"
-                        value={this.state.settings.openaiApiKey || ""}
-                        onChange={this.handleInputChange}
-                        description={intl.get("settings.integrations.openaiDescription")}
-                    />
-                    <TextField
-                        label={intl.get("settings.integrations.dingtalkWebhook")}
-                        name="dingtalkWebhook"
-                        type="password"
-                        value={this.state.settings.dingtalkWebhook || ""}
-                        onChange={this.handleInputChange}
-                        description={intl.get("settings.integrations.dingtalkDescription")}
-                    />
-                    <TextField
-                        label={intl.get("settings.integrations.wecomWebhook")}
-                        name="wecomWebhook"
-                        type="password"
-                        value={this.state.settings.wecomWebhook || ""}
-                        onChange={this.handleInputChange}
-                        description={intl.get("settings.integrations.wecomDescription")}
-                    />
+                <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
+                    <Stack.Item grow>
+                        <TextField
+                            label={intl.get("settings.integrations.aiPushServices")}
+                            value={this.getAIServicesSummary()}
+                            disabled
+                            multiline
+                            rows={3}
+                            styles={{ field: { color: "var(--neutralPrimary)" } }}
+                        />
+                    </Stack.Item>
+                    <Stack.Item>
+                        <PrimaryButton
+                            text={intl.get("settings.integrations.configure")}
+                            onClick={this.openAIServicesModal}
+                            allowDisabledFocus
+                            style={{ alignSelf: "flex-end" }}
+                        />
+                    </Stack.Item>
                 </Stack>
 
                 <div style={{ height: 24 }}></div>
@@ -390,52 +409,82 @@ tags: [{{tags}}]
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
                     {intl.get("settings.integrations.dailyBriefingAutomation")}
                 </Label>
-                <Stack tokens={{ childrenGap: 16 }}>
-                    <Stack horizontal tokens={{ childrenGap: 24 }}>
+                <Stack horizontal tokens={{ childrenGap: 16 }}>
+                    <Stack.Item grow>
                         <TextField
-                            label={intl.get("settings.integrations.scheduledTime")}
-                            name="digestTime"
-                            placeholder="09:00"
-                            value={this.state.settings.digestTime || ""}
-                            onChange={this.handleInputChange}
-                            style={{ width: 120 }}
+                            label={intl.get("settings.integrations.dailyBriefingAutomation")}
+                            value={this.getDailyBriefingSummary()}
+                            disabled
+                            multiline
+                            rows={3}
+                            styles={{ field: { color: "var(--neutralPrimary)" } }}
                         />
-                        <Toggle
-                            label={intl.get("settings.integrations.autoPushEnabled")}
-                            checked={
-                                this.state.settings.autoPushEnabled || false
-                            }
-                            onChange={(e, checked) =>
-                                this.handleToggleChange(
-                                    e,
-                                    checked,
-                                    "autoPushEnabled"
-                                )
-                            }
+                    </Stack.Item>
+                    <Stack.Item>
+                        <PrimaryButton
+                            text={intl.get("settings.integrations.configure")}
+                            onClick={this.openDailyBriefingModal}
+                            allowDisabledFocus
+                            style={{ alignSelf: "flex-end" }}
                         />
-                        <Toggle
-                            label={intl.get("settings.integrations.useDalle")}
-                            checked={this.state.settings.dalleEnabled || false}
-                            onChange={(e, checked) =>
-                                this.handleToggleChange(
-                                    e,
-                                    checked,
-                                    "dalleEnabled"
-                                )
-                            }
+                    </Stack.Item>
+                </Stack>
+
+                <div style={{ height: 24 }}></div>
+
+                <Label
+                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                    {intl.get("settings.cloudNoteServices.name")}
+                </Label>
+                <Stack horizontal tokens={{ childrenGap: 16 }}>
+                    <Stack.Item grow>
+                        <TextField
+                            label={intl.get("settings.integrations.cloudNoteServices")}
+                            value={this.getCloudNoteServicesSummary()}
+                            disabled
+                            multiline
+                            rows={2}
+                            styles={{ field: { color: "var(--neutralPrimary)" } }}
                         />
-                    </Stack>
-                    <TextField
-                        label={intl.get("settings.integrations.interestTopics")}
-                        name="digestTopics"
-                        placeholder="AI, Tech Trends, Rust, Space"
-                        value={this.state.settings.digestTopics || ""}
-                        onChange={this.handleInputChange}
-                        description={intl.get("settings.integrations.interestTopicsDescription")}
-                    />
+                    </Stack.Item>
+                    <Stack.Item>
+                        <PrimaryButton
+                            text={intl.get("settings.integrations.configure")}
+                            onClick={this.openCloudNoteServicesModal}
+                            allowDisabledFocus
+                            style={{ alignSelf: "flex-end" }}
+                        />
+                    </Stack.Item>
                 </Stack>
             </div>
         )
+    }
+
+    getAIServicesSummary = () => {
+        const { settings } = this.state
+        const summary = []
+        if (settings.openaiApiKey) summary.push(`OpenAI API Key: ••••••••`)
+        if (settings.dingtalkWebhook) summary.push(`${intl.get("settings.integrations.dingtalkWebhook")}: ••••••••`)
+        if (settings.wecomWebhook) summary.push(`${intl.get("settings.integrations.wecomWebhook")}: ••••••••`)
+        return summary.length > 0 ? summary.join("\n") : intl.get("settings.integrations.notConfigured")
+    }
+
+    getDailyBriefingSummary = () => {
+        const { settings } = this.state
+        const summary = []
+        if (settings.digestTime) summary.push(`${intl.get("settings.integrations.scheduledTime")}: ${settings.digestTime}`)
+        if (settings.autoPushEnabled) summary.push(intl.get("settings.integrations.autoPushEnabled"))
+        if (settings.dalleEnabled) summary.push(intl.get("settings.integrations.useDalle"))
+        if (settings.digestTopics) summary.push(`${intl.get("settings.integrations.interestTopics")}: ${settings.digestTopics}`)
+        return summary.length > 0 ? summary.join("\n") : intl.get("settings.integrations.notConfigured")
+    }
+
+    getCloudNoteServicesSummary = () => {
+        const { settings } = this.state
+        const summary = []
+        if (settings.onenoteAccessToken) summary.push(`OneNote: ${intl.get("settings.integrations.connected")}`)
+        if (settings.evernoteToken) summary.push(`Evernote: ${intl.get("settings.integrations.connected")}`)
+        return summary.length > 0 ? summary.join("\n") : intl.get("settings.integrations.notConfigured")
     }
 }
 

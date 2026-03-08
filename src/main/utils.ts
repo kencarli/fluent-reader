@@ -4,6 +4,14 @@ import fs = require("fs")
 import { ImageCallbackTypes, TouchBarTexts } from "../schema-types"
 import { initMainTouchBar } from "./touchbar"
 import fontList = require("font-list")
+import Datastore = require("nedb")
+
+// Cache database
+const cacheDb = new Datastore({
+    filename: `${app.getPath("userData")}/cache.db`,
+    autoload: true,
+})
+cacheDb.persistence.setAutocompactionInterval(10000)
 
 export function setUtilsListeners(manager: WindowManager) {
     async function openExternal(url: string, background = false) {
@@ -181,6 +189,37 @@ export function setUtilsListeners(manager: WindowManager) {
 
     ipcMain.handle("clear-cache", async () => {
         await session.defaultSession.clearCache()
+    })
+
+    // Cache item handlers
+    ipcMain.handle("get-cache-item", async (_, key: string) => {
+        return new Promise((resolve) => {
+            cacheDb.findOne({ _id: key }, (err, doc) => {
+                if (err || !doc) {
+                    resolve(null)
+                    return
+                }
+                // Check if expired
+                if (doc.ttl && Date.now() > doc.ttl) {
+                    cacheDb.remove({ _id: key }, () => {})
+                    resolve(null)
+                    return
+                }
+                resolve(doc.value)
+            })
+        })
+    })
+
+    ipcMain.handle("set-cache-item", async (_, key: string, value: any, ttl?: number) => {
+        return new Promise((resolve) => {
+            const doc: any = { _id: key, value, timestamp: Date.now() }
+            if (ttl) {
+                doc.ttl = Date.now() + ttl
+            }
+            cacheDb.update({ _id: key }, doc, { upsert: true }, (err) => {
+                resolve(!err)
+            })
+        })
     })
 
     app.on("web-contents-created", (_, contents) => {

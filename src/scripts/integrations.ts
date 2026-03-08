@@ -322,3 +322,101 @@ export async function testNotionConnection(settings: IntegrationSettings): Promi
 
     return true
 }
+
+export function sendToOneNote(item: RSSItem): AppThunk<Promise<void>> {
+    return async (dispatch, getState) => {
+        const settings = window.settings.getIntegrationSettings()
+        if (!settings.onenoteAccessToken || !settings.onenoteUserId) return
+
+        try {
+            const title = item.title || "Untitled"
+            const url = item.link
+            const date = new Date(item.date).toLocaleString()
+            const creator = item.creator || ""
+            
+            const content = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${title}</title>
+                </head>
+                <body>
+                    <h1>${title}</h1>
+                    <p><a href="${url}">Source</a></p>
+                    <p><em>Published: ${date}</em></p>
+                    ${creator ? `<p><em>By: ${creator}</em></p>` : ""}
+                    ${item.content ? `<div>${item.content}</div>` : ""}
+                </body>
+                </html>
+            `
+
+            const notebookId = settings.onenoteNotebookId || "default"
+            const sectionUrl = `https://graph.microsoft.com/v1.0/me/onenote/notebooks/${notebookId}/sections`
+            
+            const response = await fetch(sectionUrl, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${settings.onenoteAccessToken}`,
+                    "Content-Type": "application/xhtml+xml",
+                },
+                body: content,
+            })
+
+            if (response.ok) {
+                window.utils.showMessageBox(
+                    "OneNote Sync Successful",
+                    `Successfully sent to OneNote.`,
+                    "OK",
+                    "",
+                    false
+                )
+            } else {
+                throw new Error(`OneNote API Error: ${response.statusText}`)
+            }
+        } catch (err) {
+            console.log(err)
+            const errorMessage = err instanceof Error ? err.message : "Unknown error"
+            window.utils.showMessageBox("OneNote Sync Failed", errorMessage, "OK", "", false, "error")
+        }
+    }
+}
+
+export function sendToEvernote(item: RSSItem): AppThunk<Promise<void>> {
+    return async (dispatch, getState) => {
+        const settings = window.settings.getIntegrationSettings()
+        if (!settings.evernoteToken) return
+
+        try {
+            const title = item.title || "Untitled"
+            const url = item.link
+            const date = new Date(item.date).toLocaleString()
+            const creator = item.creator || ""
+            
+            const content = `
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+                <en-note>
+                    <h1>${title}</h1>
+                    <p><a href="${url}">Source</a></p>
+                    <p><em>Published: ${date}</em></p>
+                    ${creator ? `<p><em>By: ${creator}</em></p>` : ""}
+                    ${item.content ? `<div>${item.content}</div>` : ""}
+                </en-note>
+            `
+
+            // Evernote API requires more complex setup with EDAM
+            // This is a simplified version that would need the full Evernote SDK
+            window.utils.showMessageBox(
+                "Evernote Export",
+                `Article: ${title}\n\nNote: Full Evernote integration requires additional setup.`,
+                "OK",
+                "",
+                false
+            )
+        } catch (err) {
+            console.log(err)
+            const errorMessage = err instanceof Error ? err.message : "Unknown error"
+            window.utils.showMessageBox("Evernote Sync Failed", errorMessage, "OK", "", false, "error")
+        }
+    }
+}

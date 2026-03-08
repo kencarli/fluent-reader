@@ -138,10 +138,31 @@ export class Menu extends React.Component<MenuProps> {
     }
 
     _onRenderGroupHeader = (group: INavLinkGroup): JSX.Element => {
+        // Check if any group is expanded
+        const hasExpandedGroups = this.props.groups.some(g => g.expanded)
+        
         return (
-            <p className={"subs-header " + AnimationClassNames.slideDownIn10}>
-                {group.name}
-            </p>
+            <Stack horizontal horizontalAlign="space-between" className={"subs-header " + AnimationClassNames.slideDownIn10}>
+                <span>{group.name}</span>
+                <Icon
+                    iconName={hasExpandedGroups ? "ChevronDownMed" : "ChevronRightMed"}
+                    style={{ cursor: "pointer", fontSize: 16 }}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        // Toggle all groups
+                        this.props.groups.forEach(g => {
+                            if (g.isMultiple) {
+                                this.props.updateGroupExpansion(
+                                    e as any,
+                                    "g-" + g.index,
+                                    this.props.selected
+                                )
+                            }
+                        })
+                    }}
+                    title={hasExpandedGroups ? intl.get("menu.collapseAll") : intl.get("menu.expandAll")}
+                />
+            </Stack>
         )
     }
 

@@ -79,7 +79,26 @@ export interface IntegrationSettings {
     notionAuthorPropertyName?: string
     notionDatePropertyName?: string
     notionSourcePropertyName?: string
+    onenoteAccessToken?: string
+    onenoteUserId?: string
+    onenoteUserName?: string
+    onenoteNotebookId?: string
+    onenoteAuthorized?: boolean
+    evernoteToken?: string
+    evernoteNotebookGuid?: string
+    evernoteUserName?: string
+    evernoteAuthorized?: boolean
+    baiduTranslateAppId?: string
+    baiduTranslateSecret?: string
+    youdaoTranslateAppId?: string
+    youdaoTranslateSecret?: string
+    translationService?: "google" | "baidu" | "youdao" | "ollama" | "auto"
+    translationMode?: "full" | "bilingual"
+    ollamaApiUrl?: string
+    ollamaModel?: string
     openaiApiKey?: string
+    nvidiaApiKey?: string
+    deepseekApiKey?: string
     dingtalkWebhook?: string
     wecomWebhook?: string
     digestTime?: string
@@ -97,8 +116,8 @@ export type SyncRuleCondition = {
 };
 
 export type SyncRuleAction = {
-    type: "sendToObsidian" | "sendToNotion";
-    destination?: string; // e.g., Notion Database ID
+    type: "sendToObsidian" | "sendToNotion" | "sendToOneNote" | "sendToEvernote";
+    destination?: string; // e.g., Notion Database ID, OneNote Notebook ID, Evernote Notebook GUID
 };
 
 export type SyncRule = {

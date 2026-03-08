@@ -10,7 +10,6 @@ import AppTabContainer from "../containers/settings/app-container"
 import RulesTabContainer from "../containers/settings/rules-container"
 import ServiceTabContainer from "../containers/settings/service-container"
 import IntegrationTab from "./settings/integration"
-import SyncRulesTab from "./settings/sync-rules"
 import { initTouchBarWithTexts } from "../scripts/utils"
 
 type SettingsProps = {
@@ -97,11 +96,6 @@ class Settings extends React.Component<SettingsProps> {
                             headerText={intl.get("settings.integrations.name")}
                             itemIcon="PlugConnected">
                             <IntegrationTab />
-                        </PivotItem>
-                        <PivotItem
-                            headerText="Sync Rules"
-                            itemIcon="SyncStatus">
-                            <SyncRulesTab />
                         </PivotItem>
                         <PivotItem
                             headerText={intl.get("settings.app")}

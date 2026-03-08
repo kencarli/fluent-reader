@@ -125,7 +125,7 @@ body.darwin .menu .btn-group {
 .settings-container .settings {
     margin: 64px auto 0;
     width: 680px;
-    height: calc(100% - 64px);
+    height: calc(100% - 8px);
     background-color: var(--white);
     box-shadow: 0 6.4px 14.4px 0 rgba(0, 0, 0, 0.132),
         0 1.2px 3.6px 0 rgba(0, 0, 0, 0.108);
@@ -137,7 +137,7 @@ div[role="toolbar"] {
 }
 
 div[role="tabpanel"] {
-    height: calc(100% - 68px);
+    height: calc(100% - 8px);
     padding: 12px 16px;
     overflow-y: auto;
     position: relative;
@@ -191,7 +191,7 @@ img.favicon.dropdown {
 }
 
 .ms-DetailsList-contentWrapper {
-    max-height: 400px;
+    max-height: 800px;
     overflow-x: hidden;
     overflow-y: auto;
     margin-bottom: 16px;

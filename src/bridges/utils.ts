@@ -201,6 +201,14 @@ const utilsBridge = {
             callback(itemId, text, range)
         })
     },
+
+    getCache: async (key: string): Promise<any> => {
+        return await ipcRenderer.invoke("get-cache-item", key)
+    },
+
+    setCache: async (key: string, value: any, ttl?: number): Promise<void> => {
+        await ipcRenderer.invoke("set-cache-item", key, value, ttl)
+    },
 }
 
 declare global {

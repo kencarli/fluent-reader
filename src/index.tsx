@@ -2,6 +2,7 @@ import * as React from "react"
 import * as ReactDOM from "react-dom"
 import { Provider } from "react-redux"
 import { initializeIcons } from "@fluentui/react/lib/Icons"
+import { registerIcons } from "@uifabric/styling"
 import Root from "./components/root"
 import { applyThemeSettings } from "./scripts/settings"
 import { initApp, openTextMenu } from "./scripts/models/app"
@@ -11,6 +12,11 @@ window.settings.setProxy()
 
 applyThemeSettings()
 initializeIcons("icons/")
+registerIcons({
+    icons: {
+        'StatusCheck': '\uE930'
+    }
+})
 
 rootStore.dispatch(initApp())
 

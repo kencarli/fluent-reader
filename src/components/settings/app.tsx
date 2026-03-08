@@ -25,6 +25,7 @@ import {
     PrimaryButton,
 } from "@fluentui/react"
 import DangerButton from "../utils/danger-button"
+import TranslationSettingsModal from "./translation-settings-modal"
 
 type AppTabProps = {
     setLanguage: (option: string) => void
@@ -40,6 +41,7 @@ type AppTabState = {
     itemSize: string
     cacheSize: string
     deleteIndex: string
+    isTranslationModalOpen: boolean
 }
 
 class AppTab extends React.Component<AppTabProps, AppTabState> {
@@ -52,6 +54,7 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             itemSize: null,
             cacheSize: null,
             deleteIndex: null,
+            isTranslationModalOpen: false,
         }
         this.getItemSize()
         this.getCacheSize()
@@ -72,6 +75,18 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
         window.utils.clearCache().then(() => {
             this.getCacheSize()
         })
+    }
+
+    openTranslationSettings = () => {
+        this.setState({ isTranslationModalOpen: true })
+    }
+
+    closeTranslationSettings = () => {
+        this.setState({ isTranslationModalOpen: false })
+    }
+
+    saveTranslationSettings = (settings) => {
+        window.settings.setIntegrationSettings(settings)
     }
 
     themeChoices = (): IChoiceGroupOption[] => [
@@ -283,6 +298,16 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                     />
                 </Stack.Item>
             </Stack>
+
+            <Label>{intl.get("settings.translation.title")}</Label>
+            <Stack horizontal>
+                <Stack.Item grow>
+                    <PrimaryButton
+                        text={intl.get("settings.translation.configure")}
+                        onClick={this.openTranslationSettings}
+                    />
+                </Stack.Item>
+            </Stack>
             <span className="settings-hint up">
                 {this.state.itemSize
                     ? intl.get("app.itemSize", { size: this.state.itemSize })
@@ -321,6 +346,13 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                     />
                 </Stack.Item>
             </Stack>
+
+            <TranslationSettingsModal
+                isOpen={this.state.isTranslationModalOpen}
+                settings={window.settings.getIntegrationSettings()}
+                onDismiss={this.closeTranslationSettings}
+                onSave={this.saveTranslationSettings}
+            />
         </div>
     )
 }

@@ -21,11 +21,14 @@ import {
     IDragDropEvents,
     Link,
     IIconProps,
+    Pivot,
+    PivotItem,
 } from "@fluentui/react"
 import { SourceRule, RuleActions } from "../../scripts/models/rule"
 import { FilterType } from "../../scripts/models/feed"
 import { MyParserItem, validateRegex } from "../../scripts/utils"
 import { RSSItem } from "../../scripts/models/item"
+import SyncRulesTab from "./sync-rules"
 
 const actionKeyMap = {
     "r-true": "article.markRead",
@@ -371,9 +374,26 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
 
     render = () => (
         <div className="tab-body">
+            <Pivot>
+                <PivotItem
+                    headerText={intl.get("rules.sourceRules")}
+                    itemIcon="FilterSettings">
+                    {this.renderSourceRules()}
+                </PivotItem>
+                <PivotItem
+                    headerText={intl.get("settings.syncRules.name")}
+                    itemIcon="SyncStatus">
+                    <SyncRulesTab />
+                </PivotItem>
+            </Pivot>
+        </div>
+    )
+
+    renderSourceRules = () => (
+        <>
             <Stack horizontal tokens={{ childrenGap: 16 }}>
                 <Stack.Item>
-                    <Label>{intl.get("rules.source")}</Label>
+                    <Label style={{ marginBottom: 0 }}>{intl.get("rules.source")}</Label>
                 </Stack.Item>
                 <Stack.Item grow>
                     <Dropdown
@@ -392,16 +412,18 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
                 !this.getSourceRules() ||
                 this.getSourceRules().length === 0 ? (
                     <>
-                        <Label>
-                            {intl.get(
-                                this.state.editIndex >= 0 &&
-                                    this.state.editIndex <
-                                        this.getSourceRules().length
-                                    ? "edit"
-                                    : "rules.new"
-                            )}
-                        </Label>
-                        <Stack horizontal>
+                        <Stack horizontal verticalAlign="baseline">
+                            <Stack.Item>
+                                <Label style={{ marginBottom: 0, marginRight: 8 }}>
+                                    {intl.get(
+                                        this.state.editIndex >= 0 &&
+                                            this.state.editIndex <
+                                                this.getSourceRules().length
+                                            ? "edit"
+                                            : "rules.new"
+                                    )}
+                                </Label>
+                            </Stack.Item>
                             <Stack.Item>
                                 <Label>{intl.get("rules.if")}</Label>
                             </Stack.Item>
@@ -433,9 +455,9 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
                                 />
                             </Stack.Item>
                         </Stack>
-                        <Stack horizontal>
+                        <Stack horizontal verticalAlign="baseline">
                             <Stack.Item>
-                                <Label>{intl.get("rules.then")}</Label>
+                                <Label style={{ marginBottom: 0, marginRight: 8 }}>{intl.get("rules.then")}</Label>
                             </Stack.Item>
                             <Stack.Item grow>
                                 <Dropdown
@@ -499,8 +521,10 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
                             {intl.get("rules.hint")}
                         </span>
 
-                        <Label>{intl.get("rules.test")}</Label>
-                        <Stack horizontal>
+                        <Stack horizontal verticalAlign="baseline">
+                            <Stack.Item>
+                                <Label style={{ marginBottom: 0, marginRight: 8 }}>{intl.get("rules.test")}</Label>
+                            </Stack.Item>
                             <Stack.Item grow>
                                 <TextField
                                     name="mockTitle"
@@ -564,7 +588,7 @@ class RulesTab extends React.Component<RulesTabProps, RulesTabState> {
                     </span>
                 </Stack>
             )}
-        </div>
+        </>
     )
 }
 

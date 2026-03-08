@@ -1,6 +1,6 @@
 import { RSSItem } from "./models/item"
 import { SyncRule, IntegrationSettings } from "../schema-types"
-import { sendToObsidian, sendToNotion } from "./integrations"
+import { sendToObsidian, sendToNotion, sendToOneNote, sendToEvernote } from "./integrations"
 import { AppThunk } from "./utils"
 
 function checkCondition(item: RSSItem, condition): boolean {
@@ -41,6 +41,12 @@ export function evaluateRules(item: RSSItem): AppThunk {
                         break;
                     case "sendToNotion":
                         dispatch(sendToNotion(item));
+                        break;
+                    case "sendToOneNote":
+                        dispatch(sendToOneNote(item));
+                        break;
+                    case "sendToEvernote":
+                        dispatch(sendToEvernote(item));
                         break;
                 }
                 // Stop after the first matching rule

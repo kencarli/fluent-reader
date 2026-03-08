@@ -17,6 +17,9 @@ import {
     MessageBar,
     MessageBarType,
     Toggle,
+    IconButton,
+    Spinner,
+    SpinnerSize,
 } from "@fluentui/react"
 import {
     SourceState,
@@ -47,10 +50,14 @@ type SourcesTabProps = {
 }
 
 type SourcesTabState = {
-    [formName: string]: string
-} & {
+    newUrl: string
+    newSourceName: string
     selectedSource: RSSSource
     selectedSources: RSSSource[]
+    sourceStatus: Record<number, 'ok' | 'error' | 'checking'>
+    isCheckingAll: boolean
+    sourceEditOption?: string
+    newSourceIcon?: string
 }
 
 const enum EditDropdownKeys {
@@ -69,6 +76,8 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             newSourceName: "",
             selectedSource: null,
             selectedSources: null,
+            sourceStatus: {},
+            isCheckingAll: false,
         }
         this.selection = new Selection({
             getKey: s => (s as RSSSource).sid,
@@ -113,7 +122,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             key: "name",
             name: intl.get("name"),
             fieldName: "name",
-            minWidth: 200,
+            minWidth: 180,
             data: "string",
             isRowHeader: true,
         },
@@ -121,8 +130,38 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             key: "url",
             name: "URL",
             fieldName: "url",
-            minWidth: 280,
+            minWidth: 220,
             data: "string",
+        },
+        {
+            key: "status",
+            name: intl.get("sources.checkStatus"),
+            minWidth: 100,
+            maxWidth: 100,
+            onRender: (s: RSSSource) => {
+                const status = this.state.sourceStatus[s.sid]
+                if (status === 'checking') {
+                    return <Spinner size={SpinnerSize.small} />
+                } else if (status === 'ok') {
+                    return <span style={{ color: 'green' }}>✓ {intl.get("sources.statusOk")}</span>
+                } else if (status === 'error') {
+                    return <span style={{ color: 'red' }}>✗ {intl.get("sources.statusError")}</span>
+                }
+                return <span style={{ color: '#666' }}>{intl.get("sources.statusUnknown")}</span>
+            }
+        },
+        {
+            key: "check",
+            name: "",
+            minWidth: 30,
+            onRender: (s: RSSSource) => (
+                <IconButton
+                    iconProps={{ iconName: this.state.sourceStatus[s.sid] === 'checking' ? 'Refresh' : 'StatusCheck' }}
+                    title={intl.get("sources.checkStatus")}
+                    onClick={() => this.checkSourceStatus(s)}
+                    disabled={this.state.sourceStatus[s.sid] === 'checking'}
+                />
+            )
         },
     ]
 
@@ -199,7 +238,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
 
     handleInputChange = event => {
         const name: string = event.target.name
-        this.setState({ [name]: event.target.value })
+        this.setState({ [name]: event.target.value } as any)
     }
 
     addSource = (event: React.FormEvent) => {
@@ -229,6 +268,94 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         })
     }
 
+    checkSourceStatus = async (source: RSSSource) => {
+        this.setState(prevState => ({
+            sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'checking' }
+        }))
+        
+        try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 10000)
+            
+            const response = await fetch(source.url, {
+                signal: controller.signal,
+                method: 'HEAD',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            })
+            clearTimeout(timeoutId)
+            
+            this.setState(prevState => ({
+                sourceStatus: { ...prevState.sourceStatus, [source.sid]: response.ok ? 'ok' : 'error' }
+            }))
+        } catch (error) {
+            this.setState(prevState => ({
+                sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'error' }
+            }))
+        }
+    }
+
+    checkAllSources = async () => {
+        this.setState({ isCheckingAll: true })
+        const sources = Object.values(this.props.sources)
+        
+        for (const source of sources) {
+            await this.checkSourceStatus(source)
+            await new Promise(resolve => setTimeout(resolve, 500))
+        }
+        
+        this.setState({ isCheckingAll: false })
+    }
+
+    selectAllInvalidSources = () => {
+        const sources = Object.values(this.props.sources)
+        const invalidSids = sources
+            .filter(s => this.state.sourceStatus[s.sid] === 'error')
+            .map(s => s.sid)
+        
+        this.selection.setAllSelected(false)
+        invalidSids.forEach(sid => {
+            this.selection.setKeySelected(String(sid), true, false)
+        })
+    }
+
+    deleteInvalidSources = () => {
+        const sources = Object.values(this.props.sources)
+        const invalidSources = sources.filter(
+            s => this.state.sourceStatus[s.sid] === 'error'
+        )
+        
+        if (invalidSources.length === 0) {
+            window.utils.showMessageBox(
+                intl.get("sources.checkStatus"),
+                intl.get("sources.noInvalidSources"),
+                intl.get("confirm"),
+                "",
+                false
+            )
+            return
+        }
+        
+        window.utils.showMessageBox(
+            intl.get("sources.deleteInvalid"),
+            `Are you sure you want to delete ${invalidSources.length} invalid source(s)?`,
+            intl.get("delete"),
+            intl.get("cancel"),
+            false,
+            "warning"
+        ).then(confirmed => {
+            if (confirmed) {
+                this.props.deleteSources(invalidSources)
+                this.setState(prevState => {
+                    const newStatus = { ...prevState.sourceStatus }
+                    invalidSources.forEach(s => delete newStatus[s.sid])
+                    return { sourceStatus: newStatus }
+                })
+            }
+        })
+    }
+
     render = () => (
         <div className="tab-body">
             {this.props.serviceOn && (
@@ -250,11 +377,35 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                         text={intl.get("sources.export")}
                     />
                 </Stack.Item>
+                <Stack.Item>
+                    <DefaultButton
+                        onClick={this.checkAllSources}
+                        text={intl.get("sources.checkStatus")}
+                        disabled={this.state.isCheckingAll}
+                        iconProps={{ iconName: this.state.isCheckingAll ? 'Refresh' : 'StatusCheck' }}
+                    />
+                </Stack.Item>
+                <Stack.Item>
+                    <DefaultButton
+                        onClick={this.selectAllInvalidSources}
+                        text={intl.get("sources.selectAllInvalid")}
+                    />
+                </Stack.Item>
+                <Stack.Item>
+                    <DangerButton
+                        onClick={this.deleteInvalidSources}
+                        text={intl.get("sources.deleteInvalid")}
+                    />
+                </Stack.Item>
             </Stack>
 
             <form onSubmit={this.addSource}>
-                <Label htmlFor="newUrl">{intl.get("sources.add")}</Label>
-                <Stack horizontal>
+                <Stack horizontal verticalAlign="baseline">
+                    <Stack.Item>
+                        <Label htmlFor="newUrl" style={{ marginBottom: 0, marginRight: 8 }}>
+                            {intl.get("sources.add")}
+                        </Label>
+                    </Stack.Item>
                     <Stack.Item grow>
                         <TextField
                             onGetErrorMessage={v =>
@@ -297,8 +448,12 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                             {intl.get("sources.serviceManaged")}
                         </MessageBar>
                     )}
-                    <Label>{intl.get("sources.selected")}</Label>
-                    <Stack horizontal>
+                    <Stack horizontal verticalAlign="baseline">
+                        <Stack.Item>
+                            <Label style={{ marginBottom: 0, marginRight: 8 }}>
+                                {intl.get("sources.selected")}
+                            </Label>
+                        </Stack.Item>
                         <Stack.Item>
                             <Dropdown
                                 options={this.sourceEditOptions()}
@@ -392,8 +547,12 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                     </Stack>
                     {!this.state.selectedSource.serviceRef && (
                         <>
-                            <Label>{intl.get("sources.fetchFrequency")}</Label>
-                            <Stack>
+                            <Stack horizontal verticalAlign="baseline">
+                                <Stack.Item>
+                                    <Label style={{ marginBottom: 0, marginRight: 8 }}>
+                                        {intl.get("sources.fetchFrequency")}
+                                    </Label>
+                                </Stack.Item>
                                 <Stack.Item>
                                     <Dropdown
                                         options={this.fetchFrequencyOptions()}

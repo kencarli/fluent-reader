@@ -45,13 +45,15 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
     }
 
     private getColumns = (): IColumn[] => [
-        { key: 'name', name: 'Name', fieldName: 'name', minWidth: 100, maxWidth: 200, isResizable: true },
+        { key: 'name', name: intl.get("settings.syncRules.ruleName"), fieldName: 'name', minWidth: 100, maxWidth: 200, isResizable: true },
         {
-            key: 'action', name: 'Action', minWidth: 100, maxWidth: 200, isResizable: true, onRender: (rule: SyncRule) => {
+            key: 'action', name: intl.get("settings.syncRules.action"), minWidth: 100, maxWidth: 200, isResizable: true, onRender: (rule: SyncRule) => {
                 switch (rule.action.type) {
-                    case 'sendToNotion': return 'Send to Notion';
-                    case 'sendToObsidian': return 'Send to Obsidian';
-                    default: return 'Unknown Action';
+                    case 'sendToNotion': return intl.get("settings.syncRules.sendToNotion");
+                    case 'sendToObsidian': return intl.get("settings.syncRules.sendToObsidian");
+                    case 'sendToOneNote': return intl.get("settings.syncRules.sendToOneNote");
+                    case 'sendToEvernote': return intl.get("settings.syncRules.sendToEvernote");
+                    default: return intl.get("settings.syncRules.unknownAction");
                 }
             }
         },
@@ -69,7 +71,7 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
             isEditing: true,
             editingRule: {
                 id: `rule_${Date.now()}`,
-                name: "New Rule",
+                name: intl.get("settings.syncRules.newRule"),
                 conditions: [{ field: "title", operator: "contains", value: "" }],
                 action: { type: "sendToNotion" },
             }
@@ -108,30 +110,30 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
         return (
             <Stack tokens={{ childrenGap: 16 }}>
                 <TextField
-                    label="Rule Name"
+                    label={intl.get("settings.syncRules.ruleName")}
                     value={editingRule.name}
                     onChange={(e, newValue) => this.setState({ editingRule: { ...editingRule, name: newValue } })}
                 />
-                <Label>Conditions</Label>
+                <Label>{intl.get("settings.syncRules.conditions")}</Label>
                 {editingRule.conditions.map((cond, index) => (
                     <Stack horizontal tokens={{ childrenGap: 8 }} key={index}>
                         <Dropdown
                             options={[
-                                { key: 'title', text: 'Title' },
-                                { key: 'content', text: 'Content' },
-                                { key: 'author', text: 'Author' },
-                                { key: 'sourceId', text: 'Source ID' },
-                                { key: 'starred', text: 'Starred' },
+                                { key: 'title', text: intl.get("settings.syncRules.field.title") },
+                                { key: 'content', text: intl.get("settings.syncRules.field.content") },
+                                { key: 'author', text: intl.get("settings.syncRules.field.author") },
+                                { key: 'sourceId', text: intl.get("settings.syncRules.field.sourceId") },
+                                { key: 'starred', text: intl.get("settings.syncRules.field.starred") },
                             ]}
                             selectedKey={cond.field}
                             onChange={(e, option) => this.updateCondition(index, 'field', option.key as string)}
                         />
                         <Dropdown
                             options={[
-                                { key: 'contains', text: 'contains' },
-                                { key: 'notContains', text: 'does not contain' },
-                                { key: 'is', text: 'is' },
-                                { key: 'isNot', text: 'is not' },
+                                { key: 'contains', text: intl.get("settings.syncRules.operator.contains") },
+                                { key: 'notContains', text: intl.get("settings.syncRules.operator.notContains") },
+                                { key: 'is', text: intl.get("settings.syncRules.operator.is") },
+                                { key: 'isNot', text: intl.get("settings.syncRules.operator.isNot") },
                             ]}
                             selectedKey={cond.operator}
                             onChange={(e, option) => this.updateCondition(index, 'operator', option.key as string)}
@@ -139,34 +141,36 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
                         {cond.field === 'starred' ? (
                             <Dropdown
                                 options={[
-                                    { key: 'true', text: 'True' },
-                                    { key: 'false', text: 'False' },
+                                    { key: 'true', text: intl.get("settings.syncRules.true") },
+                                    { key: 'false', text: intl.get("settings.syncRules.false") },
                                 ]}
                                 selectedKey={cond.value}
                                 onChange={(e, option) => this.updateCondition(index, 'value', option.key as string)}
-                                placeholder="Value"
+                                placeholder={intl.get("settings.syncRules.value")}
                             />
                         ) : (
                             <TextField
                                 value={cond.value}
                                 onChange={(e, newValue) => this.updateCondition(index, 'value', newValue)}
-                                placeholder="Value"
+                                placeholder={intl.get("settings.syncRules.value")}
                             />
                         )}
                     </Stack>
                 ))}
-                <Label>Action</Label>
+                <Label>{intl.get("settings.syncRules.action")}</Label>
                 <Dropdown
                     options={[
-                        { key: 'sendToNotion', text: 'Send to Notion' },
-                        { key: 'sendToObsidian', text: 'Send to Obsidian' },
+                        { key: 'sendToNotion', text: intl.get("settings.syncRules.sendToNotion") },
+                        { key: 'sendToObsidian', text: intl.get("settings.syncRules.sendToObsidian") },
+                        { key: 'sendToOneNote', text: intl.get("settings.syncRules.sendToOneNote") },
+                        { key: 'sendToEvernote', text: intl.get("settings.syncRules.sendToEvernote") },
                     ]}
                     selectedKey={editingRule.action.type}
                     onChange={(e, option) => this.setState({ editingRule: { ...editingRule, action: { type: option.key as any } } })}
                 />
                 <Stack horizontal tokens={{ childrenGap: 8 }}>
-                    <PrimaryButton text="Save" onClick={this.onSaveEdit} />
-                    <DefaultButton text="Cancel" onClick={this.onCancelEdit} />
+                    <PrimaryButton text={intl.get("settings.syncRules.save")} onClick={this.onSaveEdit} />
+                    <DefaultButton text={intl.get("settings.syncRules.cancel")} onClick={this.onCancelEdit} />
                 </Stack>
             </Stack>
         );
@@ -180,11 +184,11 @@ class SyncRulesTab extends React.Component<{}, SyncRulesTabState> {
 
     render() {
         const commandBarItems: ICommandBarItemProps[] = [
-            { key: 'new', text: 'New Rule', iconProps: { iconName: 'Add' }, onClick: this.onNewRule },
+            { key: 'new', text: intl.get("settings.syncRules.newRule"), iconProps: { iconName: 'Add' }, onClick: this.onNewRule },
         ];
         const commandBarFarItems: ICommandBarItemProps[] = [
-            { key: 'edit', text: 'Edit', iconProps: { iconName: 'Edit' }, disabled: this.state.selectedIndices.length !== 1, onClick: this.onEditRule },
-            { key: 'delete', text: 'Delete', iconProps: { iconName: 'Delete' }, disabled: this.state.selectedIndices.length === 0, onClick: this.onDeleteRules },
+            { key: 'edit', text: intl.get("settings.syncRules.editRule"), iconProps: { iconName: 'Edit' }, disabled: this.state.selectedIndices.length !== 1, onClick: this.onEditRule },
+            { key: 'delete', text: intl.get("settings.syncRules.deleteRule"), iconProps: { iconName: 'Delete' }, disabled: this.state.selectedIndices.length === 0, onClick: this.onDeleteRules },
         ];
 
         return (

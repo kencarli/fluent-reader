@@ -373,10 +373,12 @@ class GroupsTab extends React.Component<GroupsTabProps, GroupsTabState> {
                         </MessageBar>
                     )}
                     <form onSubmit={this.createGroup}>
-                        <Label htmlFor="newGroupName">
-                            {intl.get("groups.create")}
-                        </Label>
-                        <Stack horizontal>
+                        <Stack horizontal verticalAlign="baseline">
+                            <Stack.Item>
+                                <Label htmlFor="newGroupName" style={{ marginBottom: 0, marginRight: 8 }}>
+                                    {intl.get("groups.create")}
+                                </Label>
+                            </Stack.Item>
                             <Stack.Item grow>
                                 <TextField
                                     onGetErrorMessage={
@@ -418,10 +420,12 @@ class GroupsTab extends React.Component<GroupsTabProps, GroupsTabState> {
                     {this.state.selectedGroup ? (
                         this.state.selectedGroup.isMultiple ? (
                             <>
-                                <Label>
-                                    {intl.get("groups.selectedGroup")}
-                                </Label>
-                                <Stack horizontal>
+                                <Stack horizontal verticalAlign="baseline">
+                                    <Stack.Item>
+                                        <Label style={{ marginBottom: 0, marginRight: 8 }}>
+                                            {intl.get("groups.selectedGroup")}
+                                        </Label>
+                                    </Stack.Item>
                                     <Stack.Item grow>
                                         <TextField
                                             onGetErrorMessage={v =>
@@ -461,10 +465,12 @@ class GroupsTab extends React.Component<GroupsTabProps, GroupsTabState> {
                             </>
                         ) : (
                             <>
-                                <Label>
-                                    {intl.get("groups.selectedSource")}
-                                </Label>
-                                <Stack horizontal>
+                                <Stack horizontal verticalAlign="baseline">
+                                    <Stack.Item>
+                                        <Label style={{ marginBottom: 0, marginRight: 8 }}>
+                                            {intl.get("groups.selectedSource")}
+                                        </Label>
+                                    </Stack.Item>
                                     <Stack.Item grow>
                                         <Dropdown
                                             placeholder={intl.get(
