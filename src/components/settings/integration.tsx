@@ -305,7 +305,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                 />
 
                 <Label
-                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.integrations.obsidianIntegration")}
                 </Label>
                 <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
@@ -314,7 +314,11 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             label={intl.get("settings.integrations.vaultPath")}
                             value={settings.obsidianVaultPath || intl.get("settings.integrations.notConfigured")}
                             disabled
-                            styles={{ field: { color: settings.obsidianVaultPath ? "var(--neutralPrimary)" : "var(--neutralTertiary)" } }}
+                            styles={{ 
+                                root: { width: '100%' },
+                                field: { color: settings.obsidianVaultPath ? "var(--neutralPrimary)" : "var(--neutralTertiary)" },
+                                wrapper: { width: '100%' }
+                            }}
                         />
                     </Stack.Item>
                     <Stack.Item>
@@ -323,6 +327,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             onClick={this.openObsidianModal}
                             allowDisabledFocus
                             style={{ alignSelf: "flex-end" }}
+                            iconProps={{ iconName: "FolderOpen" }}
                         />
                     </Stack.Item>
                     {settings.obsidianVaultPath && (
@@ -331,15 +336,16 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                                 text={intl.get("settings.integrations.testConnection")}
                                 onClick={this.handleTestObsidianConnection}
                                 allowDisabledFocus
+                                iconProps={{ iconName: "StatusCheck" }}
                             />
                         </Stack.Item>
                     )}
                 </Stack>
 
-                <div style={{ height: 24 }}></div>
+                <div style={{ height: 16 }}></div>
 
                 <Label
-                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.integrations.notionIntegration")}
                 </Label>
                 <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
@@ -354,7 +360,11 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                                     : intl.get("settings.integrations.notConfigured")
                             }
                             disabled
-                            styles={{ field: { color: settings.notionDatabaseId ? "var(--neutralPrimary)" : "var(--neutralTertiary)" } }}
+                            styles={{ 
+                                root: { width: '100%' },
+                                field: { color: settings.notionDatabaseId ? "var(--neutralPrimary)" : "var(--neutralTertiary)" },
+                                wrapper: { width: '100%' }
+                            }}
                         />
                     </Stack.Item>
                     <Stack.Item>
@@ -363,6 +373,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             onClick={this.openNotionModal}
                             allowDisabledFocus
                             style={{ alignSelf: "flex-end" }}
+                            iconProps={{ iconName: "Database" }}
                         />
                     </Stack.Item>
                     {settings.notionSecret && settings.notionDatabaseId && (
@@ -371,6 +382,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                                 text={intl.get("settings.integrations.testConnection")}
                                 onClick={this.handleTestNotionConnection}
                                 allowDisabledFocus
+                                iconProps={{ iconName: "StatusCheck" }}
                             />
                         </Stack.Item>
                     )}
@@ -379,7 +391,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                 <div style={{ height: 24 }}></div>
 
                 <Label
-                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.integrations.aiPushServices")}
                 </Label>
                 <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
@@ -389,8 +401,12 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             value={this.getAIServicesSummary()}
                             disabled
                             multiline
-                            rows={3}
-                            styles={{ field: { color: "var(--neutralPrimary)" } }}
+                            rows={2}
+                            styles={{ 
+                                root: { width: '100%' },
+                                field: { color: "var(--neutralPrimary)" },
+                                wrapper: { width: '100%' }
+                            }}
                         />
                     </Stack.Item>
                     <Stack.Item>
@@ -399,25 +415,30 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             onClick={this.openAIServicesModal}
                             allowDisabledFocus
                             style={{ alignSelf: "flex-end" }}
+                            iconProps={{ iconName: "Settings" }}
                         />
                     </Stack.Item>
                 </Stack>
 
-                <div style={{ height: 24 }}></div>
+                <div style={{ height: 16 }}></div>
 
                 <Label
-                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.integrations.dailyBriefingAutomation")}
                 </Label>
-                <Stack horizontal tokens={{ childrenGap: 16 }}>
+                <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
                     <Stack.Item grow>
                         <TextField
                             label={intl.get("settings.integrations.dailyBriefingAutomation")}
                             value={this.getDailyBriefingSummary()}
                             disabled
                             multiline
-                            rows={3}
-                            styles={{ field: { color: "var(--neutralPrimary)" } }}
+                            rows={2}
+                            styles={{ 
+                                root: { width: '100%' },
+                                field: { color: "var(--neutralPrimary)" },
+                                wrapper: { width: '100%' }
+                            }}
                         />
                     </Stack.Item>
                     <Stack.Item>
@@ -426,14 +447,15 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             onClick={this.openDailyBriefingModal}
                             allowDisabledFocus
                             style={{ alignSelf: "flex-end" }}
+                            iconProps={{ iconName: "Clock" }}
                         />
                     </Stack.Item>
                 </Stack>
 
-                <div style={{ height: 24 }}></div>
+                <div style={{ height: 16 }}></div>
 
                 <Label
-                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.cloudNoteServices.name")}
                 </Label>
                 <Stack horizontal tokens={{ childrenGap: 16 }}>
@@ -444,7 +466,11 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             disabled
                             multiline
                             rows={2}
-                            styles={{ field: { color: "var(--neutralPrimary)" } }}
+                            styles={{ 
+                                root: { width: '100%' },
+                                field: { color: "var(--neutralPrimary)" },
+                                wrapper: { width: '100%' }
+                            }}
                         />
                     </Stack.Item>
                     <Stack.Item>
@@ -453,6 +479,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             onClick={this.openCloudNoteServicesModal}
                             allowDisabledFocus
                             style={{ alignSelf: "flex-end" }}
+                            iconProps={{ iconName: "Cloud" }}
                         />
                     </Stack.Item>
                 </Stack>
