@@ -391,7 +391,7 @@
     },
     "digest": {
         "title": "每日 AI 简报",
-        "description": "生成过去 24 小时内文章的 AI 驱动摘要。",
+        "description": "生成当前选定订阅源的文章摘要。",
         "generate": "生成简报",
         "generating": "正在分析文章并生成简报...",
         "result": "AI 简报（{count} 篇文章）",
@@ -399,10 +399,7 @@
         "dingtalk": "钉钉",
         "wecom": "企业微信",
         "regenerate": "重新生成",
-        "noProvider": "未配置 LLM 提供商。请在设置 > 集成中添加 API 密钥。",
-        "sourceScope": "使用所有订阅源",
-        "selectSources": "选择订阅源",
-        "selectSourcesPlaceholder": "选择一个或多个订阅源..."
+        "noProvider": "未配置 LLM 提供商。请在设置 > 集成中添加 API 密钥。"
     },
     "app": {
         "cleanup": "清理",

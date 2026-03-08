@@ -398,7 +398,7 @@
         },
         "digest": {
             "title": "Daily AI Briefing",
-            "description": "Generate an AI-powered summary of articles from the last 24 hours.",
+            "description": "Generate an AI-powered summary of articles from the currently selected source.",
             "generate": "Generate Briefing",
             "generating": "Analyzing articles and generating briefing...",
             "result": "AI Briefing ({count} articles)",
@@ -406,10 +406,7 @@
             "dingtalk": "DingTalk",
             "wecom": "WeCom",
             "regenerate": "Regenerate",
-            "noProvider": "No LLM provider configured. Please add API key in Settings > Integrations.",
-            "sourceScope": "Use All Sources",
-            "selectSources": "Select Sources",
-            "selectSourcesPlaceholder": "Select one or more sources..."
+            "noProvider": "No LLM provider configured. Please add API key in Settings > Integrations."
         },
         "app": {
             "cleanup": "Clean up",
