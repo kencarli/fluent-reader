@@ -11,7 +11,7 @@ import { rootStore } from "./scripts/reducer"
 window.settings.setProxy()
 
 applyThemeSettings()
-initializeIcons()
+initializeIcons("icons/")
 registerIcons({
     icons: {
         'StatusCheck': '\uE930',
