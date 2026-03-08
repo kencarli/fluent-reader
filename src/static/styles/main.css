@@ -85,11 +85,12 @@ body.darwin .menu .btn-group {
     overflow: hidden auto;
 }
 
-.menu-container .menu p.subs-header {
+.menu-container .menu .subs-header {
     font-size: 12px;
     color: var(--neutralSecondaryAlt);
     margin: 2px 8px;
     user-select: none;
+    padding: 4px 0;
 }
 
 .menu .link-stack {
