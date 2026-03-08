@@ -11,10 +11,11 @@ import { rootStore } from "./scripts/reducer"
 window.settings.setProxy()
 
 applyThemeSettings()
-initializeIcons("icons/")
+initializeIcons()
 registerIcons({
     icons: {
-        'StatusCheck': '\uE930'
+        'StatusCheck': '\uE930',
+        'markdownlogo': '\uF31B'
     }
 })
 
