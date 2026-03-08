@@ -117,19 +117,19 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
                 isOpen={this.props.display}
                 onDismiss={this.onDismiss}
                 containerClassName="digest-modal-container"
-                styles={{ main: { maxWidth: 600, minHeight: 400, padding: 24 } }}
+                styles={{ main: { maxWidth: 900, minHeight: 400, padding: 24 } }}
             >
                 <Stack tokens={{ childrenGap: 20 }}>
                     <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
-                        <Label style={{ fontSize: 20, fontWeight: 600 }}>Daily News Briefing</Label>
+                        <Label style={{ fontSize: 20, fontWeight: 600 }}>{intl.get("digest.title")}</Label>
                         <IconButton iconProps={{ iconName: "Cancel" }} onClick={this.onDismiss} />
                     </Stack>
 
                     {!this.state.briefing && !this.state.generating && (
                         <Stack horizontalAlign="center" tokens={{ childrenGap: 12 }} style={{ padding: "40px 0" }}>
-                            <Label>Generate an AI-powered summary of articles from the last 24 hours.</Label>
+                            <Label>{intl.get("digest.description")}</Label>
                             <PrimaryButton
-                                text="Generate Digest"
+                                text={intl.get("digest.generate")}
                                 iconProps={{ iconName: "LightningBolt" }}
                                 onClick={this.generate}
                             />
@@ -138,7 +138,7 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
 
                     {this.state.generating && (
                         <Stack horizontalAlign="center" tokens={{ childrenGap: 12 }} style={{ padding: "40px 0" }}>
-                            <Spinner size={SpinnerSize.large} label="Analyzing articles and generating digest..." />
+                            <Spinner size={SpinnerSize.large} label={intl.get("digest.generating")} />
                         </Stack>
                     )}
 
@@ -165,7 +165,7 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
                                 />
                             )}
                             <TextField
-                                label={`AI Digest (${this.state.briefing.articleCount} articles)`}
+                                label={intl.get("digest.result", { count: this.state.briefing.articleCount })}
                                 multiline
                                 autoAdjustHeight
                                 rows={10}
@@ -173,23 +173,23 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
                                 readOnly
                             />
 
-                            <Separator>Push to External Services</Separator>
+                            <Separator>{intl.get("digest.pushTo")}</Separator>
 
                             <Stack horizontal tokens={{ childrenGap: 12 }} horizontalAlign="center">
                                 <DefaultButton
-                                    text="DingTalk"
+                                    text={intl.get("digest.dingtalk")}
                                     iconProps={{ iconName: "Send" }}
                                     onClick={() => this.push('dingtalk')}
                                     disabled={this.state.pushing}
                                 />
                                 <DefaultButton
-                                    text="WeCom"
+                                    text={intl.get("digest.wecom")}
                                     iconProps={{ iconName: "Chat" }}
                                     onClick={() => this.push('wecom')}
                                     disabled={this.state.pushing}
                                 />
                                 <PrimaryButton
-                                    text="Regenerate"
+                                    text={intl.get("digest.regenerate")}
                                     iconProps={{ iconName: "Refresh" }}
                                     onClick={this.generate}
                                     disabled={this.state.pushing}

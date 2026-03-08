@@ -389,6 +389,17 @@
         "fetchUnlimited": "无限制（不建议）",
         "exportToLite": "导出至 Fluent Reader Lite"
     },
+    "digest": {
+        "title": "每日 AI 简报",
+        "description": "生成过去 24 小时内文章的 AI 驱动摘要。",
+        "generate": "生成简报",
+        "generating": "正在分析文章并生成简报...",
+        "result": "AI 简报（{count} 篇文章）",
+        "pushTo": "推送到外部服务",
+        "dingtalk": "钉钉",
+        "wecom": "企业微信",
+        "regenerate": "重新生成"
+    },
     "app": {
         "cleanup": "清理",
         "cache": "清空缓存",

@@ -396,6 +396,17 @@
             "fetchUnlimited": "Unlimited (not recommended)",
             "exportToLite": "Export to Fluent Reader Lite"
         },
+        "digest": {
+            "title": "Daily AI Briefing",
+            "description": "Generate an AI-powered summary of articles from the last 24 hours.",
+            "generate": "Generate Briefing",
+            "generating": "Analyzing articles and generating briefing...",
+            "result": "AI Briefing ({count} articles)",
+            "pushTo": "Push to External Services",
+            "dingtalk": "DingTalk",
+            "wecom": "WeCom",
+            "regenerate": "Regenerate"
+        },
         "app": {
             "cleanup": "Clean up",
             "cache": "Clear cache",
