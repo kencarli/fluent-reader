@@ -394,91 +394,73 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.integrations.aiPushServices")}
                 </Label>
-                <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
+                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
                     <Stack.Item grow>
-                        <TextField
-                            label={intl.get("settings.integrations.aiPushServices")}
-                            value={this.getAIServicesSummary()}
-                            disabled
-                            multiline
-                            rows={2}
-                            styles={{ 
-                                root: { width: '100%' },
-                                field: { color: "var(--neutralPrimary)" },
-                                wrapper: { width: '100%' }
-                            }}
-                        />
+                        <Stack horizontal tokens={{ childrenGap: 8 }} wrap>
+                            {this.getAIServicesSummary().split('\n').map((text, index) => (
+                                <Label key={index} style={{ fontSize: 12, color: text.includes("Not configured") ? "var(--neutralTertiary)" : "var(--green)", margin: 0, paddingRight: 8 }}>
+                                    {text.includes("•••") ? text.split(":")[0] + ": ✓" : text}
+                                </Label>
+                            ))}
+                        </Stack>
                     </Stack.Item>
                     <Stack.Item>
                         <PrimaryButton
                             text={intl.get("settings.integrations.configure")}
                             onClick={this.openAIServicesModal}
                             allowDisabledFocus
-                            style={{ alignSelf: "flex-end" }}
                             iconProps={{ iconName: "Settings" }}
                         />
                     </Stack.Item>
                 </Stack>
 
-                <div style={{ height: 16 }}></div>
+                <div style={{ height: 8 }}></div>
 
                 <Label
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.integrations.dailyBriefingAutomation")}
                 </Label>
-                <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 24 }}>
+                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
                     <Stack.Item grow>
-                        <TextField
-                            label={intl.get("settings.integrations.dailyBriefingAutomation")}
-                            value={this.getDailyBriefingSummary()}
-                            disabled
-                            multiline
-                            rows={2}
-                            styles={{ 
-                                root: { width: '100%' },
-                                field: { color: "var(--neutralPrimary)" },
-                                wrapper: { width: '100%' }
-                            }}
-                        />
+                        <Stack horizontal tokens={{ childrenGap: 8 }} wrap>
+                            {this.getDailyBriefingSummary().split('\n').map((text, index) => (
+                                <Label key={index} style={{ fontSize: 12, color: text.includes("Not configured") ? "var(--neutralTertiary)" : "var(--neutralPrimary)", margin: 0, paddingRight: 8 }}>
+                                    {text}
+                                </Label>
+                            ))}
+                        </Stack>
                     </Stack.Item>
                     <Stack.Item>
                         <PrimaryButton
                             text={intl.get("settings.integrations.configure")}
                             onClick={this.openDailyBriefingModal}
                             allowDisabledFocus
-                            style={{ alignSelf: "flex-end" }}
                             iconProps={{ iconName: "Clock" }}
                         />
                     </Stack.Item>
                 </Stack>
 
-                <div style={{ height: 16 }}></div>
+                <div style={{ height: 8 }}></div>
 
                 <Label
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.cloudNoteServices.name")}
                 </Label>
-                <Stack horizontal tokens={{ childrenGap: 16 }}>
+                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
                     <Stack.Item grow>
-                        <TextField
-                            label={intl.get("settings.integrations.cloudNoteServices")}
-                            value={this.getCloudNoteServicesSummary()}
-                            disabled
-                            multiline
-                            rows={2}
-                            styles={{ 
-                                root: { width: '100%' },
-                                field: { color: "var(--neutralPrimary)" },
-                                wrapper: { width: '100%' }
-                            }}
-                        />
+                        <Stack horizontal tokens={{ childrenGap: 8 }} wrap>
+                            {this.getCloudNoteServicesSummary().split('\n').map((text, index) => (
+                                <Label key={index} style={{ fontSize: 12, color: text.includes("Not configured") ? "var(--neutralTertiary)" : "var(--neutralPrimary)", margin: 0, paddingRight: 8 }}>
+                                    {text}
+                                </Label>
+                            ))}
+                        </Stack>
                     </Stack.Item>
                     <Stack.Item>
                         <PrimaryButton
                             text={intl.get("settings.integrations.configure")}
                             onClick={this.openCloudNoteServicesModal}
                             allowDisabledFocus
-                            style={{ alignSelf: "flex-end" }}
                             iconProps={{ iconName: "Cloud" }}
                         />
                     </Stack.Item>
