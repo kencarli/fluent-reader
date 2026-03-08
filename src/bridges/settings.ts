@@ -139,6 +139,12 @@ const settingsBridge = {
     setIntegrationSettings: (settings: IntegrationSettings) => {
         ipcRenderer.invoke("set-integration-settings", settings)
     },
+    getSourceStatus: () => {
+        return ipcRenderer.sendSync("get-source-status")
+    },
+    setSourceStatus: (status) => {
+        ipcRenderer.invoke("set-source-status", status)
+    },
 }
 
 declare global {

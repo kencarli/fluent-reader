@@ -107,6 +107,18 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             }
             this.props.acknowledgeSIDs()
         }
+        
+        // Load saved source status from settings
+        const savedStatus = window.settings.getSourceStatus()
+        if (savedStatus) {
+            const sourceStatus = {}
+            const sourceStatusTimestamp = {}
+            Object.entries(savedStatus).forEach(([sid, data]: [string, any]) => {
+                sourceStatus[parseInt(sid)] = data.status
+                sourceStatusTimestamp[parseInt(sid)] = data.timestamp
+            })
+            this.setState({ sourceStatus, sourceStatusTimestamp })
+        }
     }
 
     columns = (): IColumn[] => [
@@ -287,9 +299,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
     }
 
     checkSourceStatus = async (source: RSSSource, useNewController = false) => {
-        // If component is unmounted, don't update state
-        if (!this) return
-        
+        // Update UI to show checking status
         this.setState(prevState => ({
             sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'checking' },
             sourceStatusTimestamp: { ...prevState.sourceStatusTimestamp, [source.sid]: Date.now() }
@@ -315,26 +325,38 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             })
             clearTimeout(timeoutId)
 
-            // Only update state if component is still mounted
-            if (this) {
-                this.setState(prevState => ({
-                    sourceStatus: { ...prevState.sourceStatus, [source.sid]: response.ok ? 'ok' : 'error' },
-                    sourceStatusTimestamp: { ...prevState.sourceStatusTimestamp, [source.sid]: Date.now() }
-                }))
-            }
+            // Save status to settings (persistent storage)
+            const status = response.ok ? 'ok' : 'error'
+            const timestamp = Date.now()
+            
+            // Save to persistent storage
+            const savedStatus = window.settings.getSourceStatus() || {}
+            savedStatus[source.sid] = { status, timestamp }
+            window.settings.setSourceStatus(savedStatus)
+
+            // Update UI
+            this.setState(prevState => ({
+                sourceStatus: { ...prevState.sourceStatus, [source.sid]: status },
+                sourceStatusTimestamp: { ...prevState.sourceStatusTimestamp, [source.sid]: timestamp }
+            }))
         } catch (error) {
-            // Don't update state if request was aborted
+            // Don't update status if request was aborted
             if (error instanceof Error && error.name === 'AbortError') {
                 console.log(`Check aborted for source: ${source.name}`)
                 return
             }
-            
-            if (this) {
-                this.setState(prevState => ({
-                    sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'error' },
-                    sourceStatusTimestamp: { ...prevState.sourceStatusTimestamp, [source.sid]: Date.now() }
-                }))
-            }
+
+            // Save error status to settings
+            const timestamp = Date.now()
+            const savedStatus = window.settings.getSourceStatus() || {}
+            savedStatus[source.sid] = { status: 'error', timestamp }
+            window.settings.setSourceStatus(savedStatus)
+
+            // Update UI
+            this.setState(prevState => ({
+                sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'error' },
+                sourceStatusTimestamp: { ...prevState.sourceStatusTimestamp, [source.sid]: timestamp }
+            }))
         }
     }
 

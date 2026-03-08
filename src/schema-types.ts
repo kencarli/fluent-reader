@@ -159,4 +159,5 @@ export type SchemaTypes = {
     listViewConfigs: ViewConfigs
     useNeDB: boolean
     integration: IntegrationSettings
+    sourceStatus: { [sid: number]: { status: 'ok' | 'error' | 'checking' | null, timestamp: number } }
 }

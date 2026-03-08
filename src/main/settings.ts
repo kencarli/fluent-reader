@@ -213,3 +213,11 @@ ipcMain.on("get-integration-settings", event => {
 ipcMain.handle("set-integration-settings", (_, settings: IntegrationSettings) => {
     store.set(INTEGRATION_STORE_KEY, settings)
 })
+
+const SOURCE_STATUS_STORE_KEY = "sourceStatus"
+ipcMain.on("get-source-status", event => {
+    event.returnValue = store.get(SOURCE_STATUS_STORE_KEY, {})
+})
+ipcMain.handle("set-source-status", (_, status) => {
+    store.set(SOURCE_STATUS_STORE_KEY, status)
+})
