@@ -5,7 +5,7 @@ import { IntegrationSettings } from "../schema-types"
 
 const OPENAI_EMBEDDING_API = "https://api.openai.com/v1/embeddings"
 const NVIDIA_EMBEDDING_API = "https://integrate.api.nvidia.com/v1/embeddings"
-const DEEPSEEK_EMBEDDING_API = "https://api.deepseek.com/v1/embeddings"
+const DEEPSEEK_EMBEDDING_API = "https://api.deepseek.com/v1/"
 const EMBEDDING_MODEL = "text-embedding-3-small"
 const EMBEDDING_DIMENSIONS = 1536
 
@@ -75,7 +75,11 @@ export async function generateEmbedding(
     const truncatedText = text.substring(0, 32000)
 
     try {
-        const response = await fetch(apiUrl || OPENAI_EMBEDDING_API, {
+        const endpoint = apiUrl || OPENAI_EMBEDDING_API
+        // Build full URL for DeepSeek (base URL doesn't include /embeddings)
+        const fullUrl = endpoint.endsWith('/') ? endpoint + 'embeddings' : endpoint
+        
+        const response = await fetch(fullUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -83,8 +87,7 @@ export async function generateEmbedding(
             },
             body: JSON.stringify({
                 model: model || EMBEDDING_MODEL,
-                input: truncatedText,
-                dimensions: EMBEDDING_DIMENSIONS
+                input: truncatedText
             })
         })
 
