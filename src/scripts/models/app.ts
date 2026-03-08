@@ -350,7 +350,11 @@ export function setupScheduledDigest(): AppThunk {
         if (digestInterval) clearInterval(digestInterval)
         digestInterval = setInterval(async () => {
             const settings = window.settings.getIntegrationSettings()
-            if (!settings.autoPushEnabled || !settings.openaiApiKey || !settings.digestTime) return
+            if (!settings.autoPushEnabled || !settings.digestTime) return
+            
+            // Check if any LLM provider is configured
+            const hasLLMProvider = settings.openaiApiKey || settings.nvidiaApiKey || settings.deepseekApiKey
+            if (!hasLLMProvider) return
 
             const now = new Date()
             const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
@@ -362,7 +366,7 @@ export function setupScheduledDigest(): AppThunk {
                     console.log("Triggering scheduled daily digest...")
                     const topics = settings.digestTopics ? settings.digestTopics.split(',').map(t => t.trim()) : []
                     const briefing = await generateEnhancedDigest({
-                        apiKey: settings.openaiApiKey,
+                        settings: settings,
                         language: getState().app.locale,
                         topics: topics,
                         dalleEnabled: settings.dalleEnabled

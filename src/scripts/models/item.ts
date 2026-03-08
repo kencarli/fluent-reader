@@ -319,9 +319,24 @@ export function fetchItems(
 
                         // Trigger background embedding generation
                         try {
-                            const apiKey = window.settings.getIntegrationSettings().openaiApiKey
-                            if (apiKey) {
-                                embeddingQueue.setApiKey(apiKey)
+                            const settings = window.settings.getIntegrationSettings()
+                            const hasProvider = settings.openaiApiKey || settings.nvidiaApiKey || settings.deepseekApiKey
+                            if (hasProvider) {
+                                // Use the first available provider's key
+                                const apiKey = settings.nvidiaApiKey || settings.deepseekApiKey || settings.openaiApiKey
+                                
+                                // Get API URL and model based on provider
+                                let apiUrl: string | undefined
+                                let model: string | undefined
+                                if (settings.nvidiaApiKey) {
+                                    apiUrl = "https://integrate.api.nvidia.com/v1/embeddings"
+                                    model = "nvidia/nv-embedqa-e5-v5"
+                                } else if (settings.deepseekApiKey) {
+                                    apiUrl = "https://api.deepseek.com/v1/embeddings"
+                                    model = "deepseek-embed"
+                                }
+                                
+                                embeddingQueue.setApiKey(apiKey!, apiUrl, model)
                                 embeddingQueue.enqueue(inserted)
                             }
                         } catch (error) {

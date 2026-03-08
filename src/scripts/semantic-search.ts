@@ -4,6 +4,7 @@
 import { RSSItem } from "./models/item"
 import { cosineSimilarity, generateEmbedding } from "./embeddings"
 import { getAllEmbeddings, VectorRecord } from "./vector-db"
+import { IntegrationSettings } from "../schema-types"
 
 export interface SemanticSearchResult {
     item: RSSItem
@@ -11,22 +12,65 @@ export interface SemanticSearchResult {
 }
 
 /**
+ * Get embedding API config from settings
+ */
+function getEmbeddingConfig(settings: IntegrationSettings): { apiKey: string; apiUrl?: string; model?: string } | null {
+    if (settings.nvidiaApiKey) {
+        return {
+            apiKey: settings.nvidiaApiKey,
+            apiUrl: "https://integrate.api.nvidia.com/v1/embeddings",
+            model: "nvidia/nv-embedqa-e5-v5"
+        }
+    }
+    if (settings.deepseekApiKey) {
+        return {
+            apiKey: settings.deepseekApiKey,
+            apiUrl: "https://api.deepseek.com/v1/embeddings",
+            model: "deepseek-embed"
+        }
+    }
+    if (settings.openaiApiKey) {
+        return {
+            apiKey: settings.openaiApiKey
+        }
+    }
+    return null
+}
+
+/**
  * Search for similar articles using semantic search
  * @param query - Search query text
- * @param apiKey - OpenAI API key
+ * @param apiKeyOrSettings - API key or IntegrationSettings
  * @param items - All items to search through
  * @param topK - Number of results to return
  * @returns Array of search results sorted by similarity
  */
 export async function semanticSearch(
     query: string,
-    apiKey: string,
+    apiKeyOrSettings: string | IntegrationSettings,
     items: { [_id: number]: RSSItem },
     topK: number = 20
 ): Promise<SemanticSearchResult[]> {
     try {
+        // Handle both string apiKey and IntegrationSettings
+        let apiKey: string
+        let apiUrl: string | undefined
+        let model: string | undefined
+        
+        if (typeof apiKeyOrSettings === "string") {
+            apiKey = apiKeyOrSettings
+        } else {
+            const config = getEmbeddingConfig(apiKeyOrSettings)
+            if (!config) {
+                throw new Error("No embedding provider configured")
+            }
+            apiKey = config.apiKey
+            apiUrl = config.apiUrl
+            model = config.model
+        }
+        
         // Step 1: Generate embedding for query
-        const queryEmbedding = await generateEmbedding(query, apiKey)
+        const queryEmbedding = await generateEmbedding(query, apiKey, apiUrl, model)
 
         // Step 2: Get all stored embeddings
         const vectorRecords = await getAllEmbeddings()

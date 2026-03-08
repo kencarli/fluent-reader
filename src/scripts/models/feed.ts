@@ -129,8 +129,10 @@ export class RSSFeed {
             feed.filter.search &&
             feed.filter.type & FilterType.SemanticSearch
         ) {
-            const apiKey = window.settings.getIntegrationSettings().openaiApiKey
-            if (apiKey) {
+            const settings = window.settings.getIntegrationSettings()
+            // Check if any LLM provider is configured
+            const hasProvider = settings.openaiApiKey || settings.nvidiaApiKey || settings.deepseekApiKey
+            if (hasProvider) {
                 const allItems = (await db.itemsDB
                     .select()
                     .from(db.items)
@@ -146,7 +148,7 @@ export class RSSFeed {
 
                 const semanticResults = await semanticSearch(
                     feed.filter.search,
-                    apiKey,
+                    settings,
                     itemMap,
                     LOAD_QUANTITY + skip
                 )

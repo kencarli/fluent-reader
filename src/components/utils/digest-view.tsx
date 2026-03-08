@@ -50,19 +50,20 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
     }
 
     generate = async () => {
-        const apiKey = window.settings.getIntegrationSettings().openaiApiKey
-        if (!apiKey) {
-            this.setState({ error: "OpenAI API Key not configured in Settings > Integrations." })
+        const settings = window.settings.getIntegrationSettings()
+        // Check if any LLM provider is configured
+        const hasProvider = settings.openaiApiKey || settings.nvidiaApiKey || settings.deepseekApiKey
+        if (!hasProvider) {
+            this.setState({ error: "No LLM provider configured. Please add API key in Settings > Integrations." })
             return
         }
 
         this.setState({ generating: true, error: null, briefing: null, pushSuccess: null })
         try {
-            const settings = window.settings.getIntegrationSettings()
             const topics = settings.digestTopics ? settings.digestTopics.split(',').map(t => t.trim()) : []
 
             const result = await generateEnhancedDigest({
-                apiKey: apiKey,
+                settings: settings,
                 language: this.props.locale,
                 topics: topics,
                 dalleEnabled: settings.dalleEnabled

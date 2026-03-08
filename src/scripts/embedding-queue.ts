@@ -15,9 +15,13 @@ class EmbeddingQueue {
     private queue: EmbeddingTask[] = []
     private processing: boolean = false
     private apiKey: string = ""
+    private apiUrl?: string
+    private model?: string
 
-    setApiKey(key: string) {
+    setApiKey(key: string, apiUrl?: string, model?: string) {
         this.apiKey = key
+        this.apiUrl = apiUrl
+        this.model = model
     }
 
     /**
@@ -25,7 +29,7 @@ class EmbeddingQueue {
      */
     async enqueue(items: RSSItem[]) {
         if (!this.apiKey) {
-            console.warn("OpenAI API key not set. Skipping embedding generation.")
+            console.warn("API key not set. Skipping embedding generation.")
             return
         }
 
@@ -71,7 +75,7 @@ class EmbeddingQueue {
                 const texts = batch.map(t => t.text)
 
                 try {
-                    const embeddings = await generateEmbeddingsBatch(texts, this.apiKey)
+                    const embeddings = await generateEmbeddingsBatch(texts, this.apiKey, this.apiUrl, this.model)
 
                     // Store embeddings
                     const records = batch.map((task, idx) => ({

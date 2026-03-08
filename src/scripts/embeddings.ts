@@ -4,6 +4,8 @@
 import { IntegrationSettings } from "../schema-types"
 
 const OPENAI_EMBEDDING_API = "https://api.openai.com/v1/embeddings"
+const NVIDIA_EMBEDDING_API = "https://integrate.api.nvidia.com/v1/embeddings"
+const DEEPSEEK_EMBEDDING_API = "https://api.deepseek.com/v1/embeddings"
 const EMBEDDING_MODEL = "text-embedding-3-small"
 const EMBEDDING_DIMENSIONS = 1536
 
@@ -17,28 +19,70 @@ export interface EmbeddingResult {
 }
 
 /**
- * Generate embedding for text using OpenAI API
+ * Get the embedding provider from settings
+ */
+export function getEmbeddingProvider(settings: IntegrationSettings): "openai" | "nvidia" | "deepseek" | null {
+    if (settings.nvidiaApiKey) return "nvidia"
+    if (settings.deepseekApiKey) return "deepseek"
+    if (settings.openaiApiKey) return "openai"
+    return null
+}
+
+/**
+ * Get API key and endpoint based on provider
+ */
+function getEmbeddingConfig(
+    provider: "openai" | "nvidia" | "deepseek",
+    settings: IntegrationSettings
+): { apiKey: string; apiUrl: string; model: string } {
+    switch (provider) {
+        case "nvidia":
+            return {
+                apiKey: settings.nvidiaApiKey!,
+                apiUrl: NVIDIA_EMBEDDING_API,
+                model: "nvidia/nv-embedqa-e5-v5"
+            }
+        case "deepseek":
+            return {
+                apiKey: settings.deepseekApiKey!,
+                apiUrl: DEEPSEEK_EMBEDDING_API,
+                model: "deepseek-embed"
+            }
+        case "openai":
+        default:
+            return {
+                apiKey: settings.openaiApiKey!,
+                apiUrl: OPENAI_EMBEDDING_API,
+                model: EMBEDDING_MODEL
+            }
+    }
+}
+
+/**
+ * Generate embedding for text using configured LLM provider
  */
 export async function generateEmbedding(
     text: string,
-    apiKey: string
+    apiKey: string,
+    apiUrl?: string,
+    model?: string
 ): Promise<number[]> {
     if (!apiKey) {
-        throw new Error("OpenAI API key not configured. Please add it in Settings > Integrations.")
+        throw new Error("API key not configured. Please add it in Settings > Integrations.")
     }
 
     // Truncate text to ~8000 tokens (rough estimate: 4 chars per token)
     const truncatedText = text.substring(0, 32000)
 
     try {
-        const response = await fetch(OPENAI_EMBEDDING_API, {
+        const response = await fetch(apiUrl || OPENAI_EMBEDDING_API, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: EMBEDDING_MODEL,
+                model: model || EMBEDDING_MODEL,
                 input: truncatedText,
                 dimensions: EMBEDDING_DIMENSIONS
             })
@@ -46,7 +90,7 @@ export async function generateEmbedding(
 
         if (!response.ok) {
             const error = await response.json()
-            throw new Error(`OpenAI API error: ${error.error?.message || response.statusText}`)
+            throw new Error(`API error: ${error.error?.message || response.statusText}`)
         }
 
         const data = await response.json()
@@ -63,13 +107,15 @@ export async function generateEmbedding(
 export async function generateEmbeddingsBatch(
     texts: string[],
     apiKey: string,
+    apiUrl?: string,
+    model?: string,
     onProgress?: (current: number, total: number) => void
 ): Promise<number[][]> {
     const embeddings: number[][] = []
 
     for (let i = 0; i < texts.length; i++) {
         try {
-            const embedding = await generateEmbedding(texts[i], apiKey)
+            const embedding = await generateEmbedding(texts[i], apiKey, apiUrl, model)
             embeddings.push(embedding)
 
             if (onProgress) {

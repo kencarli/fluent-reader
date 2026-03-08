@@ -3,8 +3,11 @@ import { extractTextFromHtml } from "./summary"
 import * as db from "./db"
 import lf from "lovefield"
 import { semanticSearch } from "./semantic-search"
+import { IntegrationSettings } from "../schema-types"
 
 const OPENAI_CHAT_API = "https://api.openai.com/v1/chat/completions"
+const NVIDIA_CHAT_API = "https://integrate.api.nvidia.com/v1/chat/completions"
+const DEEPSEEK_CHAT_API = "https://api.deepseek.com/v1/chat/completions"
 const OPENAI_IMAGE_API = "https://api.openai.com/v1/images/generations"
 
 export interface BriefingResult {
@@ -12,6 +15,37 @@ export interface BriefingResult {
     timestamp: Date
     articleCount: number
     coverUrl?: string
+}
+
+/**
+ * Get LLM provider configuration from settings
+ */
+export function getLLMProvider(settings: IntegrationSettings): { provider: "openai" | "nvidia" | "deepseek"; apiKey: string; apiUrl: string; model: string } | null {
+    if (settings.nvidiaApiKey) {
+        return {
+            provider: "nvidia",
+            apiKey: settings.nvidiaApiKey,
+            apiUrl: NVIDIA_CHAT_API,
+            model: "meta/llama-3.1-70b-instruct"
+        }
+    }
+    if (settings.deepseekApiKey) {
+        return {
+            provider: "deepseek",
+            apiKey: settings.deepseekApiKey,
+            apiUrl: DEEPSEEK_CHAT_API,
+            model: "deepseek-chat"
+        }
+    }
+    if (settings.openaiApiKey) {
+        return {
+            provider: "openai",
+            apiKey: settings.openaiApiKey,
+            apiUrl: OPENAI_CHAT_API,
+            model: "gpt-4o-mini"
+        }
+    }
+    return null
 }
 
 /**
@@ -46,11 +80,11 @@ export function formatArticlesForAI(items: RSSItem[]): string {
 }
 
 /**
- * Generates a structured news digest using OpenAI API.
+ * Generates a structured news digest using configured LLM provider.
  */
 export async function generateAIDigest(
     items: RSSItem[],
-    apiKey: string,
+    provider: { provider: string; apiKey: string; apiUrl: string; model: string },
     language: string = "en"
 ): Promise<BriefingResult> {
     if (items.length === 0) {
@@ -65,14 +99,14 @@ export async function generateAIDigest(
     const userPrompt = `Here are the articles:\n\n${context}\n\nPlease generate the briefing in ${language.startsWith("zh") ? "Chinese" : "English"}.`
 
     try {
-        const response = await fetch(OPENAI_CHAT_API, {
+        const response = await fetch(provider.apiUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`
+                "Authorization": `Bearer ${provider.apiKey}`
             },
             body: JSON.stringify({
-                model: "gpt-4o-mini", // Use gpt-4o-mini for speed/cost efficiently
+                model: provider.model,
                 messages: [
                     { role: "system", content: systemPrompt },
                     { role: "user", content: userPrompt }
@@ -83,7 +117,7 @@ export async function generateAIDigest(
 
         if (!response.ok) {
             const error = await response.json()
-            throw new Error(`OpenAI API error: ${error.error?.message || response.statusText}`)
+            throw new Error(`LLM API error: ${error.error?.message || response.statusText}`)
         }
 
         const data = await response.json()
@@ -137,14 +171,20 @@ export async function generateCoverImage(
  */
 export async function generateEnhancedDigest(
     options: {
-        apiKey: string,
+        settings: IntegrationSettings,
         language?: string,
         topics?: string[],
         dalleEnabled?: boolean,
         hours?: number
     }
 ): Promise<BriefingResult> {
-    const { apiKey, language = "en", topics = [], dalleEnabled = false, hours = 24 } = options
+    const { settings, language = "en", topics = [], dalleEnabled = false, hours = 24 } = options
+
+    // Get LLM provider
+    const provider = getLLMProvider(settings)
+    if (!provider) {
+        throw new Error("No LLM provider configured. Please add API key in Settings > Integrations.")
+    }
 
     // 1. Fetch articles
     let items = await getRecentItems(hours)
@@ -155,7 +195,7 @@ export async function generateEnhancedDigest(
         const itemMap: { [_id: number]: RSSItem } = {}
         items.forEach(i => itemMap[i._id] = i)
 
-        const filteredResults = await semanticSearch(topics.join(", "), apiKey, itemMap, 30)
+        const filteredResults = await semanticSearch(topics.join(", "), provider.apiKey, itemMap, 30)
         items = filteredResults.map(r => r.item)
     }
 
@@ -172,14 +212,14 @@ export async function generateEnhancedDigest(
 
     const userPrompt = `Articles:\n\n${context}\n\nPlease generate the briefing in ${isChinese ? "Chinese" : "English"}.`
 
-    const chatResponse = await fetch(OPENAI_CHAT_API, {
+    const chatResponse = await fetch(provider.apiUrl, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
+            "Authorization": `Bearer ${provider.apiKey}`
         },
         body: JSON.stringify({
-            model: "gpt-4o-mini",
+            model: provider.model,
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
@@ -189,18 +229,18 @@ export async function generateEnhancedDigest(
 
     if (!chatResponse.ok) {
         const error = await chatResponse.json()
-        throw new Error(`OpenAI API error: ${error.error?.message}`)
+        throw new Error(`LLM API error: ${error.error?.message}`)
     }
 
     const chatData = await chatResponse.json()
     const content = chatData.choices[0].message.content
 
-    // 4. DALL-E Image
+    // 4. DALL-E Image (only available for OpenAI)
     let coverUrl: string | undefined = undefined
-    if (dalleEnabled) {
+    if (dalleEnabled && provider.provider === "openai") {
         // Use the first paragraph as theme for DALL-E
         const firstPara = content.split('\n').filter(l => l.trim().length > 20)[0] || content
-        coverUrl = await generateCoverImage(firstPara, apiKey)
+        coverUrl = await generateCoverImage(firstPara, provider.apiKey)
     }
 
     return {
