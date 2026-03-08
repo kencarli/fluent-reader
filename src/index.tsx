@@ -14,7 +14,15 @@ applyThemeSettings()
 initializeIcons("icons/")
 registerIcons({
     icons: {
-        'StatusCheck': '\uE930'
+        'StatusCheck': '\uE930',
+        'FolderOpen': '\uED25',
+        'Database': '\uEC7C',
+        'Settings': '\uE713',
+        'Clock': '\uE952',
+        'Cloud': '\uE753',
+        'ChevronDownMed': '\uE972',
+        'ChevronRightMed': '\uE96C',
+        'Back': '\uE72B'
     }
 })
 
