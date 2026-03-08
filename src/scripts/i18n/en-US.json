@@ -405,7 +405,11 @@
             "pushTo": "Push to External Services",
             "dingtalk": "DingTalk",
             "wecom": "WeCom",
-            "regenerate": "Regenerate"
+            "regenerate": "Regenerate",
+            "noProvider": "No LLM provider configured. Please add API key in Settings > Integrations.",
+            "sourceScope": "Use All Sources",
+            "selectSources": "Select Sources",
+            "selectSourcesPlaceholder": "Select one or more sources..."
         },
         "app": {
             "cleanup": "Clean up",

@@ -15,17 +15,22 @@ import {
     TextField,
     Separator,
     Image,
-    ImageFit
+    ImageFit,
+    Dropdown,
+    IDropdownOption,
+    Toggle
 } from "@fluentui/react"
 import { RootState } from "../../scripts/reducer"
 import { AppDispatch } from "../../scripts/utils"
 import { toggleDigest } from "../../scripts/models/app"
 import { getRecentItems, generateEnhancedDigest, BriefingResult } from "../../scripts/digest-service"
 import { pushToDingTalk, pushToWeCom } from "../../scripts/push-service"
+import { RSSSource } from "../../scripts/models/source"
 
 type DigestViewProps = {
     display: boolean
     locale: string
+    sources: { [key: number]: RSSSource }
     dispatch: AppDispatch
 }
 
@@ -35,6 +40,8 @@ type DigestViewState = {
     briefing: BriefingResult | null
     error: string | null
     pushSuccess: string | null
+    selectedSourceIds: number[]
+    useAllSources: boolean
 }
 
 class DigestView extends React.Component<DigestViewProps, DigestViewState> {
@@ -45,8 +52,23 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
             pushing: false,
             briefing: null,
             error: null,
-            pushSuccess: null
+            pushSuccess: null,
+            selectedSourceIds: [],
+            useAllSources: true
         }
+    }
+
+    getSourceOptions = (): IDropdownOption[] => {
+        const options: IDropdownOption[] = []
+        Object.values(this.props.sources).forEach(source => {
+            if (!source.hidden) {
+                options.push({
+                    key: source.sid,
+                    text: source.name
+                })
+            }
+        })
+        return options
     }
 
     generate = async () => {
@@ -54,19 +76,23 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
         // Check if any LLM provider is configured
         const hasProvider = settings.openaiApiKey || settings.nvidiaApiKey || settings.deepseekApiKey
         if (!hasProvider) {
-            this.setState({ error: "No LLM provider configured. Please add API key in Settings > Integrations." })
+            this.setState({ error: intl.get("digest.noProvider") })
             return
         }
 
         this.setState({ generating: true, error: null, briefing: null, pushSuccess: null })
         try {
             const topics = settings.digestTopics ? settings.digestTopics.split(',').map(t => t.trim()) : []
+            
+            // Use selected sources or all sources
+            const sourceIds = this.state.useAllSources ? undefined : this.state.selectedSourceIds
 
             const result = await generateEnhancedDigest({
                 settings: settings,
                 language: this.props.locale,
                 topics: topics,
-                dalleEnabled: settings.dalleEnabled
+                dalleEnabled: settings.dalleEnabled,
+                sourceIds: sourceIds
             })
             this.setState({ briefing: result })
         } catch (e) {
@@ -117,7 +143,7 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
                 isOpen={this.props.display}
                 onDismiss={this.onDismiss}
                 containerClassName="digest-modal-container"
-                styles={{ main: { maxWidth: 900, minHeight: 400, padding: 24 } }}
+                styles={{ main: { maxWidth: 1200, minHeight: 400, padding: 24 } }}
             >
                 <Stack tokens={{ childrenGap: 20 }}>
                     <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
@@ -126,8 +152,39 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
                     </Stack>
 
                     {!this.state.briefing && !this.state.generating && (
-                        <Stack horizontalAlign="center" tokens={{ childrenGap: 12 }} style={{ padding: "40px 0" }}>
+                        <Stack tokens={{ childrenGap: 16 }} style={{ padding: "20px 0" }}>
                             <Label>{intl.get("digest.description")}</Label>
+                            
+                            <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 16 }}>
+                                <Toggle
+                                    label={intl.get("digest.sourceScope")}
+                                    checked={this.state.useAllSources}
+                                    onChange={(_, checked) => this.setState({ useAllSources: checked })}
+                                    inlineLabel
+                                    styles={{ root: { marginTop: 10 } }}
+                                />
+                            </Stack>
+
+                            {!this.state.useAllSources && (
+                                <Dropdown
+                                    label={intl.get("digest.selectSources")}
+                                    options={this.getSourceOptions()}
+                                    selectedKeys={this.state.selectedSourceIds.map(String)}
+                                    onChange={(_, option) => {
+                                        const selected = option?.selected ?? false
+                                        const key = option?.key as string
+                                        this.setState(prevState => ({
+                                            selectedSourceIds: selected
+                                                ? [...prevState.selectedSourceIds, parseInt(key)]
+                                                : prevState.selectedSourceIds.filter(id => id !== parseInt(key))
+                                        }))
+                                    }}
+                                    multiSelect
+                                    placeholder={intl.get("digest.selectSourcesPlaceholder")}
+                                    styles={{ root: { maxWidth: 600 } }}
+                                />
+                            )}
+
                             <PrimaryButton
                                 text={intl.get("digest.generate")}
                                 iconProps={{ iconName: "LightningBolt" }}
@@ -205,7 +262,8 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
 
 const mapStateToProps = (state: RootState) => ({
     display: state.app.digestOn,
-    locale: state.app.locale
+    locale: state.app.locale,
+    sources: state.sources
 })
 
 export default connect(mapStateToProps)(DigestView)

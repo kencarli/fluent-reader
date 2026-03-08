@@ -50,13 +50,22 @@ export function getLLMProvider(settings: IntegrationSettings): { provider: "open
 
 /**
  * Fetches items from the last N hours.
+ * @param hours - Number of hours to look back
+ * @param sourceIds - Optional array of source IDs to filter by
  */
-export async function getRecentItems(hours: number = 24): Promise<RSSItem[]> {
+export async function getRecentItems(hours: number = 24, sourceIds?: number[]): Promise<RSSItem[]> {
     const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000)
-    return (await db.itemsDB
+    let query = db.itemsDB
         .select()
         .from(db.items)
         .where(db.items.date.gte(cutoff))
+    
+    // Filter by source IDs if provided
+    if (sourceIds && sourceIds.length > 0) {
+        query = query.where(db.items.source.in(sourceIds))
+    }
+    
+    return (await query
         .orderBy(db.items.date, lf.Order.DESC)
         .exec()) as RSSItem[]
 }
@@ -175,10 +184,11 @@ export async function generateEnhancedDigest(
         language?: string,
         topics?: string[],
         dalleEnabled?: boolean,
-        hours?: number
+        hours?: number,
+        sourceIds?: number[] // Optional: filter by specific sources
     }
 ): Promise<BriefingResult> {
-    const { settings, language = "en", topics = [], dalleEnabled = false, hours = 24 } = options
+    const { settings, language = "en", topics = [], dalleEnabled = false, hours = 24, sourceIds } = options
 
     // Get LLM provider
     const provider = getLLMProvider(settings)
@@ -187,7 +197,7 @@ export async function generateEnhancedDigest(
     }
 
     // 1. Fetch articles
-    let items = await getRecentItems(hours)
+    let items = await getRecentItems(hours, sourceIds)
     if (items.length === 0) throw new Error("No articles available.")
 
     // 2. Topic Filtering (Semantic Search)

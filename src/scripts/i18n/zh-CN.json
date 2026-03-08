@@ -398,7 +398,11 @@
         "pushTo": "推送到外部服务",
         "dingtalk": "钉钉",
         "wecom": "企业微信",
-        "regenerate": "重新生成"
+        "regenerate": "重新生成",
+        "noProvider": "未配置 LLM 提供商。请在设置 > 集成中添加 API 密钥。",
+        "sourceScope": "使用所有订阅源",
+        "selectSources": "选择订阅源",
+        "selectSourcesPlaceholder": "选择一个或多个订阅源..."
     },
     "app": {
         "cleanup": "清理",
