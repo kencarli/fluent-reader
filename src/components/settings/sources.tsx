@@ -55,9 +55,11 @@ type SourcesTabState = {
     selectedSource: RSSSource
     selectedSources: RSSSource[]
     sourceStatus: Record<number, 'ok' | 'error' | 'checking'>
+    sourceStatusTimestamp: Record<number, number> // Timestamp of last status check
     isCheckingAll: boolean
     sourceEditOption?: string
     newSourceIcon?: string
+    checkAbortController?: AbortController // For canceling ongoing checks
 }
 
 const enum EditDropdownKeys {
@@ -77,6 +79,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             selectedSource: null,
             selectedSources: null,
             sourceStatus: {},
+            sourceStatusTimestamp: {},
             isCheckingAll: false,
         }
         this.selection = new Selection({
@@ -153,15 +156,30 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         {
             key: "check",
             name: "",
-            minWidth: 30,
-            onRender: (s: RSSSource) => (
-                <IconButton
-                    iconProps={{ iconName: this.state.sourceStatus[s.sid] === 'checking' ? 'Refresh' : 'StatusCheck' }}
-                    title={intl.get("sources.checkStatus")}
-                    onClick={() => this.checkSourceStatus(s)}
-                    disabled={this.state.sourceStatus[s.sid] === 'checking'}
-                />
-            )
+            minWidth: 50,
+            onRender: (s: RSSSource) => {
+                const isChecking = this.state.sourceStatus[s.sid] === 'checking'
+                const timestamp = this.state.sourceStatusTimestamp[s.sid]
+                const timeAgo = timestamp ? this.formatTimeAgo(timestamp) : ''
+                
+                return (
+                    <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 4 }}>
+                        <IconButton
+                            iconProps={{ 
+                                iconName: isChecking ? 'Refresh' : 'StatusCheck',
+                                style: { color: isChecking ? 'var(--neutralSecondary)' : undefined }
+                            }}
+                            title={intl.get("sources.checkStatus")}
+                            onClick={() => this.checkSourceStatus(s)}
+                            disabled={isChecking}
+                            styles={{ root: { padding: 4 } }}
+                        />
+                        {timeAgo && (
+                            <span style={{ fontSize: 11, color: 'var(--neutralTertiary)', marginLeft: 4 }}>{timeAgo}</span>
+                        )}
+                    </Stack>
+                )
+            }
         },
     ]
 
@@ -268,15 +286,26 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         })
     }
 
-    checkSourceStatus = async (source: RSSSource) => {
-        this.setState(prevState => ({
-            sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'checking' }
-        }))
+    checkSourceStatus = async (source: RSSSource, useNewController = false) => {
+        // If component is unmounted, don't update state
+        if (!this) return
         
+        this.setState(prevState => ({
+            sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'checking' },
+            sourceStatusTimestamp: { ...prevState.sourceStatusTimestamp, [source.sid]: Date.now() }
+        }))
+
+        // Create new abort controller if needed
+        const controller = useNewController ? new AbortController() : 
+                          (this.state.checkAbortController || new AbortController())
+        
+        if (useNewController) {
+            this.setState({ checkAbortController: controller })
+        }
+
         try {
-            const controller = new AbortController()
             const timeoutId = setTimeout(() => controller.abort(), 10000)
-            
+
             const response = await fetch(source.url, {
                 signal: controller.signal,
                 method: 'HEAD',
@@ -285,27 +314,61 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 }
             })
             clearTimeout(timeoutId)
-            
-            this.setState(prevState => ({
-                sourceStatus: { ...prevState.sourceStatus, [source.sid]: response.ok ? 'ok' : 'error' }
-            }))
+
+            // Only update state if component is still mounted
+            if (this) {
+                this.setState(prevState => ({
+                    sourceStatus: { ...prevState.sourceStatus, [source.sid]: response.ok ? 'ok' : 'error' },
+                    sourceStatusTimestamp: { ...prevState.sourceStatusTimestamp, [source.sid]: Date.now() }
+                }))
+            }
         } catch (error) {
-            this.setState(prevState => ({
-                sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'error' }
-            }))
+            // Don't update state if request was aborted
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log(`Check aborted for source: ${source.name}`)
+                return
+            }
+            
+            if (this) {
+                this.setState(prevState => ({
+                    sourceStatus: { ...prevState.sourceStatus, [source.sid]: 'error' },
+                    sourceStatusTimestamp: { ...prevState.sourceStatusTimestamp, [source.sid]: Date.now() }
+                }))
+            }
         }
     }
 
     checkAllSources = async () => {
-        this.setState({ isCheckingAll: true })
-        const sources = Object.values(this.props.sources)
-        
-        for (const source of sources) {
-            await this.checkSourceStatus(source)
-            await new Promise(resolve => setTimeout(resolve, 500))
+        // Cancel any ongoing checks
+        if (this.state.checkAbortController) {
+            this.state.checkAbortController.abort()
         }
         
-        this.setState({ isCheckingAll: false })
+        const controller = new AbortController()
+        this.setState({ isCheckingAll: true, checkAbortController: controller })
+        
+        const sources = Object.values(this.props.sources)
+
+        for (const source of sources) {
+            // Check if aborted
+            if (controller.signal.aborted) {
+                break
+            }
+            
+            await this.checkSourceStatus(source, true)
+            await new Promise(resolve => setTimeout(resolve, 500))
+        }
+
+        if (!controller.signal.aborted) {
+            this.setState({ isCheckingAll: false, checkAbortController: undefined })
+        }
+    }
+
+    cancelCheckAll = () => {
+        if (this.state.checkAbortController) {
+            this.state.checkAbortController.abort()
+            this.setState({ isCheckingAll: false, checkAbortController: undefined })
+        }
     }
 
     selectAllInvalidSources = () => {
@@ -313,11 +376,22 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         const invalidSids = sources
             .filter(s => this.state.sourceStatus[s.sid] === 'error')
             .map(s => s.sid)
-        
+
         this.selection.setAllSelected(false)
         invalidSids.forEach(sid => {
             this.selection.setKeySelected(String(sid), true, false)
         })
+    }
+
+    formatTimeAgo = (timestamp: number): string => {
+        const seconds = Math.floor((Date.now() - timestamp) / 1000)
+        if (seconds < 60) return `${seconds}s`
+        const minutes = Math.floor(seconds / 60)
+        if (minutes < 60) return `${minutes}m`
+        const hours = Math.floor(minutes / 60)
+        if (hours < 24) return `${hours}h`
+        const days = Math.floor(hours / 24)
+        return `${days}d`
     }
 
     deleteInvalidSources = () => {

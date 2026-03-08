@@ -82,7 +82,7 @@ export default class AIServicesModal extends React.Component<
                 isBlocking={false}
                 containerClassName="modal-container"
             >
-                <div style={{ padding: 20, maxWidth: 700 }}>
+                <div style={{ padding: 20, maxWidth: 900 }}>
                     <Stack horizontal horizontalAlign="space-between">
                         <Label
                             style={{

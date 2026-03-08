@@ -135,7 +135,7 @@ export default class TranslationSettingsModal extends React.Component<
                 isBlocking={false}
                 containerClassName="modal-container"
             >
-                <div style={{ padding: 20, maxWidth: 700 }}>
+                <div style={{ padding: 20, maxWidth: 900 }}>
                     <Stack horizontal horizontalAlign="space-between">
                         <Label
                             style={{
@@ -199,26 +199,34 @@ export default class TranslationSettingsModal extends React.Component<
                                 fontSize: 16,
                                 fontWeight: 600,
                                 marginTop: 8,
+                                marginBottom: 8,
                             }}>
                             {intl.get("settings.translation.baidu")}
                         </Label>
-                        
-                        <TextField
-                            label={intl.get("settings.translation.appId")}
-                            name="baiduTranslateAppId"
-                            value={tempSettings.baiduTranslateAppId || ""}
-                            onChange={this.handleInputChange}
-                            description={intl.get("settings.translation.baiduAppIdHint")}
-                        />
 
-                        <TextField
-                            label={intl.get("settings.translation.secret")}
-                            name="baiduTranslateSecret"
-                            type="password"
-                            value={tempSettings.baiduTranslateSecret || ""}
-                            onChange={this.handleInputChange}
-                            description={intl.get("settings.translation.baiduSecretHint")}
-                        />
+                        <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.translation.appId")}
+                                    name="baiduTranslateAppId"
+                                    value={tempSettings.baiduTranslateAppId || ""}
+                                    onChange={this.handleInputChange}
+                                    description={intl.get("settings.translation.baiduAppIdHint")}
+                                    styles={{ root: { width: '100%' } }}
+                                />
+                            </Stack.Item>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.translation.secret")}
+                                    name="baiduTranslateSecret"
+                                    type="password"
+                                    value={tempSettings.baiduTranslateSecret || ""}
+                                    onChange={this.handleInputChange}
+                                    description={intl.get("settings.translation.baiduSecretHint")}
+                                    styles={{ root: { width: '100%' } }}
+                                />
+                            </Stack.Item>
+                        </Stack>
 
                         <Link
                             href="https://fanyi-api.baidu.com/"
@@ -233,26 +241,34 @@ export default class TranslationSettingsModal extends React.Component<
                                 fontSize: 16,
                                 fontWeight: 600,
                                 marginTop: 16,
+                                marginBottom: 8,
                             }}>
                             {intl.get("settings.translation.youdao")}
                         </Label>
 
-                        <TextField
-                            label={intl.get("settings.translation.appId")}
-                            name="youdaoTranslateAppId"
-                            value={tempSettings.youdaoTranslateAppId || ""}
-                            onChange={this.handleInputChange}
-                            description={intl.get("settings.translation.youdaoAppIdHint")}
-                        />
-
-                        <TextField
-                            label={intl.get("settings.translation.secret")}
-                            name="youdaoTranslateSecret"
-                            type="password"
-                            value={tempSettings.youdaoTranslateSecret || ""}
-                            onChange={this.handleInputChange}
-                            description={intl.get("settings.translation.youdaoSecretHint")}
-                        />
+                        <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.translation.appId")}
+                                    name="youdaoTranslateAppId"
+                                    value={tempSettings.youdaoTranslateAppId || ""}
+                                    onChange={this.handleInputChange}
+                                    description={intl.get("settings.translation.youdaoAppIdHint")}
+                                    styles={{ root: { width: '100%' } }}
+                                />
+                            </Stack.Item>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.translation.secret")}
+                                    name="youdaoTranslateSecret"
+                                    type="password"
+                                    value={tempSettings.youdaoTranslateSecret || ""}
+                                    onChange={this.handleInputChange}
+                                    description={intl.get("settings.translation.youdaoSecretHint")}
+                                    styles={{ root: { width: '100%' } }}
+                                />
+                            </Stack.Item>
+                        </Stack>
 
                         <Link
                             href="https://ai.youdao.com/"
@@ -267,27 +283,35 @@ export default class TranslationSettingsModal extends React.Component<
                                 fontSize: 16,
                                 fontWeight: 600,
                                 marginTop: 16,
+                                marginBottom: 8,
                             }}>
                             {intl.get("settings.translation.ollama")}
                         </Label>
 
-                        <TextField
-                            label={intl.get("settings.translation.ollamaApiUrl")}
-                            name="ollamaApiUrl"
-                            value={tempSettings.ollamaApiUrl || ""}
-                            onChange={this.handleInputChange}
-                            placeholder="http://localhost:11434"
-                            description={intl.get("settings.translation.ollamaApiUrlHint")}
-                        />
-
-                        <TextField
-                            label={intl.get("settings.translation.ollamaModel")}
-                            name="ollamaModel"
-                            value={tempSettings.ollamaModel || ""}
-                            onChange={this.handleInputChange}
-                            placeholder="llama2"
-                            description={intl.get("settings.translation.ollamaModelHint")}
-                        />
+                        <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.translation.ollamaApiUrl")}
+                                    name="ollamaApiUrl"
+                                    value={tempSettings.ollamaApiUrl || ""}
+                                    onChange={this.handleInputChange}
+                                    placeholder="http://localhost:11434"
+                                    description={intl.get("settings.translation.ollamaApiUrlHint")}
+                                    styles={{ root: { width: '100%' } }}
+                                />
+                            </Stack.Item>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.translation.ollamaModel")}
+                                    name="ollamaModel"
+                                    value={tempSettings.ollamaModel || ""}
+                                    onChange={this.handleInputChange}
+                                    placeholder="llama2"
+                                    description={intl.get("settings.translation.ollamaModelHint")}
+                                    styles={{ root: { width: '100%' } }}
+                                />
+                            </Stack.Item>
+                        </Stack>
 
                         {/* Test and Save */}
                         {testResult && (
