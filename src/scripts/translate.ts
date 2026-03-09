@@ -308,3 +308,35 @@ export async function translateHtml(html: string, toLang: string = "zh-CN"): Pro
 
     return doc.body.innerHTML
 }
+
+/**
+ * Batch translate titles
+ * @param titles - Array of titles to translate
+ * @param onProgress - Progress callback
+ * @returns Array of translated titles
+ */
+export async function translateTitles(
+    titles: string[],
+    onProgress?: (completed: number, total: number) => void
+): Promise<string[]> {
+    const translatedTitles: string[] = []
+    
+    for (let i = 0; i < titles.length; i++) {
+        try {
+            const translated = await translateText(titles[i], "zh-CN")
+            translatedTitles.push(translated)
+        } catch (error) {
+            console.error(`Failed to translate title: ${titles[i]}`, error)
+            translatedTitles.push(titles[i]) // Keep original on error
+        }
+        
+        if (onProgress) {
+            onProgress(i + 1, titles.length)
+        }
+        
+        // Small delay between translations
+        await sleep(50)
+    }
+    
+    return translatedTitles
+}

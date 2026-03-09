@@ -9,9 +9,10 @@ import { RootState } from "../scripts/reducer"
 import { ContextMenu } from "./context-menu"
 import LogMenu from "./log-menu"
 import DigestView from "./utils/digest-view"
+import TranslateProgress from "./utils/translate-progress"
 
 
-const Root = ({ locale, dispatch }) =>
+const Root = ({ locale, dispatch, translateProgress }) =>
     locale && (
         <div
             id="root"
@@ -24,8 +25,15 @@ const Root = ({ locale, dispatch }) =>
             <SettingsContainer />
             <DigestView />
             <ContextMenu />
+            <TranslateProgress 
+                completed={translateProgress.completed}
+                total={translateProgress.total}
+            />
         </div>
     )
 
-const getLocale = (state: RootState) => ({ locale: state.app.locale })
+const getLocale = (state: RootState) => ({ 
+    locale: state.app.locale,
+    translateProgress: state.app.translateProgress
+})
 export default connect(getLocale)(Root)

@@ -101,6 +101,8 @@ export class AppState {
     }
     digestOn = false
     translateOn = false
+    translating = false
+    translateProgress = { completed: 0, total: 0 }
 
     contextMenu: {
         type: ContextMenuType
@@ -201,6 +203,32 @@ export interface ToggleTranslateAction {
     type: typeof TOGGLE_TRANSLATE
 }
 
+export const START_TRANSLATE = "START_TRANSLATE"
+export interface StartTranslateAction {
+    type: typeof START_TRANSLATE
+    payload: {
+        titles: string[]
+        sourceIds?: number[]
+    }
+}
+
+export const TRANSLATE_PROGRESS = "TRANSLATE_PROGRESS"
+export interface TranslateProgressAction {
+    type: typeof TRANSLATE_PROGRESS
+    payload: {
+        completed: number
+        total: number
+    }
+}
+
+export const TRANSLATE_COMPLETE = "TRANSLATE_COMPLETE"
+export interface TranslateCompleteAction {
+    type: typeof TRANSLATE_COMPLETE
+    payload: {
+        translatedTitles: string[]
+    }
+}
+
 export const TOGGLE_SETTINGS = "TOGGLE_SETTINGS"
 export const SAVE_SETTINGS = "SAVE_SETTINGS"
 export const FREE_MEMORY = "FREE_MEMORY"
@@ -293,6 +321,23 @@ export function toggleMenu(): AppThunk {
 export const toggleLogMenu = () => ({ type: TOGGLE_LOGS })
 export const toggleDigest = () => ({ type: TOGGLE_DIGEST })
 export const toggleTranslate = () => ({ type: TOGGLE_TRANSLATE })
+
+// Translation actions
+export const startTranslate = (titles: string[], sourceIds?: number[]) => ({
+    type: START_TRANSLATE,
+    payload: { titles, sourceIds }
+})
+
+export const translateProgress = (completed: number, total: number) => ({
+    type: TRANSLATE_PROGRESS,
+    payload: { completed, total }
+})
+
+export const translateComplete = (translatedTitles: string[]) => ({
+    type: TRANSLATE_COMPLETE,
+    payload: { translatedTitles }
+})
+
 export const saveSettings = () => ({ type: SAVE_SETTINGS })
 
 export const toggleSettings = (open = true, sids = new Array<number>()) => ({
@@ -492,6 +537,9 @@ export function appReducer(
         | ServiceActionTypes
         | ToggleDigestAction
         | ToggleTranslateAction
+        | StartTranslateAction
+        | TranslateProgressAction
+        | TranslateCompleteAction
 ): AppState {
     switch (action.type) {
         case TOGGLE_DIGEST:
@@ -503,6 +551,23 @@ export function appReducer(
             return {
                 ...state,
                 translateOn: !state.translateOn,
+            }
+        case START_TRANSLATE:
+            return {
+                ...state,
+                translating: true,
+                translateProgress: { completed: 0, total: action.payload.titles.length }
+            }
+        case TRANSLATE_PROGRESS:
+            return {
+                ...state,
+                translateProgress: action.payload
+            }
+        case TRANSLATE_COMPLETE:
+            return {
+                ...state,
+                translating: false,
+                translateProgress: { completed: 0, total: 0 }
             }
         case INIT_INTL:
             return {
