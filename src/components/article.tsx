@@ -690,9 +690,13 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 </>
             )
         )
-        return `article/article.html?a=${a}&h=${h}&f=${encodeURIComponent(
+        // Encode content to avoid URL issues with special characters
+        const encodedContent = btoa(unescape(encodeURIComponent(a)))
+        const encodedHighlights = btoa(unescape(encodeURIComponent(h)))
+        
+        return `article/article.html?a=${encodedContent}&h=${encodedHighlights}&f=${encodeURIComponent(
             this.state.fontFamily
-        )}&s=${this.state.fontSize}&d=${this.props.source.textDir}&u=${this.props.item.link
+        )}&s=${this.state.fontSize}&d=${this.props.source.textDir}&u=${encodeURIComponent(this.props.item.link)
             }&m=${this.state.loadFull ? 1 : 0}&hl=${encodeURIComponent(JSON.stringify(this.state.highlights))}&itemId=${this.props.item._id}`
     }
 

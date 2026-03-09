@@ -2,6 +2,18 @@ function get(name) {
     if (name = (new RegExp('[?&]' + encodeURIComponent(name) + '=([^&]*)')).exec(location.search))
         return decodeURIComponent(name[1]);
 }
+
+function getDecoded(name) {
+    const encoded = get(name)
+    if (!encoded) return null
+    try {
+        return decodeURIComponent(escape(atob(encoded)))
+    } catch (e) {
+        console.error('Failed to decode parameter:', name, e)
+        return encoded
+    }
+}
+
 let dir = get("d")
 if (dir === "1") {
     document.body.classList.add("rtl")
@@ -12,7 +24,7 @@ if (dir === "1") {
     });
 }
 async function getArticle(url) {
-    let article = get("a")
+    let article = getDecoded("a")
     if (get("m") === "1") {
         return (await Mercury.parse(url, {html: article})).content || ""
     } else {
@@ -25,7 +37,7 @@ if (font) document.body.style.fontFamily = `"${font}"`
 let url = get("u")
 getArticle(url).then(article => {
     let domParser = new DOMParser()
-    let dom = domParser.parseFromString(get("h"), "text/html")
+    let dom = domParser.parseFromString(getDecoded("h"), "text/html")
     dom.getElementsByTagName("article")[0].innerHTML = article
     let baseEl = dom.createElement('base')
     baseEl.setAttribute('href', url.split("/").slice(0, 3).join("/"))
