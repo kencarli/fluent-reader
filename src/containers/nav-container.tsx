@@ -10,6 +10,7 @@ import {
     openViewMenu,
     openMarkAllMenu,
     toggleDigest,
+    toggleTranslate,
 } from "../scripts/models/app"
 import { toggleSearch } from "../scripts/models/page"
 import { ViewType } from "../schema-types"
@@ -36,6 +37,7 @@ const mapDispatchToProps = dispatch => ({
     search: () => dispatch(toggleSearch()),
     markAllRead: () => dispatch(openMarkAllMenu()),
     digest: () => dispatch(toggleDigest()),
+    translate: () => dispatch(toggleTranslate()),
 })
 
 const NavContainer = connect(mapStateToProps, mapDispatchToProps)(Nav)

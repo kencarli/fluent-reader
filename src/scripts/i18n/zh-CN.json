@@ -47,7 +47,8 @@
         "view": "视图",
         "settings": "选项",
         "minimize": "最小化",
-        "maximize": "最大化"
+        "maximize": "最大化",
+        "translate": "翻译"
     },
     "menu": {
         "close": "关闭菜单",

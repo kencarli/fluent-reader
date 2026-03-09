@@ -17,6 +17,7 @@ type NavProps = {
     views: () => void
     settings: () => void
     digest: () => void
+    translate: () => void
 }
 
 type NavState = {
@@ -206,6 +207,13 @@ class Nav extends React.Component<NavProps, NavState> {
                         title="Daily News Briefing"
                         onClick={this.props.digest}>
                         <Icon iconName="LightningBolt" />
+                    </a>
+                    <a
+                        className="btn"
+                        id="translate-toggle"
+                        title={intl.get("nav.translate")}
+                        onClick={this.props.translate}>
+                        <Icon iconName="Translate" />
                     </a>
                     <a
                         className="btn"

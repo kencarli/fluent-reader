@@ -100,6 +100,7 @@ export class AppState {
         logs: new Array<AppLog>(),
     }
     digestOn = false
+    translateOn = false
 
     contextMenu: {
         type: ContextMenuType
@@ -195,6 +196,11 @@ export interface ToggleDigestAction {
     type: typeof TOGGLE_DIGEST
 }
 
+export const TOGGLE_TRANSLATE = "TOGGLE_TRANSLATE"
+export interface ToggleTranslateAction {
+    type: typeof TOGGLE_TRANSLATE
+}
+
 export const TOGGLE_SETTINGS = "TOGGLE_SETTINGS"
 export const SAVE_SETTINGS = "SAVE_SETTINGS"
 export const FREE_MEMORY = "FREE_MEMORY"
@@ -286,6 +292,7 @@ export function toggleMenu(): AppThunk {
 
 export const toggleLogMenu = () => ({ type: TOGGLE_LOGS })
 export const toggleDigest = () => ({ type: TOGGLE_DIGEST })
+export const toggleTranslate = () => ({ type: TOGGLE_TRANSLATE })
 export const saveSettings = () => ({ type: SAVE_SETTINGS })
 
 export const toggleSettings = (open = true, sids = new Array<number>()) => ({
@@ -484,12 +491,18 @@ export function appReducer(
         | SourceGroupActionTypes
         | ServiceActionTypes
         | ToggleDigestAction
+        | ToggleTranslateAction
 ): AppState {
     switch (action.type) {
         case TOGGLE_DIGEST:
             return {
                 ...state,
                 digestOn: !state.digestOn,
+            }
+        case TOGGLE_TRANSLATE:
+            return {
+                ...state,
+                translateOn: !state.translateOn,
             }
         case INIT_INTL:
             return {

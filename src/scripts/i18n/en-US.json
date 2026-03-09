@@ -47,7 +47,8 @@
         "view": "View",
         "settings": "Settings",
         "minimize": "Minimize",
-        "maximize": "Maximize"
+        "maximize": "Maximize",
+        "translate": "Translate"
     },
     "menu": {
         "close": "Close menu",
