@@ -7,10 +7,12 @@ function getDecoded(name) {
     const encoded = get(name)
     if (!encoded) return null
     try {
-        return decodeURIComponent(escape(atob(encoded)))
+        // Decode URL-safe base64 to standard base64, then decode
+        const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
+        return decodeURIComponent(escape(atob(base64)))
     } catch (e) {
         console.error('Failed to decode parameter:', name, e)
-        return encoded
+        return null
     }
 }
 

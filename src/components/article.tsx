@@ -691,8 +691,11 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             )
         )
         // Encode content to avoid URL issues with special characters
+        // Use URL-safe base64 encoding
         const encodedContent = btoa(unescape(encodeURIComponent(a)))
+            .replace(/\+/g, '-').replace(/\//g, '_')
         const encodedHighlights = btoa(unescape(encodeURIComponent(h)))
+            .replace(/\+/g, '-').replace(/\//g, '_')
         
         return `article/article.html?a=${encodedContent}&h=${encodedHighlights}&f=${encodeURIComponent(
             this.state.fontFamily
