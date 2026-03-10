@@ -27,6 +27,7 @@ if (dir === "1") {
 }
 async function getArticle(url) {
     let article = getDecoded("a")
+    console.log('Article content:', article ? article.substring(0, 100) : 'null')
     if (get("m") === "1") {
         return (await Mercury.parse(url, {html: article})).content || ""
     } else {
@@ -37,10 +38,19 @@ document.documentElement.style.fontSize = get("s") + "px"
 let font = get("f")
 if (font) document.body.style.fontFamily = `"${font}"`
 let url = get("u")
+console.log('URL:', url)
 getArticle(url).then(article => {
+    console.log('Parsed article:', article ? article.substring(0, 100) : 'null')
     let domParser = new DOMParser()
-    let dom = domParser.parseFromString(getDecoded("h"), "text/html")
-    dom.getElementsByTagName("article")[0].innerHTML = article
+    const htmlContent = getDecoded("h")
+    console.log('HTML content:', htmlContent ? htmlContent.substring(0, 100) : 'null')
+    let dom = domParser.parseFromString(htmlContent || '<article></article>', "text/html")
+    let articleEl = dom.getElementsByTagName("article")[0]
+    if (!articleEl) {
+        articleEl = dom.createElement('article')
+        dom.body.appendChild(articleEl)
+    }
+    articleEl.innerHTML = article
     let baseEl = dom.createElement('base')
     baseEl.setAttribute('href', url.split("/").slice(0, 3).join("/"))
     dom.head.append(baseEl)
