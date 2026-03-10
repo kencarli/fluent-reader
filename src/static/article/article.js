@@ -10,12 +10,19 @@ function getDecoded(name) {
         return null
     }
     try {
-        // Decode URL-safe base64 to standard base64, then decode
+        // Decode URL-safe base64 to standard base64
         const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
-        const decoded = atob(base64)
-        // Decode UTF-8
-        const utf8 = decodeURIComponent(escape(decoded))
-        return utf8
+        // Decode base64 to binary string
+        const binary = atob(base64)
+        // Convert binary string to UTF-8 using TextDecoder
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i)
+        }
+        const decoder = new TextDecoder('utf-8')
+        const utf8Decoded = decoder.decode(bytes)
+        // The content was also URL-encoded before base64, so decode it
+        return decodeURIComponent(utf8Decoded)
     } catch (e) {
         console.error(`Failed to decode parameter '${name}':`, e.message)
         console.error('Encoded value:', encoded ? encoded.substring(0, 100) + '...' : 'null')

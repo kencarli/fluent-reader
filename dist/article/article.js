@@ -2,6 +2,34 @@ function get(name) {
     if (name = (new RegExp('[?&]' + encodeURIComponent(name) + '=([^&]*)')).exec(location.search))
         return decodeURIComponent(name[1]);
 }
+
+function getDecoded(name) {
+    const encoded = get(name)
+    if (!encoded) {
+        console.warn(`Parameter '${name}' is empty`)
+        return null
+    }
+    try {
+        // Decode URL-safe base64 to standard base64
+        const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
+        // Decode base64 to binary string
+        const binary = atob(base64)
+        // Convert binary string to UTF-8 using TextDecoder
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i)
+        }
+        const decoder = new TextDecoder('utf-8')
+        const utf8Decoded = decoder.decode(bytes)
+        // The content was also URL-encoded before base64, so decode it
+        return decodeURIComponent(utf8Decoded)
+    } catch (e) {
+        console.error(`Failed to decode parameter '${name}':`, e.message)
+        console.error('Encoded value:', encoded ? encoded.substring(0, 100) + '...' : 'null')
+        return null
+    }
+}
+
 let dir = get("d")
 if (dir === "1") {
     document.body.classList.add("rtl")
@@ -12,7 +40,8 @@ if (dir === "1") {
     });
 }
 async function getArticle(url) {
-    let article = get("a")
+    let article = getDecoded("a")
+    console.log('getDecoded("a"):', article ? article.substring(0, 100) + '...' : 'null')
     if (get("m") === "1") {
         return (await Mercury.parse(url, {html: article})).content || ""
     } else {
@@ -23,10 +52,19 @@ document.documentElement.style.fontSize = get("s") + "px"
 let font = get("f")
 if (font) document.body.style.fontFamily = `"${font}"`
 let url = get("u")
+console.log('URL:', url)
 getArticle(url).then(article => {
+    console.log('Article content:', article ? article.substring(0, 100) + '...' : 'null')
     let domParser = new DOMParser()
-    let dom = domParser.parseFromString(get("h"), "text/html")
-    dom.getElementsByTagName("article")[0].innerHTML = article
+    const htmlContent = getDecoded("h")
+    console.log('getDecoded("h"):', htmlContent ? htmlContent.substring(0, 100) + '...' : 'null')
+    let dom = domParser.parseFromString(htmlContent || '<article></article>', "text/html")
+    let articleEl = dom.getElementsByTagName("article")[0]
+    if (!articleEl) {
+        articleEl = dom.createElement('article')
+        dom.body.appendChild(articleEl)
+    }
+    articleEl.innerHTML = article
     let baseEl = dom.createElement('base')
     baseEl.setAttribute('href', url.split("/").slice(0, 3).join("/"))
     dom.head.append(baseEl)
@@ -40,6 +78,100 @@ getArticle(url).then(article => {
         e.href = e.href
     }
     let main = document.getElementById("main")
+    console.log('Main element:', main)
+    console.log('Setting innerHTML:', dom.body.innerHTML.substring(0, 100) + '...')
     main.innerHTML = dom.body.innerHTML
     main.classList.add("show")
+    console.log('Article display complete')
+
+    let itemId = parseInt(get("itemId"));
+
+    function getPathTo(element) {
+        if (element.id !== '')
+            return 'id("' + element.id + '")';
+        if (element === document.body)
+            return element.tagName;
+
+        let ix = 0;
+        let siblings = element.parentNode.childNodes;
+        for (let i = 0; i < siblings.length; i++) {
+            let sibling = siblings[i];
+            if (sibling === element)
+                return getPathTo(element.parentNode) + '/' + element.tagName + '[' + (ix + 1) + ']';
+            if (sibling.nodeType === 1 && sibling.tagName === element.tagName)
+                ix++;
+        }
+    }
+
+    function serializeRange(range) {
+        let start = {
+            path: getPathTo(range.startContainer),
+            offset: range.startOffset
+        };
+        let end = {
+            path: getPathTo(range.endContainer),
+            offset: range.endOffset
+        };
+        return JSON.stringify({ start, end });
+    }
+
+    function deserializeRange(serializedRange) {
+        let savedRange = JSON.parse(serializedRange);
+        let startNode = document.evaluate(savedRange.start.path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        let endNode = document.evaluate(savedRange.end.path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        let range = document.createRange();
+        range.setStart(startNode, savedRange.start.offset);
+        range.setEnd(endNode, savedRange.end.offset);
+        return range;
+    }
+
+    function highlightRange(range) {
+        let mark = document.createElement("mark");
+        mark.appendChild(range.extractContents());
+        range.insertNode(mark);
+    }
+
+    let highlightBtn = document.getElementById("highlight-btn");
+    let currentRange = null;
+
+    document.addEventListener("mouseup", (e) => {
+        let selection = window.getSelection();
+        if (selection.isCollapsed) {
+            highlightBtn.style.display = "none";
+            currentRange = null;
+            return;
+        }
+        currentRange = selection.getRangeAt(0);
+        let rect = currentRange.getBoundingClientRect();
+        highlightBtn.style.top = (rect.top + window.scrollY - highlightBtn.offsetHeight - 5) + "px";
+        highlightBtn.style.left = (rect.left + window.scrollX + rect.width / 2 - highlightBtn.offsetWidth / 2) + "px";
+        highlightBtn.style.display = "block";
+    });
+
+    document.addEventListener("mousedown", (e) => {
+        if (e.target !== highlightBtn) {
+            highlightBtn.style.display = "none";
+        }
+    });
+
+    highlightBtn.addEventListener("click", () => {
+        if (currentRange) {
+            let text = currentRange.toString();
+            let range = serializeRange(currentRange);
+            window.utils.createHighlight(itemId, text, range);
+            highlightRange(currentRange);
+            currentRange = null;
+            highlightBtn.style.display = "none";
+        }
+    });
+
+    let highlights = JSON.parse(get("hl") || "[]");
+    for (let hl of highlights) {
+        try {
+            let range = deserializeRange(hl.range);
+            highlightRange(range);
+        } catch (e) {
+            console.error("Failed to highlight:", hl, e);
+        }
+    }
 })
