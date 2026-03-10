@@ -5,13 +5,20 @@ function get(name) {
 
 function getDecoded(name) {
     const encoded = get(name)
-    if (!encoded) return null
+    if (!encoded) {
+        console.warn(`Parameter '${name}' is empty`)
+        return null
+    }
     try {
         // Decode URL-safe base64 to standard base64, then decode
         const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/')
-        return decodeURIComponent(escape(atob(base64)))
+        const decoded = atob(base64)
+        // Decode UTF-8
+        const utf8 = decodeURIComponent(escape(decoded))
+        return utf8
     } catch (e) {
-        console.error('Failed to decode parameter:', name, e)
+        console.error(`Failed to decode parameter '${name}':`, e.message)
+        console.error('Encoded value:', encoded ? encoded.substring(0, 100) + '...' : 'null')
         return null
     }
 }
@@ -27,7 +34,7 @@ if (dir === "1") {
 }
 async function getArticle(url) {
     let article = getDecoded("a")
-    console.log('Article content:', article ? article.substring(0, 100) : 'null')
+    console.log('getDecoded("a"):', article ? article.substring(0, 100) + '...' : 'null')
     if (get("m") === "1") {
         return (await Mercury.parse(url, {html: article})).content || ""
     } else {
@@ -40,10 +47,10 @@ if (font) document.body.style.fontFamily = `"${font}"`
 let url = get("u")
 console.log('URL:', url)
 getArticle(url).then(article => {
-    console.log('Parsed article:', article ? article.substring(0, 100) : 'null')
+    console.log('Article content:', article ? article.substring(0, 100) + '...' : 'null')
     let domParser = new DOMParser()
     const htmlContent = getDecoded("h")
-    console.log('HTML content:', htmlContent ? htmlContent.substring(0, 100) : 'null')
+    console.log('getDecoded("h"):', htmlContent ? htmlContent.substring(0, 100) + '...' : 'null')
     let dom = domParser.parseFromString(htmlContent || '<article></article>', "text/html")
     let articleEl = dom.getElementsByTagName("article")[0]
     if (!articleEl) {
@@ -64,8 +71,11 @@ getArticle(url).then(article => {
         e.href = e.href
     }
     let main = document.getElementById("main")
+    console.log('Main element:', main)
+    console.log('Setting innerHTML:', dom.body.innerHTML.substring(0, 100) + '...')
     main.innerHTML = dom.body.innerHTML
     main.classList.add("show")
+    console.log('Article display complete')
 
     let itemId = parseInt(get("itemId"));
 

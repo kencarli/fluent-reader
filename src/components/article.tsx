@@ -841,7 +841,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             : this.articleView()
                     }
                     allowpopups={"true" as unknown as boolean}
-                    webpreferences="contextIsolation,autoplayPolicy=document-user-activation-required"
+                    webpreferences="contextIsolation,autoplayPolicy=document-user-activation-required,allowFileAccessFromFileURLs"
                     partition={this.state.loadWebpage ? "sandbox" : undefined}
                 />
             )}
