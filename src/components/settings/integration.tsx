@@ -561,8 +561,63 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                     </div>
                 )}
 
+                <div style={{ height: 24 }}></div>
+
+                {/* AI Push Services */}
+                <Label
+                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                    {intl.get("settings.integrations.aiPushServices")}
+                </Label>
+                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
+                    <Stack.Item grow>
+                        <Stack horizontal tokens={{ childrenGap: 8 }} wrap>
+                            {this.getAIServicesSummary().split('\n').map((text, index) => (
+                                <Label key={index} style={{ fontSize: 12, color: text.includes("Not configured") ? "var(--neutralTertiary)" : "var(--green)", margin: 0, paddingRight: 8 }}>
+                                    {text.includes("•••") ? text.split(":")[0] + ": ✓" : text}
+                                </Label>
+                            ))}
+                        </Stack>
+                    </Stack.Item>
+                    <Stack.Item>
+                        <PrimaryButton
+                            text={intl.get("settings.integrations.configure")}
+                            onClick={this.openAIServicesModal}
+                            allowDisabledFocus
+                            iconProps={{ iconName: "Settings" }}
+                        />
+                    </Stack.Item>
+                </Stack>
+
                 <div style={{ height: 8 }}></div>
 
+                {/* Cloud Note Services */}
+                <Label
+                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                    {intl.get("settings.cloudNoteServices.name")}
+                </Label>
+                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
+                    <Stack.Item grow>
+                        <Stack horizontal tokens={{ childrenGap: 8 }} wrap>
+                            {this.getCloudNoteServicesSummary().split('\n').map((text, index) => (
+                                <Label key={index} style={{ fontSize: 12, color: text.includes("Not configured") ? "var(--neutralTertiary)" : "var(--neutralPrimary)", margin: 0, paddingRight: 8 }}>
+                                    {text}
+                                </Label>
+                            ))}
+                        </Stack>
+                    </Stack.Item>
+                    <Stack.Item>
+                        <PrimaryButton
+                            text={intl.get("settings.integrations.configure")}
+                            onClick={this.openCloudNoteServicesModal}
+                            allowDisabledFocus
+                            iconProps={{ iconName: "Cloud" }}
+                        />
+                    </Stack.Item>
+                </Stack>
+
+                <div style={{ height: 8 }}></div>
+
+                {/* Obsidian Integration */}
                 <Label
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.integrations.obsidianIntegration")}
@@ -602,6 +657,7 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
 
                 <div style={{ height: 8 }}></div>
 
+                {/* Notion Integration */}
                 <Label
                     style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                     {intl.get("settings.integrations.notionIntegration")}
@@ -637,58 +693,6 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                             />
                         </Stack.Item>
                     )}
-                </Stack>
-
-                <div style={{ height: 24 }}></div>
-
-                <Label
-                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-                    {intl.get("settings.integrations.aiPushServices")}
-                </Label>
-                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
-                    <Stack.Item grow>
-                        <Stack horizontal tokens={{ childrenGap: 8 }} wrap>
-                            {this.getAIServicesSummary().split('\n').map((text, index) => (
-                                <Label key={index} style={{ fontSize: 12, color: text.includes("Not configured") ? "var(--neutralTertiary)" : "var(--green)", margin: 0, paddingRight: 8 }}>
-                                    {text.includes("•••") ? text.split(":")[0] + ": ✓" : text}
-                                </Label>
-                            ))}
-                        </Stack>
-                    </Stack.Item>
-                    <Stack.Item>
-                        <PrimaryButton
-                            text={intl.get("settings.integrations.configure")}
-                            onClick={this.openAIServicesModal}
-                            allowDisabledFocus
-                            iconProps={{ iconName: "Settings" }}
-                        />
-                    </Stack.Item>
-                </Stack>
-
-                <div style={{ height: 8 }}></div>
-
-                <Label
-                    style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-                    {intl.get("settings.cloudNoteServices.name")}
-                </Label>
-                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
-                    <Stack.Item grow>
-                        <Stack horizontal tokens={{ childrenGap: 8 }} wrap>
-                            {this.getCloudNoteServicesSummary().split('\n').map((text, index) => (
-                                <Label key={index} style={{ fontSize: 12, color: text.includes("Not configured") ? "var(--neutralTertiary)" : "var(--neutralPrimary)", margin: 0, paddingRight: 8 }}>
-                                    {text}
-                                </Label>
-                            ))}
-                        </Stack>
-                    </Stack.Item>
-                    <Stack.Item>
-                        <PrimaryButton
-                            text={intl.get("settings.integrations.configure")}
-                            onClick={this.openCloudNoteServicesModal}
-                            allowDisabledFocus
-                            iconProps={{ iconName: "Cloud" }}
-                        />
-                    </Stack.Item>
                 </Stack>
             </div>
         )
