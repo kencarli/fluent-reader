@@ -1,0 +1,340 @@
+import * as React from "react"
+import intl from "react-intl-universal"
+import { connect } from "react-redux"
+import {
+    Modal,
+    Stack,
+    PrimaryButton,
+    DefaultButton,
+    IconButton,
+    Spinner,
+    SpinnerSize,
+    Label,
+    MessageBar,
+    MessageBarType,
+    TextField,
+    Separator,
+    Image,
+    ImageFit
+} from "@fluentui/react"
+import { RootState } from "../../scripts/reducer"
+import { AppDispatch } from "../../scripts/utils"
+import { toggleDigest } from "../../scripts/models/app"
+import { generateEnhancedDigest, BriefingResult } from "../../scripts/digest-service"
+import { pushToDingTalk, pushToWeCom } from "../../scripts/push-service"
+import { RSSSource } from "../../scripts/models/source"
+import { ALL } from "../../scripts/models/feed"
+import * as db from "../../scripts/db"
+import lf from "lovefield"
+import { RSSItem } from "../../scripts/models/item"
+
+type DigestViewProps = {
+    display: boolean
+    locale: string
+    sources: { [key: number]: RSSSource }
+    dispatch: AppDispatch
+}
+
+type DigestViewState = {
+    generating: boolean
+    pushing: boolean
+    briefing: BriefingResult | null
+    error: string | null
+    pushSuccess: string | null
+    lastFeedId: string | null  // Track the feedId of the last generated briefing
+}
+
+class DigestView extends React.Component<DigestViewProps, DigestViewState> {
+    constructor(props) {
+        super(props)
+        this.state = {
+            generating: false,
+            pushing: false,
+            briefing: null,
+            error: null,
+            pushSuccess: null,
+            lastFeedId: null
+        }
+    }
+
+    componentDidUpdate(prevProps: DigestViewProps) {
+        // Check if display changed from false to true (modal opened)
+        if (this.props.display && !prevProps.display) {
+            // Get current feedId
+            const store = (window as any).__STORE__
+            const currentFeedId = store?.getState()?.page?.feedId || 'ALL'
+            
+            // Check if feedId has changed since last briefing
+            if (this.state.briefing && this.state.lastFeedId !== currentFeedId) {
+                console.log('Feed changed from', this.state.lastFeedId, 'to', currentFeedId, '- regenerating briefing...')
+                // Clear old briefing and regenerate
+                this.setState({ briefing: null, lastFeedId: currentFeedId })
+                this.generate()
+            } else if (!this.state.briefing) {
+                // No briefing yet, generate one
+                this.generate()
+            }
+        }
+    }
+
+    generate = async () => {
+        const settings = window.settings.getIntegrationSettings()
+        // Check if any LLM provider is configured (including Ollama)
+        const hasProvider = settings.openaiApiKey || settings.nvidiaApiKey || settings.deepseekApiKey || (settings.ollamaApiUrl && settings.ollamaModel)
+        if (!hasProvider) {
+            this.setState({ error: intl.get("digest.noProvider") })
+            return
+        }
+
+        this.setState({ generating: true, error: null, briefing: null, pushSuccess: null })
+        try {
+            // Get current feedId from navigation
+            const store = (window as any).__STORE__
+            const feedId = store?.getState()?.page?.feedId || ALL
+
+            console.log('Generating digest for feedId:', feedId)
+
+            // Wait for database to be ready
+            await new Promise<void>((resolve, reject) => {
+                let retries = 0
+                const maxRetries = 25 // 5 seconds
+                const checkDB = () => {
+                    if (db.itemsDB && db.items) {
+                        console.log('Database is ready!')
+                        resolve()
+                    } else if (retries < maxRetries) {
+                        retries++
+                        setTimeout(checkDB, 200)
+                    } else {
+                        reject(new Error('Database not ready'))
+                    }
+                }
+                checkDB()
+            })
+
+            // Fetch articles directly using db module (same as nav-container.tsx)
+            // Use digestHours from Redux state, default to 24 hours
+            const digestHours = store?.getState()?.app?.digestHours || 24
+            const hours = digestHours
+            const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000)
+            let items: RSSItem[] = []
+            
+            if (feedId === ALL) {
+                items = await db.itemsDB
+                    .select()
+                    .from(db.items)
+                    .where(db.items.date.gte(cutoff))
+                    .orderBy(db.items.date, lf.Order.DESC)
+                    .limit(50)
+                    .exec() as RSSItem[]
+            } else if (feedId.startsWith("s-")) {
+                const sourceId = parseInt(feedId.substring(2))
+                items = await db.itemsDB
+                    .select()
+                    .from(db.items)
+                    .where(lf.op.and(
+                        db.items.source.eq(sourceId),
+                        db.items.date.gte(cutoff)
+                    ))
+                    .orderBy(db.items.date, lf.Order.DESC)
+                    .limit(50)
+                    .exec() as RSSItem[]
+            } else if (feedId.startsWith("g-")) {
+                const groupIndex = parseInt(feedId.substring(2))
+                const groups = store?.getState()?.groups
+                const group = groups[groupIndex]
+                if (group && group.sids) {
+                    items = await db.itemsDB
+                        .select()
+                        .from(db.items)
+                        .where(lf.op.and(
+                            db.items.source.in(group.sids),
+                            db.items.date.gte(cutoff)
+                        ))
+                        .orderBy(db.items.date, lf.Order.DESC)
+                        .limit(50)
+                        .exec() as RSSItem[]
+                }
+            }
+            
+            console.log('Fetched', items.length, 'articles')
+            
+            if (items.length === 0) {
+                throw new Error('No articles found')
+            }
+
+            // Generate digest using the fetched items
+            const provider = settings.openaiApiKey ? 'openai' : 
+                            settings.nvidiaApiKey ? 'nvidia' : 
+                            settings.deepseekApiKey ? 'deepseek' : 'ollama'
+            
+            const result = await generateEnhancedDigest({
+                settings: settings,
+                language: this.props.locale,
+                topics: settings.digestTopics ? settings.digestTopics.split(',').map(t => t.trim()) : [],
+                dalleEnabled: settings.dalleEnabled,
+                feedId: feedId,
+                items: items  // Pass pre-fetched items
+            })
+            this.setState({ 
+                briefing: result,
+                lastFeedId: feedId  // Save the feedId of this briefing
+            })
+        } catch (e) {
+            console.error('Digest generation failed:', e)
+            this.setState({ error: e.message })
+        } finally {
+            this.setState({ generating: false })
+        }
+    }
+
+    push = async (service: 'dingtalk' | 'wecom') => {
+        if (!this.state.briefing) return
+        const settings = window.settings.getIntegrationSettings()
+        let webhook = service === 'dingtalk' ? settings.dingtalkWebhook : settings.wecomWebhook
+
+        if (!webhook) {
+            this.setState({ error: `${service} webhook URL not configured.` })
+            return
+        }
+
+        // Extract keyword from webhook URL if present (format: webhook_url&keyword=xxx)
+        let keyword: string | undefined
+        if (service === 'dingtalk' && webhook.includes('&keyword=')) {
+            const parts = webhook.split('&keyword=')
+            webhook = parts[0]
+            keyword = parts[1]
+            console.log('[push] Using keyword:', keyword)
+        }
+
+        this.setState({ pushing: true, error: null, pushSuccess: null })
+        try {
+            let result
+            if (service === 'dingtalk') {
+                result = await pushToDingTalk(webhook, "Daily AI Briefing", this.state.briefing.content, keyword)
+            } else {
+                result = await pushToWeCom(webhook, this.state.briefing.content)
+            }
+
+            if (result.success) {
+                this.setState({ pushSuccess: `Successfully pushed to ${service}!` })
+            } else {
+                this.setState({ error: result.message })
+            }
+        } catch (e) {
+            this.setState({ error: e.message })
+        } finally {
+            this.setState({ pushing: false })
+        }
+    }
+
+    onDismiss = () => {
+        this.props.dispatch(toggleDigest())
+    }
+
+    render() {
+        return (
+            <Modal
+                isOpen={this.props.display}
+                onDismiss={this.onDismiss}
+                containerClassName="digest-modal-container"
+                styles={{ 
+                    main: { 
+                        maxWidth: '900px',
+                        minWidth: '600px',
+                        minHeight: 400, 
+                        padding: 24 
+                    } 
+                }}
+            >
+                <Stack tokens={{ childrenGap: 20 }}>
+                    <Stack horizontal horizontalAlign="space-between" verticalAlign="center">
+                        <Label style={{ fontSize: 20, fontWeight: 600 }}>{intl.get("digest.title")}</Label>
+                        <IconButton iconProps={{ iconName: "Cancel" }} onClick={this.onDismiss} />
+                    </Stack>
+
+                    {!this.state.briefing && !this.state.generating && (
+                        <Stack horizontalAlign="center" tokens={{ childrenGap: 12 }} style={{ padding: "40px 0" }}>
+                            <Label>{intl.get("digest.description")}</Label>
+                            <PrimaryButton
+                                text={intl.get("digest.generate")}
+                                iconProps={{ iconName: "LightningBolt" }}
+                                onClick={this.generate}
+                            />
+                        </Stack>
+                    )}
+
+                    {this.state.generating && (
+                        <Stack horizontalAlign="center" tokens={{ childrenGap: 12 }} style={{ padding: "40px 0" }}>
+                            <Spinner size={SpinnerSize.large} label={intl.get("digest.generating")} />
+                        </Stack>
+                    )}
+
+                    {this.state.error && (
+                        <MessageBar messageBarType={MessageBarType.error} onDismiss={() => this.setState({ error: null })}>
+                            {this.state.error}
+                        </MessageBar>
+                    )}
+
+                    {this.state.pushSuccess && (
+                        <MessageBar messageBarType={MessageBarType.success} onDismiss={() => this.setState({ pushSuccess: null })}>
+                            {this.state.pushSuccess}
+                        </MessageBar>
+                    )}
+
+                    {this.state.briefing && (
+                        <Stack tokens={{ childrenGap: 16 }}>
+                            {this.state.briefing.coverUrl && (
+                                <Image
+                                    src={this.state.briefing.coverUrl}
+                                    alt="AI generated cover"
+                                    height={200}
+                                    imageFit={ImageFit.cover}
+                                />
+                            )}
+                            <TextField
+                                label={intl.get("digest.result", { count: this.state.briefing.articleCount })}
+                                multiline
+                                autoAdjustHeight
+                                rows={10}
+                                value={this.state.briefing.content}
+                                readOnly
+                            />
+
+                            <Separator>{intl.get("digest.pushTo")}</Separator>
+
+                            <Stack horizontal tokens={{ childrenGap: 12 }} horizontalAlign="center">
+                                <DefaultButton
+                                    text={intl.get("digest.dingtalk")}
+                                    iconProps={{ iconName: "Send" }}
+                                    onClick={() => this.push('dingtalk')}
+                                    disabled={this.state.pushing || !this.state.briefing}
+                                />
+                                <DefaultButton
+                                    text={intl.get("digest.wecom")}
+                                    iconProps={{ iconName: "Chat" }}
+                                    onClick={() => this.push('wecom')}
+                                    disabled={this.state.pushing || !this.state.briefing}
+                                />
+                                <PrimaryButton
+                                    text={intl.get("digest.regenerate")}
+                                    iconProps={{ iconName: "Refresh" }}
+                                    onClick={this.generate}
+                                    disabled={this.state.pushing}
+                                />
+                            </Stack>
+                        </Stack>
+                    )}
+                </Stack>
+            </Modal>
+        )
+    }
+}
+
+const mapStateToProps = (state: RootState) => ({
+    display: state.app.digestOn,
+    locale: state.app.locale,
+    sources: state.sources
+})
+
+export default connect(mapStateToProps)(DigestView)
