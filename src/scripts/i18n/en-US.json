@@ -334,7 +334,9 @@
             "statusUnknown": "Unknown",
             "deleteInvalid": "Delete Invalid Sources",
             "selectAllInvalid": "Select All Invalid",
-            "noInvalidSources": "No invalid sources found"
+            "noInvalidSources": "No invalid sources found",
+            "search": "Search",
+            "searchPlaceholder": "Search by name or URL..."
         },
         "groups": {
             "exist": "This group already exists.",
@@ -447,7 +449,12 @@
             "setPac": "Set PAC",
             "pacHint": "For Socks proxies, it is recommended for PAC to return \"SOCKS5\" for proxy-side DNS. Turning off proxy requires restart.",
             "fetchInterval": "Automatic fetch interval",
-            "never": "Never"
+            "never": "Never",
+            "deleteDuplicates": "Delete duplicates",
+            "deleteDuplicatesHint": "Remove duplicate articles by title, keeping the latest version",
+            "duplicatesDeleted": "Deleted {count} duplicate articles",
+            "processing": "Processing...",
+            "error": "Error"
         }
     }
 }

@@ -40,6 +40,7 @@ type AppTabState = {
     itemSize: string
     cacheSize: string
     deleteIndex: string
+    isDeletingDuplicates: boolean
 }
 
 class AppTab extends React.Component<AppTabProps, AppTabState> {
@@ -52,6 +53,7 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             itemSize: null,
             cacheSize: null,
             deleteIndex: null,
+            isDeletingDuplicates: false,
         }
         this.getItemSize()
         this.getCacheSize()
@@ -72,6 +74,32 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
         window.utils.clearCache().then(() => {
             this.getCacheSize()
         })
+    }
+
+    deleteDuplicateArticles = async () => {
+        this.setState({ isDeletingDuplicates: true })
+        
+        try {
+            const { deleteDuplicateItems } = await import('../../scripts/models/item')
+            const deletedCount = await deleteDuplicateItems()
+            
+            window.utils.showMessageBox(
+                intl.get("app.cleanup"),
+                intl.get("app.duplicatesDeleted", { count: deletedCount }),
+                intl.get("confirm"),
+                "",
+                false
+            )
+            
+            this.getItemSize()
+        } catch (error) {
+            window.utils.showErrorBox(
+                intl.get("app.error"),
+                String(error)
+            )
+        } finally {
+            this.setState({ isDeletingDuplicates: false })
+        }
     }
 
     themeChoices = (): IChoiceGroupOption[] => [
@@ -263,7 +291,32 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             )}
 
             <Label>{intl.get("app.cleanup")}</Label>
-            <Stack horizontal>
+            
+            {/* 删除重复文章 */}
+            <Stack horizontal style={{ marginBottom: 12 }}>
+                <Stack.Item grow>
+                    <Label style={{ margin: 0, fontSize: 13 }}>
+                        {intl.get("app.deleteDuplicates")}
+                    </Label>
+                    <span className="settings-hint" style={{ margin: 0 }}>
+                        {intl.get("app.deleteDuplicatesHint")}
+                    </span>
+                </Stack.Item>
+                <Stack.Item>
+                    <DangerButton
+                        disabled={this.state.isDeletingDuplicates || this.state.itemSize === null}
+                        text={this.state.isDeletingDuplicates 
+                            ? intl.get("app.processing") 
+                            : intl.get("app.deleteDuplicates")}
+                        onClick={this.deleteDuplicateArticles}
+                        iconProps={{ iconName: this.state.isDeletingDuplicates ? "Refresh" : "RemoveDuplicate" }}
+                        styles={{ root: { padding: '4px 12px' } }}
+                    />
+                </Stack.Item>
+            </Stack>
+
+            {/* 按时间删除 */}
+            <Stack horizontal style={{ marginBottom: 12 }}>
                 <Stack.Item grow>
                     <Dropdown
                         placeholder={intl.get("app.deleteChoices")}

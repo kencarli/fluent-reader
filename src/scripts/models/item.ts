@@ -239,14 +239,129 @@ export async function insertItems(items: RSSItem[]): Promise<RSSItem[]> {
         console.error("Database not initialized: cannot insert items")
         throw new Error("Database not initialized")
     }
+
+    // Deduplicate items by title before inserting
+    const uniqueItems = await deduplicateItems(items)
     
-    items.sort((a, b) => a.date.getTime() - b.date.getTime())
-    const rows = items.map(item => db.items.createRow(item))
+    if (uniqueItems.length === 0) {
+        console.log("No new unique items to insert after deduplication")
+        return []
+    }
+
+    uniqueItems.sort((a, b) => a.date.getTime() - b.date.getTime())
+    const rows = uniqueItems.map(item => db.items.createRow(item))
     return (await db.itemsDB
         .insert()
         .into(db.items)
         .values(rows)
         .exec()) as RSSItem[]
+}
+
+// Deduplicate items by title only
+async function deduplicateItems(items: RSSItem[]): Promise<RSSItem[]> {
+    if (!db.itemsDB || !db.items || items.length === 0) {
+        return items
+    }
+
+    // Group items by source
+    const itemsBySource = new Map<number, RSSItem[]>()
+    items.forEach(item => {
+        if (!itemsBySource.has(item.source)) {
+            itemsBySource.set(item.source, [])
+        }
+        itemsBySource.get(item.source)!.push(item)
+    })
+
+    const uniqueItems: RSSItem[] = []
+
+    // Check duplicates for each source
+    for (const [sourceId, sourceItems] of itemsBySource.entries()) {
+        // Get existing titles for this source
+        const existingItems = await db.itemsDB
+            .select(db.items.title)
+            .from(db.items)
+            .where(db.items.source.eq(sourceId))
+            .exec() as RSSItem[]
+
+        const existingTitles = new Set(existingItems.map(i => i.title))
+        const newTitles = new Set<string>()
+
+        for (const item of sourceItems) {
+            // Skip if title already exists in database or in new items
+            if (existingTitles.has(item.title) || newTitles.has(item.title)) {
+                console.log(`Skip duplicate item by title: ${item.title}`)
+                continue
+            }
+
+            newTitles.add(item.title)
+            uniqueItems.push(item)
+        }
+    }
+
+    const skipped = items.length - uniqueItems.length
+    if (skipped > 0) {
+        console.log(`Deduplication: ${items.length} → ${uniqueItems.length} unique items (${skipped} duplicates skipped)`)
+    }
+    
+    return uniqueItems
+}
+
+// Delete duplicate items by title
+export async function deleteDuplicateItems(): Promise<number> {
+    if (!db.itemsDB || !db.items) {
+        throw new Error("Database not initialized")
+    }
+
+    let deletedCount = 0
+
+    // Get all sources
+    const sources = await db.itemsDB
+        .select(db.items.source)
+        .from(db.items)
+        .groupBy(db.items.source)
+        .exec()
+
+    // Process each source
+    for (const sourceRow of sources as any[]) {
+        const sourceId = sourceRow.items[0].source
+
+        // Get all items for this source, ordered by date (newest first)
+        const items = await db.itemsDB
+            .select()
+            .from(db.items)
+            .where(db.items.source.eq(sourceId))
+            .orderBy(db.items.date, lf.Order.DESC)
+            .exec() as RSSItem[]
+
+        // Track seen titles, keep the newest one
+        const seenTitles = new Map<string, number>()
+        const duplicates: number[] = []
+
+        for (const item of items) {
+            if (seenTitles.has(item.title)) {
+                // This is a duplicate, mark for deletion
+                duplicates.push(item._id)
+            } else {
+                // First occurrence, keep it
+                seenTitles.set(item.title, item._id)
+            }
+        }
+
+        // Delete duplicates in batch
+        if (duplicates.length > 0) {
+            await db.itemsDB
+                .delete()
+                .from(db.items)
+                .where(db.items._id.in(duplicates))
+                .exec()
+            
+            deletedCount += duplicates.length
+            console.log(`Deleted ${duplicates.length} duplicates from source ${sourceId}`)
+        }
+    }
+
+    console.log(`Total duplicates deleted: ${deletedCount}`)
+    return deletedCount
 }
 
 export function fetchItems(

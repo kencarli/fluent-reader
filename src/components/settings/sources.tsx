@@ -60,6 +60,7 @@ type SourcesTabState = {
     sourceEditOption?: string
     newSourceIcon?: string
     checkAbortController?: AbortController // For canceling ongoing checks
+    searchQuery: string
 }
 
 const enum EditDropdownKeys {
@@ -81,6 +82,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             sourceStatus: {},
             sourceStatusTimestamp: {},
             isCheckingAll: false,
+            searchQuery: "",
         }
         this.selection = new Selection({
             getKey: s => (s as RSSSource).sid,
@@ -285,6 +287,23 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
     handleInputChange = event => {
         const name: string = event.target.name
         this.setState({ [name]: event.target.value } as any)
+    }
+
+    handleSearchChange = (_, newValue?: string) => {
+        this.setState({ searchQuery: newValue || "" })
+    }
+
+    getFilteredSources = () => {
+        const sources = Object.values(this.props.sources)
+        if (!this.state.searchQuery.trim()) {
+            return sources
+        }
+        
+        const query = this.state.searchQuery.toLowerCase()
+        return sources.filter(source => 
+            source.name.toLowerCase().includes(query) ||
+            source.url.toLowerCase().includes(query)
+        )
     }
 
     addSource = (event: React.FormEvent) => {
@@ -511,6 +530,37 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 </Stack.Item>
             </Stack>
 
+            {/* 搜索框 - 紧凑设计 */}
+            <Stack horizontal verticalAlign="center" style={{ marginBottom: 12, marginTop: 8 }}>
+                <Stack.Item>
+                    <Label style={{ marginBottom: 0, marginRight: 6, fontSize: 12 }}>
+                        {intl.get("sources.search")}
+                    </Label>
+                </Stack.Item>
+                <Stack.Item>
+                    <TextField
+                        placeholder={intl.get("sources.searchPlaceholder")}
+                        value={this.state.searchQuery}
+                        onChange={this.handleSearchChange}
+                        iconProps={{ iconName: "Search" }}
+                        styles={{ 
+                            root: { width: 200 },
+                            field: { fontSize: 12 }
+                        }}
+                    />
+                </Stack.Item>
+                {this.state.searchQuery && (
+                    <Stack.Item>
+                        <IconButton
+                            iconProps={{ iconName: "Clear" }}
+                            onClick={() => this.setState({ searchQuery: "" })}
+                            title={intl.get("clear")}
+                            styles={{ root: { padding: 4 } }}
+                        />
+                    </Stack.Item>
+                )}
+            </Stack>
+
             <form onSubmit={this.addSource}>
                 <Stack horizontal verticalAlign="baseline">
                     <Stack.Item>
@@ -545,7 +595,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
 
             <DetailsList
                 compact={Object.keys(this.props.sources).length >= 10}
-                items={Object.values(this.props.sources)}
+                items={this.getFilteredSources()}
                 columns={this.columns()}
                 getKey={s => s.sid}
                 setKey="selected"

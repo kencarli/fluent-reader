@@ -327,7 +327,9 @@
         "statusUnknown": "未知",
         "deleteInvalid": "删除失效订阅源",
         "selectAllInvalid": "全选失效订阅源",
-        "noInvalidSources": "没有失效的订阅源"
+        "noInvalidSources": "没有失效的订阅源",
+        "search": "搜索",
+        "searchPlaceholder": "搜索名称或 URL..."
     },
     "groups": {
         "exist": "该分组已存在",
@@ -440,6 +442,11 @@
         "setPac": "设置PAC",
         "pacHint": "对于Socks代理建议PAC返回\"SOCKS5\"以启用代理端解析。关闭代理需重启应用后生效。",
         "fetchInterval": "自动抓取频率",
-        "never": "从不"
+        "never": "从不",
+        "deleteDuplicates": "删除重复文章",
+        "deleteDuplicatesHint": "根据文章标题删除重复内容，保留最新版本",
+        "duplicatesDeleted": "已删除 {count} 篇重复文章",
+        "processing": "处理中...",
+        "error": "错误"
     }
 }
