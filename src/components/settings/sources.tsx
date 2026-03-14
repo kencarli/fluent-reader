@@ -530,37 +530,6 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 </Stack.Item>
             </Stack>
 
-            {/* 搜索框 - 紧凑设计 */}
-            <Stack horizontal verticalAlign="center" style={{ marginBottom: 12, marginTop: 8 }}>
-                <Stack.Item>
-                    <Label style={{ marginBottom: 0, marginRight: 6, fontSize: 12 }}>
-                        {intl.get("sources.search")}
-                    </Label>
-                </Stack.Item>
-                <Stack.Item>
-                    <TextField
-                        placeholder={intl.get("sources.searchPlaceholder")}
-                        value={this.state.searchQuery}
-                        onChange={this.handleSearchChange}
-                        iconProps={{ iconName: "Search" }}
-                        styles={{ 
-                            root: { width: 200 },
-                            field: { fontSize: 12 }
-                        }}
-                    />
-                </Stack.Item>
-                {this.state.searchQuery && (
-                    <Stack.Item>
-                        <IconButton
-                            iconProps={{ iconName: "Clear" }}
-                            onClick={() => this.setState({ searchQuery: "" })}
-                            title={intl.get("clear")}
-                            styles={{ root: { padding: 4 } }}
-                        />
-                    </Stack.Item>
-                )}
-            </Stack>
-
             <form onSubmit={this.addSource}>
                 <Stack horizontal verticalAlign="baseline">
                     <Stack.Item>
@@ -592,6 +561,43 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                     </Stack.Item>
                 </Stack>
             </form>
+
+            {/* 列筛选 - 紧凑设计 */}
+            <Stack horizontal tokens={{ childrenGap: 8 }} style={{ marginBottom: 8, marginTop: 8 }}>
+                <div style={{ 
+                    width: 16, 
+                    flexShrink: 0,
+                    fontSize: 11,
+                    color: 'var(--neutralSecondary)',
+                    lineHeight: '28px'
+                }}>
+                    🔍
+                </div>
+                <input
+                    type="text"
+                    placeholder="筛选名称或 URL..."
+                    value={this.state.searchQuery}
+                    onChange={(e) => this.setState({ searchQuery: e.target.value })}
+                    style={{
+                        flex: 1,
+                        padding: '4px 8px',
+                        fontSize: 12,
+                        border: '1px solid var(--neutralLight)',
+                        borderRadius: 2,
+                        background: 'var(--neutralLighter)',
+                        minWidth: 150,
+                        maxWidth: 300,
+                    }}
+                />
+                {this.state.searchQuery && (
+                    <IconButton
+                        iconProps={{ iconName: "Clear" }}
+                        onClick={() => this.setState({ searchQuery: "" })}
+                        title={intl.get("clear")}
+                        styles={{ root: { padding: 2, height: 28 } }}
+                    />
+                )}
+            </Stack>
 
             <DetailsList
                 compact={Object.keys(this.props.sources).length >= 10}

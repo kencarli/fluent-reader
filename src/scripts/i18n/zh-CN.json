@@ -327,9 +327,7 @@
         "statusUnknown": "未知",
         "deleteInvalid": "删除失效订阅源",
         "selectAllInvalid": "全选失效订阅源",
-        "noInvalidSources": "没有失效的订阅源",
-        "search": "搜索",
-        "searchPlaceholder": "搜索名称或 URL..."
+        "noInvalidSources": "没有失效的订阅源"
     },
     "groups": {
         "exist": "该分组已存在",

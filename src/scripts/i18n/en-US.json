@@ -334,9 +334,7 @@
             "statusUnknown": "Unknown",
             "deleteInvalid": "Delete Invalid Sources",
             "selectAllInvalid": "Select All Invalid",
-            "noInvalidSources": "No invalid sources found",
-            "search": "Search",
-            "searchPlaceholder": "Search by name or URL..."
+            "noInvalidSources": "No invalid sources found"
         },
         "groups": {
             "exist": "This group already exists.",
