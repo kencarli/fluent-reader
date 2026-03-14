@@ -414,41 +414,44 @@ class IntegrationTab extends React.Component<{}, IntegrationTabState> {
                     <div style={{ padding: 16, background: 'var(--neutralLighter)', borderRadius: 4, marginBottom: 16 }}>
                         <Stack tokens={{ childrenGap: 12 }}>
                             <Label style={{ fontSize: 14, fontWeight: 600 }}>快速配置</Label>
-                            
-                            <Dropdown
-                                label="翻译服务"
-                                selectedKey={settings.translationService || "auto"}
-                                options={[
-                                    { key: "auto", text: "自动（失败时切换）" },
-                                    { key: "google", text: "Google 翻译" },
-                                    { key: "baidu", text: "百度翻译" },
-                                    { key: "youdao", text: "有道翻译" },
-                                    { key: "ollama", text: "Ollama (本地 AI)" },
-                                ]}
-                                onChange={(_, option) => {
-                                    this.setState(prevState => ({
-                                        settings: { ...prevState.settings, translationService: option.key as "auto" | "google" | "baidu" | "youdao" | "ollama" }
-                                    }))
-                                    window.settings.setIntegrationSettings({ ...settings, translationService: option.key as "auto" | "google" | "baidu" | "youdao" | "ollama" })
-                                }}
-                                styles={{ root: { width: 200 } }}
-                            />
 
-                            <Dropdown
-                                label="翻译模式"
-                                selectedKey={settings.translationMode || "full"}
-                                options={[
-                                    { key: "full", text: "仅目标语言" },
-                                    { key: "bilingual", text: "双语对照" },
-                                ]}
-                                onChange={(_, option) => {
-                                    this.setState(prevState => ({
-                                        settings: { ...prevState.settings, translationMode: option.key as "full" | "bilingual" }
-                                    }))
-                                    window.settings.setIntegrationSettings({ ...settings, translationMode: option.key as "full" | "bilingual" })
-                                }}
-                                styles={{ root: { width: 200 } }}
-                            />
+                            {/* 翻译服务和翻译模式在同一行 */}
+                            <Stack horizontal tokens={{ childrenGap: 16 }} style={{ alignItems: 'flex-end' }}>
+                                <Dropdown
+                                    label="翻译服务"
+                                    selectedKey={settings.translationService || "auto"}
+                                    options={[
+                                        { key: "auto", text: "自动（失败时切换）" },
+                                        { key: "google", text: "Google 翻译" },
+                                        { key: "baidu", text: "百度翻译" },
+                                        { key: "youdao", text: "有道翻译" },
+                                        { key: "ollama", text: "Ollama (本地 AI)" },
+                                    ]}
+                                    onChange={(_, option) => {
+                                        this.setState(prevState => ({
+                                            settings: { ...prevState.settings, translationService: option.key as "auto" | "google" | "baidu" | "youdao" | "ollama" }
+                                        }))
+                                        window.settings.setIntegrationSettings({ ...settings, translationService: option.key as "auto" | "google" | "baidu" | "youdao" | "ollama" })
+                                    }}
+                                    styles={{ root: { width: 220 } }}
+                                />
+
+                                <Dropdown
+                                    label="翻译模式"
+                                    selectedKey={settings.translationMode || "full"}
+                                    options={[
+                                        { key: "full", text: "仅目标语言" },
+                                        { key: "bilingual", text: "双语对照" },
+                                    ]}
+                                    onChange={(_, option) => {
+                                        this.setState(prevState => ({
+                                            settings: { ...prevState.settings, translationMode: option.key as "full" | "bilingual" }
+                                        }))
+                                        window.settings.setIntegrationSettings({ ...settings, translationMode: option.key as "full" | "bilingual" })
+                                    }}
+                                    styles={{ root: { width: 180 } }}
+                                />
+                            </Stack>
 
                             {/* Baidu */}
                             <Stack horizontal tokens={{ childrenGap: 8 }} style={{ alignItems: 'flex-end' }}>
