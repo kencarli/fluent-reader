@@ -4,6 +4,12 @@ on:
     push:
         tags:
             - "v*"
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version number (e.g., 1.1.4)'
+                required: true
+                default: '1.1.4'
 
 jobs:
     release:
@@ -21,7 +27,11 @@ jobs:
             - name: Get app version
               id: package-version
               run: |
-                  PACKAGE_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                      PACKAGE_VERSION="${{ github.event.inputs.version }}"
+                  else
+                      PACKAGE_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+                  fi
                   echo ::set-output name=current-version::$PACKAGE_VERSION
               shell: bash
 
