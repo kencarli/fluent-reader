@@ -828,6 +828,11 @@ export function ContextMenu() {
         return <MarkAllReadMenu />
     }
 
+    // Show ViewContextMenu if event is #view-toggle
+    if (event === "#view-toggle") {
+        return <ViewContextMenu />
+    }
+
     // Show DigestMenu if event is #digest-toggle
     if (event === "#digest-toggle") {
         return <DigestMenu />
