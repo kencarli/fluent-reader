@@ -93,6 +93,12 @@ body.darwin .menu .btn-group {
     padding: 4px 0;
 }
 
+.menu-container .menu .subs-header .ms-Icon {
+    /* Match Nav chevron button icon style */
+    font-size: 16px;
+    color: var(--neutralSecondary);
+}
+
 .menu .link-stack {
     overflow: hidden;
 }
