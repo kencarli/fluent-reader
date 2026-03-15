@@ -231,13 +231,13 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
                 isOpen={this.props.display}
                 onDismiss={this.onDismiss}
                 containerClassName="digest-modal-container"
-                styles={{ 
-                    main: { 
-                        maxWidth: '900px',
+                styles={{
+                    main: {
+                        maxWidth: '95vw',
                         minWidth: '600px',
-                        minHeight: 400, 
-                        padding: 24 
-                    } 
+                        minHeight: 400,
+                        padding: 24
+                    }
                 }}
             >
                 <Stack tokens={{ childrenGap: 20 }}>
