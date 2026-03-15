@@ -550,6 +550,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                             id="newUrl"
                             name="newUrl"
                             onChange={this.handleInputChange}
+                            styles={{ root: { width: 250 } }}
                         />
                     </Stack.Item>
                     <Stack.Item>
@@ -560,44 +561,42 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                         />
                     </Stack.Item>
                 </Stack>
-            </form>
 
-            {/* 列筛选 - 紧凑设计 */}
-            <Stack horizontal tokens={{ childrenGap: 8 }} style={{ marginBottom: 8, marginTop: 8 }}>
-                <div style={{ 
-                    width: 16, 
-                    flexShrink: 0,
-                    fontSize: 11,
-                    color: 'var(--neutralSecondary)',
-                    lineHeight: '28px'
-                }}>
-                    🔍
-                </div>
-                <input
-                    type="text"
-                    placeholder="筛选名称或 URL..."
-                    value={this.state.searchQuery}
-                    onChange={(e) => this.setState({ searchQuery: e.target.value })}
-                    style={{
-                        flex: 1,
-                        padding: '4px 8px',
-                        fontSize: 12,
-                        border: '1px solid var(--neutralLight)',
-                        borderRadius: 2,
-                        background: 'var(--neutralLighter)',
-                        minWidth: 150,
-                        maxWidth: 300,
-                    }}
-                />
-                {this.state.searchQuery && (
-                    <IconButton
-                        iconProps={{ iconName: "Clear" }}
-                        onClick={() => this.setState({ searchQuery: "" })}
-                        title={intl.get("clear")}
-                        styles={{ root: { padding: 2, height: 28 } }}
+                {/* 搜索框 - 与添加表单同行 */}
+                <Stack horizontal tokens={{ childrenGap: 4 }} style={{ marginLeft: 16 }}>
+                    <div style={{
+                        width: 16,
+                        flexShrink: 0,
+                        fontSize: 11,
+                        color: 'var(--neutralSecondary)',
+                        lineHeight: '28px'
+                    }}>
+                        🔍
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="筛选名称或 URL..."
+                        value={this.state.searchQuery}
+                        onChange={(e) => this.setState({ searchQuery: e.target.value })}
+                        style={{
+                            width: 200,
+                            padding: '4px 8px',
+                            fontSize: 12,
+                            border: '1px solid var(--neutralLight)',
+                            borderRadius: 2,
+                            background: 'var(--neutralLighter)',
+                        }}
                     />
-                )}
-            </Stack>
+                    {this.state.searchQuery && (
+                        <IconButton
+                            iconProps={{ iconName: "Clear" }}
+                            onClick={() => this.setState({ searchQuery: "" })}
+                            title={intl.get("clear")}
+                            styles={{ root: { padding: 2, height: 28 } }}
+                        />
+                    )}
+                </Stack>
+            </form>
 
             <DetailsList
                 compact={Object.keys(this.props.sources).length >= 10}
