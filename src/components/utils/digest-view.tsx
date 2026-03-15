@@ -66,7 +66,6 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
             
             // Check if feedId has changed since last briefing
             if (this.state.briefing && this.state.lastFeedId !== currentFeedId) {
-                console.log('Feed changed from', this.state.lastFeedId, 'to', currentFeedId, '- regenerating briefing...')
                 // Clear old briefing and regenerate
                 this.setState({ briefing: null, lastFeedId: currentFeedId })
                 this.generate()
@@ -92,15 +91,12 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
             const store = (window as any).__STORE__
             const feedId = store?.getState()?.page?.feedId || ALL
 
-            console.log('Generating digest for feedId:', feedId)
-
             // Wait for database to be ready
             await new Promise<void>((resolve, reject) => {
                 let retries = 0
                 const maxRetries = 25 // 5 seconds
                 const checkDB = () => {
                     if (db.itemsDB && db.items) {
-                        console.log('Database is ready!')
                         resolve()
                     } else if (retries < maxRetries) {
                         retries++
@@ -156,9 +152,7 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
                         .exec() as RSSItem[]
                 }
             }
-            
-            console.log('Fetched', items.length, 'articles')
-            
+
             if (items.length === 0) {
                 throw new Error('No articles found')
             }
@@ -204,7 +198,6 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
             const parts = webhook.split('&keyword=')
             webhook = parts[0]
             keyword = parts[1]
-            console.log('[push] Using keyword:', keyword)
         }
 
         this.setState({ pushing: true, error: null, pushSuccess: null })

@@ -586,7 +586,6 @@ export function TranslateMenu() {
     }
 
     const translateForPeriod = async (days?: number) => {
-        console.log('[TranslateMenu] translateForPeriod called with days:', days)
         try {
             const store = (window as any).__STORE__
             if (!store || !store.getState) {
@@ -598,17 +597,14 @@ export function TranslateMenu() {
             const feedId = storeState.page.feedId
             const groups = storeState.groups
 
-            console.log('[TranslateMenu] feedId:', feedId)
-
             // Wait for database to be ready
             let retries = 0
             const maxRetries = 5
             while ((!db.itemsDB || !db.items) && retries < maxRetries) {
-                console.warn(`[TranslateMenu] Database not initialized, attempt ${retries + 1}/${maxRetries}...`)
                 await new Promise(resolve => setTimeout(resolve, 500))
                 retries++
             }
-            
+
             if (!db.itemsDB || !db.items) {
                 console.error('[TranslateMenu] Database not ready after', maxRetries, 'attempts')
                 alert("Database not ready. Please wait a moment and try again.")
@@ -625,15 +621,12 @@ export function TranslateMenu() {
             } else if (feedId === ALL) {
                 let query = db.itemsDB.select().from(db.items)
                 if (cutoff) {
-                    console.log('[TranslateMenu] Using cutoff:', cutoff)
                     query = query.where(db.items.date.gte(cutoff))
                 }
                 items = await query.orderBy(db.items.date, lf.Order.DESC).limit(50).exec() as RSSItem[]
             } else if (feedId.startsWith("s-")) {
                 const sourceId = parseInt(feedId.substring(2))
-                console.log('[TranslateMenu] Source ID:', sourceId)
                 if (cutoff) {
-                    console.log('[TranslateMenu] Using cutoff:', cutoff)
                     const query = db.itemsDB.select().from(db.items)
                         .where(lf.op.and(
                             db.items.source.eq(sourceId),
@@ -649,9 +642,7 @@ export function TranslateMenu() {
                 const groupIndex = parseInt(feedId.substring(2))
                 const group = groups[groupIndex]
                 if (group && group.sids) {
-                    console.log('[TranslateMenu] Group sids:', group.sids)
                     if (cutoff) {
-                        console.log('[TranslateMenu] Using cutoff:', cutoff)
                         const query = db.itemsDB.select().from(db.items)
                             .where(lf.op.and(
                                 db.items.source.in(group.sids),
@@ -666,27 +657,21 @@ export function TranslateMenu() {
                 }
             }
 
-            console.log('[TranslateMenu] items fetched:', items.length)
-
             if (items.length === 0) {
-                console.warn('[TranslateMenu] No articles to translate')
                 alert("No articles to translate")
                 return
             }
 
             const titlesToTranslate = items.map(i => i.title)
-            console.log('[TranslateMenu] Starting translation for', titlesToTranslate.length, 'titles')
             dispatch(startTranslate(titlesToTranslate))
 
             const translatedTitles = await translateTitles(
                 titlesToTranslate,
                 (completed, total) => {
-                    console.log('[TranslateMenu] Progress:', completed, '/', total)
                     dispatch(translateProgress(completed, total))
                 }
             )
 
-            console.log('[TranslateMenu] Translation complete')
             dispatch(translateComplete(translatedTitles, items.map(i => i._id)))
         } catch (error) {
             console.error('[TranslateMenu] Translation failed:', error)
@@ -706,7 +691,6 @@ export function TranslateMenu() {
                         text: intl.get("allArticles"),
                         iconProps: { iconName: "Translate" },
                         onClick: () => {
-                            console.log('[TranslateMenu] allArticles clicked')
                             translateForPeriod()
                         },
                     },
@@ -715,7 +699,6 @@ export function TranslateMenu() {
                         text: intl.get("app.daysAgo", { days: 1 }),
                         iconProps: { iconName: "Translate" },
                         onClick: () => {
-                            console.log('[TranslateMenu] 1d clicked')
                             translateForPeriod(1)
                         },
                     },
@@ -724,7 +707,6 @@ export function TranslateMenu() {
                         text: intl.get("app.daysAgo", { days: 3 }),
                         iconProps: { iconName: "Translate" },
                         onClick: () => {
-                            console.log('[TranslateMenu] 3d clicked')
                             translateForPeriod(3)
                         },
                     },
@@ -733,7 +715,6 @@ export function TranslateMenu() {
                         text: intl.get("app.daysAgo", { days: 7 }),
                         iconProps: { iconName: "Translate" },
                         onClick: () => {
-                            console.log('[TranslateMenu] 7d clicked')
                             translateForPeriod(7)
                         },
                     },
@@ -754,7 +735,6 @@ export function DigestMenu() {
     }
 
     const generateDigestForPeriod = async (hours?: number) => {
-        console.log('[DigestMenu] generateDigestForPeriod called with hours:', hours)
         try {
             const store = (window as any).__STORE__
             if (!store || !store.getState) {
@@ -767,7 +747,6 @@ export function DigestMenu() {
 
             // The actual digest generation will be handled by DigestView
             // when it detects digestOn changed to true
-            console.log('[DigestMenu] Digest generation triggered')
         } catch (error) {
             console.error('[DigestMenu] Failed to trigger digest:', error)
         }
@@ -785,7 +764,6 @@ export function DigestMenu() {
                         text: "全部文章",
                         iconProps: { iconName: "Articles" },
                         onClick: () => {
-                            console.log('[DigestMenu] allArticles clicked')
                             generateDigestForPeriod(undefined)
                         },
                     },
@@ -794,7 +772,6 @@ export function DigestMenu() {
                         text: "1 天前",
                         iconProps: { iconName: "Articles" },
                         onClick: () => {
-                            console.log('[DigestMenu] 1d clicked')
                             generateDigestForPeriod(24)
                         },
                     },
@@ -803,7 +780,6 @@ export function DigestMenu() {
                         text: "3 天前",
                         iconProps: { iconName: "Articles" },
                         onClick: () => {
-                            console.log('[DigestMenu] 3d clicked')
                             generateDigestForPeriod(72)
                         },
                     },
@@ -812,7 +788,6 @@ export function DigestMenu() {
                         text: "7 天前",
                         iconProps: { iconName: "Articles" },
                         onClick: () => {
-                            console.log('[DigestMenu] 7d clicked')
                             generateDigestForPeriod(168)
                         },
                     },
