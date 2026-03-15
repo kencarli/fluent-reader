@@ -531,13 +531,13 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             </Stack>
 
             <form onSubmit={this.addSource}>
-                <Stack horizontal verticalAlign="baseline">
+                <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
                     <Stack.Item>
-                        <Label htmlFor="newUrl" style={{ marginBottom: 0, marginRight: 8 }}>
+                        <Label htmlFor="newUrl" style={{ marginBottom: 0 }}>
                             {intl.get("sources.add")}
                         </Label>
                     </Stack.Item>
-                    <Stack.Item grow>
+                    <Stack.Item>
                         <TextField
                             onGetErrorMessage={v =>
                                 urlTest(v.trim())
@@ -550,7 +550,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                             id="newUrl"
                             name="newUrl"
                             onChange={this.handleInputChange}
-                            styles={{ root: { width: 250 } }}
+                            styles={{ root: { width: 220 } }}
                         />
                     </Stack.Item>
                     <Stack.Item>
@@ -560,41 +560,44 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                             text={intl.get("add")}
                         />
                     </Stack.Item>
-                </Stack>
-
-                {/* 搜索框 - 与添加表单同行 */}
-                <Stack horizontal tokens={{ childrenGap: 4 }} style={{ marginLeft: 16 }}>
-                    <div style={{
-                        width: 16,
-                        flexShrink: 0,
-                        fontSize: 11,
-                        color: 'var(--neutralSecondary)',
-                        lineHeight: '28px'
-                    }}>
-                        🔍
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="筛选名称或 URL..."
-                        value={this.state.searchQuery}
-                        onChange={(e) => this.setState({ searchQuery: e.target.value })}
-                        style={{
-                            width: 200,
-                            padding: '4px 8px',
-                            fontSize: 12,
-                            border: '1px solid var(--neutralLight)',
-                            borderRadius: 2,
-                            background: 'var(--neutralLighter)',
-                        }}
-                    />
-                    {this.state.searchQuery && (
-                        <IconButton
-                            iconProps={{ iconName: "Clear" }}
-                            onClick={() => this.setState({ searchQuery: "" })}
-                            title={intl.get("clear")}
-                            styles={{ root: { padding: 2, height: 28 } }}
-                        />
-                    )}
+                    
+                    {/* 搜索框 - 与添加表单同行 */}
+                    <Stack.Item styles={{ root: { marginLeft: 8 } }}>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
+                        }}>
+                            <span style={{
+                                fontSize: 11,
+                                color: 'var(--neutralSecondary)',
+                            }}>
+                                🔍
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="筛选名称或 URL..."
+                                value={this.state.searchQuery}
+                                onChange={(e) => this.setState({ searchQuery: e.target.value })}
+                                style={{
+                                    width: 160,
+                                    padding: '4px 8px',
+                                    fontSize: 12,
+                                    border: '1px solid var(--neutralLight)',
+                                    borderRadius: 2,
+                                    background: 'var(--neutralLighter)',
+                                }}
+                            />
+                            {this.state.searchQuery && (
+                                <IconButton
+                                    iconProps={{ iconName: "Clear" }}
+                                    onClick={() => this.setState({ searchQuery: "" })}
+                                    title={intl.get("clear")}
+                                    styles={{ root: { padding: 2, height: 28 } }}
+                                />
+                            )}
+                        </div>
+                    </Stack.Item>
                 </Stack>
             </form>
 
