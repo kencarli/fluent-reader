@@ -268,7 +268,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             {
                 key: "exportMarkdown",
                 text: intl.get("export.markdown") || "Copy Markdown", // Fallback if no intl key
-                iconProps: { iconName: "MarkdownLogo" },
+                iconProps: { iconName: "MarkDownLanguage" },
                 onClick: () => {
                     const content = this.state.loadFull ? this.state.fullContent : this.props.item.content
                     const md = htmlToMarkdown(content)

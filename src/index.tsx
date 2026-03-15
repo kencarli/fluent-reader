@@ -19,7 +19,8 @@ applyThemeSettings()
 registerIcons({
     icons: {
         'StatusCheck': '\uE930',
-        'markdownlogo': '\uF31B'
+        'markdownlogo': '\uF31B',
+        'RemoveDuplicate': '\uEBA5'
     }
 })
 

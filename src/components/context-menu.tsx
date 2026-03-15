@@ -371,7 +371,7 @@ function ViewContextMenu() {
                     {
                         key: "listView",
                         text: intl.get("context.listView"),
-                        iconProps: { iconName: "BacklogList" },
+                        iconProps: { iconName: "List" },
                         canCheck: true,
                         checked: viewType === ViewType.List,
                         onClick: () => dispatch(switchView(ViewType.List)),
@@ -469,7 +469,7 @@ function ViewContextMenu() {
                     {
                         key: "fullSearch",
                         text: intl.get("context.fullSearch"),
-                        iconProps: { iconName: "Breadcrumb" },
+                        iconProps: { iconName: "Articles" },
                         canCheck: true,
                         checked: Boolean(filter & FilterType.FullSearch),
                         onClick: () =>

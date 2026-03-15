@@ -23,6 +23,8 @@ import {
     Dropdown,
     IDropdownOption,
     PrimaryButton,
+    Checkbox,
+    DropdownMenuItemType,
 } from "@fluentui/react"
 import DangerButton from "../utils/danger-button"
 
@@ -39,8 +41,15 @@ type AppTabState = {
     themeSettings: ThemeSettings
     itemSize: string
     cacheSize: string
-    deleteIndex: string
-    isDeletingDuplicates: boolean
+    // 清理类型：'time' | 'duplicates' | 'all'
+    cleanupType: string
+    // 按时间删除
+    deleteDaysIndex: string
+    // 去重设置
+    duplicateTimeWindow: number
+    duplicateByUrl: boolean
+    duplicateBySimilarTitle: boolean
+    duplicateSimilarityThreshold: number
 }
 
 class AppTab extends React.Component<AppTabProps, AppTabState> {
@@ -52,8 +61,13 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             themeSettings: getThemeSettings(),
             itemSize: null,
             cacheSize: null,
-            deleteIndex: null,
-            isDeletingDuplicates: false,
+            cleanupType: 'time',
+            deleteDaysIndex: '7',
+            // 去重设置默认值
+            duplicateTimeWindow: 0,
+            duplicateByUrl: false,
+            duplicateBySimilarTitle: false,
+            duplicateSimilarityThreshold: 0.85,
         }
         this.getItemSize()
         this.getCacheSize()
@@ -77,12 +91,15 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
     }
 
     deleteDuplicateArticles = async () => {
-        this.setState({ isDeletingDuplicates: true })
-        
         try {
             const { deleteDuplicateItems } = await import('../../scripts/models/item')
-            const deletedCount = await deleteDuplicateItems()
-            
+            const deletedCount = await deleteDuplicateItems({
+                timeWindow: this.state.duplicateTimeWindow,
+                byUrl: this.state.duplicateByUrl,
+                bySimilarTitle: this.state.duplicateBySimilarTitle,
+                similarityThreshold: this.state.duplicateSimilarityThreshold,
+            })
+
             window.utils.showMessageBox(
                 intl.get("app.cleanup"),
                 intl.get("app.duplicatesDeleted", { count: deletedCount }),
@@ -90,15 +107,13 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                 "",
                 false
             )
-            
+
             this.getItemSize()
         } catch (error) {
             window.utils.showErrorBox(
                 intl.get("app.error"),
                 String(error)
             )
-        } finally {
-            this.setState({ isDeletingDuplicates: false })
         }
     }
 
@@ -135,23 +150,36 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
         window.settings.setSearchEngine(item.key as number)
     }
 
-    deleteOptions = (): IDropdownOption[] => [
+    // 清理类型选项
+    cleanupOptions = (): IDropdownOption[] => [
+        { key: "time", text: intl.get("app.cleanupByTime"), itemType: DropdownMenuItemType.Header },
         { key: "7", text: intl.get("app.daysAgo", { days: 7 }) },
         { key: "14", text: intl.get("app.daysAgo", { days: 14 }) },
         { key: "21", text: intl.get("app.daysAgo", { days: 21 }) },
         { key: "28", text: intl.get("app.daysAgo", { days: 28 }) },
         { key: "0", text: intl.get("app.deleteAll") },
+        { key: "duplicates", text: intl.get("app.deleteDuplicates") },
     ]
 
-    deleteChange = (_, item: IDropdownOption) => {
-        this.setState({ deleteIndex: item ? String(item.key) : null })
+    cleanupChange = (_, item: IDropdownOption) => {
+        const key = item ? String(item.key) : null
+        if (key === "time" || key === "duplicates" || key === "all") {
+            this.setState({ cleanupType: key })
+        } else {
+            this.setState({ deleteDaysIndex: key, cleanupType: key === "0" ? "all" : "time" })
+        }
     }
 
-    confirmDelete = () => {
+    confirmCleanup = () => {
         this.setState({ itemSize: null })
-        this.props
-            .deleteArticles(parseInt(this.state.deleteIndex))
-            .then(() => this.getItemSize())
+        
+        if (this.state.cleanupType === "duplicates") {
+            this.deleteDuplicateArticles().then(() => this.getItemSize())
+        } else {
+            this.props
+                .deleteArticles(parseInt(this.state.deleteDaysIndex))
+                .then(() => this.getItemSize())
+        }
     }
 
     languageOptions = (): IDropdownOption[] => [
@@ -291,51 +319,145 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
             )}
 
             <Label>{intl.get("app.cleanup")}</Label>
-            
-            {/* 删除重复文章 */}
+            <span className="settings-hint" style={{ marginBottom: 12, display: 'block' }}>
+                {intl.get("app.cleanupHint")}
+            </span>
+
+            {/* 清理类型选择 */}
             <Stack horizontal style={{ marginBottom: 12 }}>
                 <Stack.Item grow>
-                    <Label style={{ margin: 0, fontSize: 13 }}>
-                        {intl.get("app.deleteDuplicates")}
-                    </Label>
-                    <span className="settings-hint" style={{ margin: 0 }}>
-                        {intl.get("app.deleteDuplicatesHint")}
-                    </span>
-                </Stack.Item>
-                <Stack.Item>
-                    <DangerButton
-                        disabled={this.state.isDeletingDuplicates || this.state.itemSize === null}
-                        text={this.state.isDeletingDuplicates 
-                            ? intl.get("app.processing") 
-                            : intl.get("app.deleteDuplicates")}
-                        onClick={this.deleteDuplicateArticles}
-                        iconProps={{ iconName: this.state.isDeletingDuplicates ? "Refresh" : "RemoveDuplicate" }}
-                        styles={{ root: { padding: '4px 12px' } }}
+                    <Dropdown
+                        placeholder={intl.get("app.cleanupPlaceholder")}
+                        options={this.cleanupOptions()}
+                        selectedKey={
+                            this.state.cleanupType === "time" 
+                                ? this.state.deleteDaysIndex 
+                                : this.state.cleanupType === "all"
+                                    ? "0"
+                                    : this.state.cleanupType
+                        }
+                        onChange={this.cleanupChange}
                     />
                 </Stack.Item>
             </Stack>
 
-            {/* 按时间删除 */}
-            <Stack horizontal style={{ marginBottom: 12 }}>
-                <Stack.Item grow>
-                    <Dropdown
-                        placeholder={intl.get("app.deleteChoices")}
-                        options={this.deleteOptions()}
-                        selectedKey={this.state.deleteIndex}
-                        onChange={this.deleteChange}
-                    />
-                </Stack.Item>
-                <Stack.Item>
-                    <DangerButton
-                        disabled={
-                            this.state.itemSize === null ||
-                            this.state.deleteIndex === null
-                        }
-                        text={intl.get("app.confirmDelete")}
-                        onClick={this.confirmDelete}
-                    />
-                </Stack.Item>
-            </Stack>
+            {/* 按时间删除设置 */}
+            {this.state.cleanupType === "time" && (
+                <Stack horizontal style={{ marginBottom: 12 }}>
+                    <Stack.Item grow>
+                        <Label style={{ margin: 0, fontSize: 13 }}>
+                            {intl.get("app.cleanupByTime")}
+                        </Label>
+                        <span className="settings-hint" style={{ display: 'block', marginTop: 4 }}>
+                            {intl.get("app.cleanupByTimeHint")}
+                        </span>
+                    </Stack.Item>
+                    <Stack.Item>
+                        <DangerButton
+                            disabled={this.state.itemSize === null}
+                            text={intl.get("app.confirmDelete")}
+                            onClick={this.confirmCleanup}
+                        />
+                    </Stack.Item>
+                </Stack>
+            )}
+
+            {/* 删除重复文章设置 */}
+            {this.state.cleanupType === "duplicates" && (
+                <div>
+                    <Stack horizontal tokens={{ childrenGap: 20 }} style={{ marginBottom: 12 }}>
+                        <Stack.Item>
+                            <Dropdown
+                                label={intl.get("app.timeWindow")}
+                                selectedKey={this.state.duplicateTimeWindow}
+                                options={[
+                                    { key: 0, text: intl.get("app.timeWindowAll") },
+                                    { key: 6, text: intl.get("app.timeWindow6h") },
+                                    { key: 12, text: intl.get("app.timeWindow12h") },
+                                    { key: 24, text: intl.get("app.timeWindow24h") },
+                                    { key: 72, text: intl.get("app.timeWindow3d") },
+                                    { key: 168, text: intl.get("app.timeWindow7d") },
+                                    { key: 720, text: intl.get("app.timeWindow30d") },
+                                ]}
+                                onChange={(_, item) => this.setState({ duplicateTimeWindow: item.key as number })}
+                                style={{ width: 150 }}
+                            />
+                        </Stack.Item>
+                        <Stack.Item>
+                            <Dropdown
+                                label={intl.get("app.similarityThreshold")}
+                                selectedKey={this.state.duplicateSimilarityThreshold}
+                                options={[
+                                    { key: 0.9, text: intl.get("app.similarityThresholdHigh") },
+                                    { key: 0.85, text: intl.get("app.similarityThresholdMedium") },
+                                    { key: 0.8, text: intl.get("app.similarityThresholdLow") },
+                                ]}
+                                onChange={(_, item) => this.setState({ duplicateSimilarityThreshold: item.key as number })}
+                                style={{ width: 150 }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+
+                    <Stack horizontal tokens={{ childrenGap: 20 }} style={{ marginBottom: 12 }}>
+                        <Stack.Item>
+                            <Checkbox
+                                label={intl.get("app.ByUrl")}
+                                checked={this.state.duplicateByUrl}
+                                onChange={(_, checked) => this.setState({ duplicateByUrl: !!checked })}
+                            />
+                            <span className="settings-hint" style={{ display: 'block', marginTop: 4 }}>
+                                {intl.get("app.ByUrlHint")}
+                            </span>
+                        </Stack.Item>
+                        <Stack.Item>
+                            <Checkbox
+                                label={intl.get("app.bySimilarTitle")}
+                                checked={this.state.duplicateBySimilarTitle}
+                                onChange={(_, checked) => this.setState({ duplicateBySimilarTitle: !!checked })}
+                            />
+                            <span className="settings-hint" style={{ display: 'block', marginTop: 4 }}>
+                                {intl.get("app.bySimilarTitleHint")}
+                            </span>
+                        </Stack.Item>
+                    </Stack>
+
+                    <Stack horizontal style={{ marginBottom: 12 }}>
+                        <Stack.Item grow>
+                            <Label style={{ margin: 0, fontSize: 13 }}>
+                                {intl.get("app.deleteDuplicates")}
+                            </Label>
+                        </Stack.Item>
+                        <Stack.Item>
+                            <DangerButton
+                                text={intl.get("app.deleteDuplicates")}
+                                onClick={this.deleteDuplicateArticles}
+                                styles={{ root: { padding: '4px 12px' } }}
+                            />
+                        </Stack.Item>
+                    </Stack>
+                </div>
+            )}
+
+            {/* 按全部删除设置 */}
+            {this.state.cleanupType === "all" && (
+                <Stack horizontal style={{ marginBottom: 12 }}>
+                    <Stack.Item grow>
+                        <Label style={{ margin: 0, fontSize: 13 }}>
+                            {intl.get("app.deleteAll")}
+                        </Label>
+                        <span className="settings-hint" style={{ display: 'block', marginTop: 4 }}>
+                            {intl.get("app.deleteAllHint")}
+                        </span>
+                    </Stack.Item>
+                    <Stack.Item>
+                        <DangerButton
+                            disabled={this.state.itemSize === null}
+                            text={intl.get("app.confirmDelete")}
+                            onClick={this.confirmCleanup}
+                        />
+                    </Stack.Item>
+                </Stack>
+            )}
             <span className="settings-hint up">
                 {this.state.itemSize
                     ? intl.get("app.itemSize", { size: this.state.itemSize })

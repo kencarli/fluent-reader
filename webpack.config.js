@@ -1,5 +1,6 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin")
+const CopyWebpackPlugin = require("copy-webpack-plugin")
 const path = require("path")
 
 module.exports = [
@@ -77,6 +78,17 @@ module.exports = [
             new NodePolyfillPlugin(),
             new HtmlWebpackPlugin({
                 template: "./src/index.html",
+            }),
+            new CopyWebpackPlugin({
+                patterns: [
+                    {
+                        from: "node_modules/@uifabric/icons/fonts",
+                        to: "icons",
+                        globOptions: {
+                            ignore: ["**/*.json"],
+                        },
+                    },
+                ],
             }),
         ],
     },

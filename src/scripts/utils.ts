@@ -277,3 +277,80 @@ export function initTouchBarWithTexts() {
         notifications: intl.get("nav.notifications"),
     })
 }
+
+/**
+ * 计算两个字符串的相似度 (基于 Levenshtein 距离)
+ * @param s1 字符串 1
+ * @param s2 字符串 2
+ * @returns 相似度 (0-1 之间)
+ */
+export function calculateStringSimilarity(s1: string, s2: string): number {
+    if (!s1 || !s2) return 0
+    if (s1 === s2) return 1
+    
+    const longer = s1.length > s2.length ? s1 : s2
+    const shorter = s1.length > s2.length ? s2 : s1
+    const longerLength = longer.length
+    
+    if (longerLength === 0) return 1
+    
+    const distance = levenshteinDistance(longer, shorter)
+    return (longerLength - distance) / longerLength
+}
+
+/**
+ * 计算 Levenshtein 编辑距离
+ */
+function levenshteinDistance(s1: string, s2: string): number {
+    const m = s1.length
+    const n = s2.length
+    
+    // 使用一维数组优化空间复杂度
+    let prevRow = new Array(n + 1).fill(0)
+    let currRow = new Array(n + 1).fill(0)
+    
+    for (let j = 0; j <= n; j++) {
+        prevRow[j] = j
+    }
+    
+    for (let i = 1; i <= m; i++) {
+        currRow[0] = i
+        for (let j = 1; j <= n; j++) {
+            const cost = s1[i - 1] === s2[j - 1] ? 0 : 1
+            currRow[j] = Math.min(
+                currRow[j - 1] + 1,      // 插入
+                prevRow[j] + 1,          // 删除
+                prevRow[j - 1] + cost    // 替换
+            )
+        }
+        // 交换行
+        [prevRow, currRow] = [currRow, prevRow]
+    }
+    
+    return prevRow[n]
+}
+
+/**
+ * 标准化 URL (移除协议、www、尾部斜杠等)
+ */
+export function normalizeUrl(url: string): string {
+    if (!url) return ""
+    try {
+        const urlObj = new URL(url)
+        return urlObj.hostname.replace(/^www\./, "") + urlObj.pathname.replace(/\/$/, "")
+    } catch {
+        return url.toLowerCase().trim()
+    }
+}
+
+/**
+ * 标准化标题 (移除特殊字符、转小写、去空白)
+ */
+export function normalizeTitle(title: string): string {
+    if (!title) return ""
+    return title
+        .toLowerCase()
+        .replace(/[【\]【\】()（）\[\]""''""'']/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+}

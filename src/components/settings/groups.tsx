@@ -329,7 +329,7 @@ class GroupsTab extends React.Component<GroupsTabProps, GroupsTabState> {
                                 text={intl.get("groups.deleteSource")}
                                 onClick={this.removeFromGroup}
                                 iconProps={{
-                                    iconName: "RemoveFromShoppingList",
+                                    iconName: "Delete",
                                     style: { color: "#d13438" },
                                 }}
                             />

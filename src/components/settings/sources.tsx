@@ -196,7 +196,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                     <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 2 }}>
                         <IconButton
                             iconProps={{
-                                iconName: isChecking ? 'Refresh' : 'StatusCheck',
+                                iconName: isChecking ? 'Refresh' : undefined,
                                 style: { color: isChecking ? 'var(--neutralSecondary)' : undefined }
                             }}
                             title={intl.get("sources.checkStatus")}
@@ -513,7 +513,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                         onClick={this.checkAllSources}
                         text={intl.get("sources.checkStatus")}
                         disabled={this.state.isCheckingAll}
-                        iconProps={{ iconName: this.state.isCheckingAll ? 'Refresh' : 'StatusCheck' }}
+                        iconProps={{ iconName: this.state.isCheckingAll ? 'Refresh' : undefined }}
                     />
                 </Stack.Item>
                 <Stack.Item>

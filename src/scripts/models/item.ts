@@ -8,6 +8,9 @@ import {
     ActionStatus,
     AppThunk,
     platformCtrl,
+    normalizeUrl,
+    normalizeTitle,
+    calculateStringSimilarity,
 } from "../utils"
 import { extractTextFromHtml, generateTags } from "../summary"
 import { embeddingQueue } from "../embedding-queue"
@@ -306,58 +309,125 @@ async function deduplicateItems(items: RSSItem[]): Promise<RSSItem[]> {
     return uniqueItems
 }
 
-// Delete duplicate items by title
-export async function deleteDuplicateItems(): Promise<number> {
+// 去重配置选项
+export interface DuplicateFilterOptions {
+    /** 时间窗口 (小时)，0 表示不限制 */
+    timeWindow?: number
+    /** 是否启用 URL 去重 */
+    byUrl?: boolean
+    /** 是否启用标题相似度检测 */
+    bySimilarTitle?: boolean
+    /** 标题相似度阈值 (0-1)，默认 0.85 */
+    similarityThreshold?: number
+}
+
+// Delete duplicate items by title, URL, or similar title
+export async function deleteDuplicateItems(
+    options: DuplicateFilterOptions = {}
+): Promise<number> {
     if (!db.itemsDB || !db.items) {
         throw new Error("Database not initialized")
     }
 
+    const {
+        timeWindow = 0,
+        byUrl = false,
+        bySimilarTitle = false,
+        similarityThreshold = 0.85,
+    } = options
+
     let deletedCount = 0
+    const now = Date.now()
+    const timeWindowMs = timeWindow > 0 ? timeWindow * 60 * 60 * 1000 : Infinity
 
-    // Get all sources
-    const sources = await db.itemsDB
-        .select(db.items.source)
+    // Get all items with source, title, link, date, ordered by date (newest first)
+    const items = await db.itemsDB
+        .select(db.items.source, db.items._id, db.items.title, db.items.date, db.items.link)
         .from(db.items)
-        .groupBy(db.items.source)
-        .exec()
+        .orderBy(db.items.date, lf.Order.DESC)
+        .exec() as any[]
 
-    // Process each source
-    for (const sourceRow of sources as any[]) {
-        const sourceId = sourceRow.items[0].source
+    // Track seen items per source
+    // For exact match: key = sourceId + normalizedTitle or normalizedUrl
+    // For similar match: store { title, id } and compare
+    const seenExactTitles = new Map<string, number>() // `${sourceId}:${normalizedTitle}` -> id
+    const seenExactUrls = new Map<string, number>() // `${sourceId}:${normalizedUrl}` -> id
+    const seenSimilarTitles = new Map<number, Array<{ title: string; id: number }>>() // sourceId -> [{title, id}]
+    const duplicates: number[] = []
 
-        // Get all items for this source, ordered by date (newest first)
-        const items = await db.itemsDB
-            .select()
-            .from(db.items)
-            .where(db.items.source.eq(sourceId))
-            .orderBy(db.items.date, lf.Order.DESC)
-            .exec() as RSSItem[]
+    for (const item of items) {
+        const sourceId = item.source
+        const itemId = item._id
+        const title = item.title
+        const link = item.link
+        const itemDate = new Date(item.date).getTime()
 
-        // Track seen titles, keep the newest one
-        const seenTitles = new Map<string, number>()
-        const duplicates: number[] = []
+        // Check time window
+        if (timeWindowMs !== Infinity && now - itemDate > timeWindowMs) {
+            continue // Skip items outside time window
+        }
 
-        for (const item of items) {
-            if (seenTitles.has(item.title)) {
-                // This is a duplicate, mark for deletion
-                duplicates.push(item._id)
+        let isDuplicate = false
+
+        // Check exact title match
+        const normalizedTitle = normalizeTitle(title)
+        const titleKey = `${sourceId}:${normalizedTitle}`
+        if (seenExactTitles.has(titleKey)) {
+            isDuplicate = true
+        } else {
+            seenExactTitles.set(titleKey, itemId)
+        }
+
+        // Check exact URL match
+        if (byUrl && !isDuplicate && link) {
+            const normalizedUrl = normalizeUrl(link)
+            const urlKey = `${sourceId}:${normalizedUrl}`
+            if (seenExactUrls.has(urlKey)) {
+                isDuplicate = true
             } else {
-                // First occurrence, keep it
-                seenTitles.set(item.title, item._id)
+                seenExactUrls.set(urlKey, itemId)
             }
         }
 
-        // Delete duplicates in batch
-        if (duplicates.length > 0) {
+        // Check similar title match
+        if (bySimilarTitle && !isDuplicate) {
+            const sourceTitles = seenSimilarTitles.get(sourceId) || []
+            for (const seen of sourceTitles) {
+                const similarity = calculateStringSimilarity(normalizeTitle(title), normalizeTitle(seen.title))
+                if (similarity >= similarityThreshold) {
+                    isDuplicate = true
+                    break
+                }
+            }
+            if (!isDuplicate) {
+                sourceTitles.push({ title: normalizedTitle, id: itemId })
+                seenSimilarTitles.set(sourceId, sourceTitles)
+            }
+        }
+
+        if (isDuplicate) {
+            duplicates.push(itemId)
+        }
+    }
+
+    // Delete duplicates in batch
+    if (duplicates.length > 0) {
+        // Split into chunks of 100 to avoid blocking the main thread
+        const chunkSize = 100
+        for (let i = 0; i < duplicates.length; i += chunkSize) {
+            const chunk = duplicates.slice(i, i + chunkSize)
             await db.itemsDB
                 .delete()
                 .from(db.items)
-                .where(db.items._id.in(duplicates))
+                .where(db.items._id.in(chunk))
                 .exec()
-            
-            deletedCount += duplicates.length
-            console.log(`Deleted ${duplicates.length} duplicates from source ${sourceId}`)
+
+            deletedCount += chunk.length
+
+            // Yield to main thread to prevent UI freezing
+            await new Promise(resolve => setTimeout(resolve, 0))
         }
+        console.log(`Deleted ${duplicates.length} duplicate items`)
     }
 
     console.log(`Total duplicates deleted: ${deletedCount}`)

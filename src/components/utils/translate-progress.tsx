@@ -49,12 +49,12 @@ export default class TranslateProgress extends React.Component<TranslateProgress
                     </div>
                 </div>
                 {completed === total && (
-                    <Icon 
-                        iconName="StatusCheck" 
-                        style={{ 
+                    <Icon
+                        iconName="StatusCheck"
+                        style={{
                             fontSize: '20px',
                             color: '#4CAF50'
-                        }} 
+                        }}
                     />
                 )}
             </div>
