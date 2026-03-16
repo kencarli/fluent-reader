@@ -263,20 +263,6 @@ async function translateWithYoudao(text: string, toLang: string): Promise<string
     // Sign string: appKey + q(truncated) + salt + secret
     const signStr = appId + truncatedText + salt + secret
     const sign = crypto.createHash('sha256').update(signStr, 'utf8').digest('hex')
-    
-    // Debug logging - show full details
-    console.log('Youdao translation request:', {
-        appId: appId,
-        appIdLength: appId.length,
-        secretLength: secret.length,
-        textLength: text.length,
-        truncatedText: truncatedText,
-        salt: salt,
-        curtime: curtime,
-        curtimeDate: new Date(curtime * 1000).toISOString(),
-        signStr: signStr,
-        sign: sign
-    })
 
     const url = `https://openapi.youdao.com/api`
 
@@ -304,8 +290,7 @@ async function translateWithYoudao(text: string, toLang: string): Promise<string
     }
 
     const data = await response.json()
-    console.log('Youdao API response:', data)
-    
+
     if (data.translation) {
         return data.translation.join('\n')
     }
@@ -347,10 +332,13 @@ async function translateWithOllama(text: string, toLang: string): Promise<string
     }
     const targetLang = langMap[toLang] || 'Chinese'
 
-    // Build prompt for translation
-    const prompt = `Translate the following text to ${targetLang}. Only output the translation, nothing else:
+    // Build prompt for translation - use a more direct format
+    const prompt = `Translate this text to ${targetLang}:
 
-${text}`
+${text}
+
+---
+Translation:`
 
     const url = ollamaApiUrl.replace(/\/$/, '') + '/api/generate'
 
@@ -377,10 +365,95 @@ ${text}`
 
     const data = await response.json()
     if (data.response) {
-        return data.response.trim()
+        let result = data.response.trim()
+        // Post-process to remove instruction patterns
+        result = extractTargetLanguageOnly(result, toLang)
+        return result
+    }
+
+    throw new Error('Ollama API returned empty response')
+}
+
+/**
+ * Extract only the target language text from potentially bilingual content
+ * This helps when translation services return both original and translated text
+ * or when LLM outputs instructions instead of translation
+ */
+function extractTargetLanguageOnly(text: string, toLang: string): string {
+    // If text is empty or very short, return as-is
+    if (!text || text.length < 10) {
+        return text
     }
     
-    throw new Error('Ollama API returned empty response')
+    const originalText = text
+    
+    // Remove common LLM instruction patterns that should not appear in output
+    const instructionPatterns = [
+        /重要规则 [:：\s]*[\s\S]*?(?=^[^-]|\n\n|$)/im,  // "重要规则:" patterns
+        /IMPORTANT RULES?[:：\s]*[\s\S]*?(?=^[^-]|\n\n|$)/i,  // "IMPORTANT RULES:" patterns
+        /翻译以下文本 [:：\s]*[\s\S]*?(?=^[^-]|\n\n|$)/im,
+        /Translate [this|the|the following][\s\S]*?[:：\s]*[\s\S]*?(?=^[^-]|\n\n|$)/i,
+        /^[-*•]\s*(?:输出 | 不要 | 不 | 仅 | 只 | 返回|Output|Do not|Don't|Only|Just|Return).*/gim,  // Bullet point instructions
+        /^---+\s*$/gm,  // Separator lines
+        /^Translation:?\s*$/im,  // "Translation:" label alone
+    ]
+    
+    for (const pattern of instructionPatterns) {
+        text = text.replace(pattern, '')
+    }
+    
+    // Trim the result
+    text = text.trim()
+    
+    // If text became empty after cleaning, return original
+    if (!text || text.length < 10) {
+        return originalText
+    }
+    
+    // Detect if text contains mixed languages
+    const chinesePattern = /[\u4e00-\u9fa5]/g
+    const englishPattern = /[a-zA-Z]{3,}/g
+    const hasChinese = chinesePattern.test(text)
+    const hasEnglish = englishPattern.test(text)
+    
+    // If target is Chinese and text contains both Chinese and English
+    if ((toLang === 'zh-CN' || toLang === 'zh-TW') && hasChinese && hasEnglish) {
+        // Try to extract Chinese-heavy portions
+        const lines = text.split('\n')
+        const chineseLines = lines.filter(line => {
+            const chineseChars = line.match(chinesePattern)
+            const englishWords = line.match(englishPattern)
+            const chineseCount = chineseChars ? chineseChars.length : 0
+            const englishCount = englishWords ? englishWords.length : 0
+            // Keep lines where Chinese characters dominate or are equal
+            return chineseCount >= englishCount
+        })
+        
+        // If we found Chinese-only lines, use them
+        if (chineseLines.length > 0 && chineseLines.length >= lines.length / 2) {
+            return chineseLines.join('\n')
+        }
+        
+        // Otherwise, try to extract Chinese portions from each line
+        const extractedLines = lines.map(line => {
+            const chineseMatch = line.match(/[\u4e00-\u9fa5，。！？、；：""''（）【】《》\s]+/g)
+            if (chineseMatch) {
+                const extracted = chineseMatch.join('')
+                // Only return if it has significant Chinese content
+                if (extracted.match(chinesePattern) && extracted.length >= line.length / 3) {
+                    return extracted.trim()
+                }
+            }
+            return line
+        }).filter(line => line.length > 0)
+        
+        if (extractedLines.length > 0) {
+            return extractedLines.join('\n')
+        }
+    }
+    
+    // For other languages or if extraction failed, return original
+    return text
 }
 
 export async function translateText(
@@ -405,29 +478,37 @@ export async function translateHtml(
     // Get translation mode from settings
     const settings = getTranslationSettings()
     const translationMode = settings.translationMode || "full"
-    
-    console.log('[translateHtml] translationMode:', translationMode)
 
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, "text/html")
-    
+
     // Clean up any previous translation artifacts (bilingual mode spans)
     // Find all spans that contain .original-text or .translated-text and replace with plain text
     const allSpans = doc.querySelectorAll('span')
     allSpans.forEach(span => {
         if (span.querySelector('.original-text, .translated-text')) {
-            // Extract all text content and replace the span
-            const textContent = span.textContent || ''
-            const textNode = document.createTextNode(textContent)
+            // For bilingual mode, only keep the original text
+            // For full translation mode that was previously bilingual, we need to re-translate
+            const originalTextDiv = span.querySelector('.original-text')
+            const textToKeep = originalTextDiv ? originalTextDiv.textContent : (span.textContent || '')
+            const textNode = document.createTextNode(textToKeep)
             span.parentNode?.replaceChild(textNode, span)
         }
     })
+
+    // Skip script, style, and other non-content elements
+    const skipTags = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'CODE', 'PRE']
     
     const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, null)
     const nodes: Node[] = []
     let node: Node
     while (node = walker.nextNode()) {
         if (node.nodeValue && node.nodeValue.trim().length > 0) {
+            // Skip text nodes inside non-content elements
+            const parentElement = node.parentElement
+            if (parentElement && skipTags.includes(parentElement.tagName)) {
+                continue
+            }
             nodes.push(node)
         }
     }
@@ -454,8 +535,6 @@ export async function translateHtml(
     }
     if (currentChunk.length > 0) chunks.push(currentChunk)
 
-    console.log('[translateHtml] total chunks:', chunks.length)
-
     // Translate chunks with progress
     for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i]
@@ -464,10 +543,15 @@ export async function translateHtml(
         const delimiter = "\n\n"
         const textToTranslate = chunk.map(n => n.nodeValue).join(delimiter)
         try {
-            const translated = await translateText(textToTranslate, toLang)
+            let translated = await translateText(textToTranslate, toLang)
+            
+            // In full mode, if the translation appears to contain bilingual content,
+            // try to extract only the target language parts
+            if (translationMode === 'full') {
+                translated = extractTargetLanguageOnly(translated, toLang)
+            }
+            
             const translatedParts = translated.split(delimiter)
-
-            console.log('[translateHtml] chunk', i, 'mode:', translationMode, 'translatedParts:', translatedParts.length)
 
             // Assign back based on translation mode
             if (translationMode === "bilingual") {
@@ -482,8 +566,28 @@ export async function translateHtml(
                 }
             } else {
                 // For full translation mode, replace original text
-                for (let j = 0; j < chunk.length && j < translatedParts.length; j++) {
-                    chunk[j].nodeValue = translatedParts[j]
+                // If translatedParts count doesn't match chunk count, we need to handle it carefully
+                if (translatedParts.length === chunk.length) {
+                    // Perfect match, replace each node
+                    for (let j = 0; j < chunk.length; j++) {
+                        chunk[j].nodeValue = translatedParts[j]
+                    }
+                } else if (translatedParts.length === 1 && chunk.length > 1) {
+                    // Translation merged all text into one part, apply to first node and remove others
+                    chunk[0].nodeValue = translatedParts[0]
+                    for (let j = 1; j < chunk.length; j++) {
+                        chunk[j].nodeValue = ''
+                    }
+                } else {
+                    // Mismatch: apply as many as we have, fill rest with empty or repeat last
+                    for (let j = 0; j < chunk.length; j++) {
+                        if (j < translatedParts.length) {
+                            chunk[j].nodeValue = translatedParts[j]
+                        } else {
+                            // If we run out of translated parts, use the last available one or empty
+                            chunk[j].nodeValue = translatedParts[translatedParts.length - 1] || ''
+                        }
+                    }
                 }
             }
         } catch (e) {
