@@ -1,0 +1,10 @@
+node_modules
+dist/*.js
+dist/*.js.map
+dist/*.html
+dist/*.LICENSE.txt
+bin/*
+.DS_Store
+*.provisionprofile
+*.lock
+nul
