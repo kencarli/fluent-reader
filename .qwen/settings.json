@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(del *)",
+      "Bash(findstr *)",
+      "Bash(move *)",
+      "Bash(select-string *)",
+      "Bash(select-object *)",
+      "Bash(npx *)",
+      "Bash(rm *)",
+      "Bash(node *)",
+      "Bash(git checkout *)",
+      "Bash(sed *)",
+      "Bash(replace *)",
+      "Bash(set-content *)",
+      "Bash($file *)",
+      "Bash($content *)",
+      "Bash($content)",
+      "Bash(write-host *)",
+      "Bash(powershell *)",
+      "Bash(npm install)",
+      "Bash(npm start)",
+      "Bash(npm uninstall *)",
+      "Bash(taskkill *)",
+      "Bash(curl *)",
+      "Bash(git init)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  },
+  "$version": 3
+}

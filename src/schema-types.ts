@@ -1,0 +1,175 @@
+export class SourceGroup {
+    isMultiple: boolean
+    sids: number[]
+    name?: string
+    expanded?: boolean
+    index?: number // available only from menu or groups tab container
+
+    constructor(sids: number[], name: string = null) {
+        name = (name && name.trim()) || "Source group"
+        if (sids.length == 1) {
+            this.isMultiple = false
+        } else {
+            this.isMultiple = true
+            this.name = name
+            this.expanded = true
+        }
+        this.sids = sids
+    }
+}
+
+export const enum ViewType {
+    Cards,
+    List,
+    Magazine,
+    Compact,
+    Customized,
+}
+
+export const enum ViewConfigs {
+    ShowCover = 1 << 0,
+    ShowSnippet = 1 << 1,
+    FadeRead = 1 << 2,
+}
+
+export const enum ThemeSettings {
+    Default = "system",
+    Light = "light",
+    Dark = "dark",
+}
+
+export const enum SearchEngines {
+    Google,
+    Bing,
+    Baidu,
+    DuckDuckGo,
+}
+
+export const enum ImageCallbackTypes {
+    OpenExternal,
+    OpenExternalBg,
+    SaveAs,
+    Copy,
+    CopyLink,
+}
+
+export const enum SyncService {
+    None,
+    Fever,
+    Feedbin,
+    GReader,
+    Inoreader,
+    Miniflux,
+    Nextcloud,
+}
+export interface ServiceConfigs {
+    type: SyncService
+    importGroups?: boolean
+}
+
+export interface IntegrationSettings {
+    obsidianVaultPath?: string
+    obsidianTemplate?: string
+    obsidianImageStrategy?: "hotlink" | "download"
+    notionSecret?: string
+    notionDatabaseId?: string
+    notionTitlePropertyName?: string
+    notionUrlPropertyName?: string
+    notionTagsPropertyName?: string
+    notionAuthorPropertyName?: string
+    notionDatePropertyName?: string
+    notionSourcePropertyName?: string
+    onenoteAccessToken?: string
+    onenoteUserId?: string
+    onenoteUserName?: string
+    onenoteNotebookId?: string
+    onenoteAuthorized?: boolean
+    evernoteToken?: string
+    evernoteNotebookGuid?: string
+    evernoteUserName?: string
+    evernoteAuthorized?: boolean
+    baiduTranslateAppId?: string
+    baiduTranslateSecret?: string
+    youdaoTranslateAppId?: string
+    youdaoTranslateSecret?: string
+    deeplTranslateApiKey?: string
+    libretranslateApiUrl?: string
+    libretranslateApiKey?: string
+    translationService?: "baidu" | "mymemory" | "deepl" | "libretranslate" | "ollama" | "auto"
+    translationMode?: "full" | "bilingual"
+    ollamaApiUrl?: string
+    ollamaModel?: string
+    openaiApiKey?: string
+    nvidiaApiKey?: string
+    deepseekApiKey?: string
+    dingtalkWebhook?: string
+    wecomWebhook?: string
+    digestTime?: string
+    digestTopics?: string
+    autoPushEnabled?: boolean
+    dalleEnabled?: boolean
+    lastDigestDate?: string
+    digestSourceIds?: number[]        // 指定订阅源 ID 列表
+    digestGroupIds?: number[]         // 指定订阅组 ID 列表
+    syncRules?: SyncRule[]
+    // AI Rating Configuration
+    ratingEnabled?: boolean
+    ratingIndustries?: string[]
+    ratingRoles?: string[]
+    ratingModel?: string
+    ratingAutoRate?: boolean
+    ratingOnlyUnread?: boolean
+}
+
+export type SyncRuleCondition = {
+    field: "sourceId" | "title" | "content" | "author" | "starred";
+    operator: "is" | "isNot" | "contains" | "notContains";
+    value: string;
+};
+
+export type SyncRuleAction = {
+    type: "sendToObsidian" | "sendToNotion" | "sendToOneNote" | "sendToEvernote";
+    destination?: string; // e.g., Notion Database ID, OneNote Notebook ID, Evernote Notebook GUID
+};
+
+export type SyncRule = {
+    id: string;
+    name: string;
+    conditions: SyncRuleCondition[];
+    action: SyncRuleAction;
+};
+
+export const enum WindowStateListenerType {
+    Maximized,
+    Focused,
+    Fullscreen,
+}
+
+export interface TouchBarTexts {
+    menu: string
+    search: string
+    refresh: string
+    markAll: string
+    notifications: string
+}
+
+export type SchemaTypes = {
+    version: string
+    theme: ThemeSettings
+    pac: string
+    pacOn: boolean
+    view: ViewType
+    locale: string
+    sourceGroups: SourceGroup[]
+    fontSize: number
+    fontFamily: string
+    menuOn: boolean
+    fetchInterval: number
+    searchEngine: SearchEngines
+    serviceConfigs: ServiceConfigs
+    filterType: number
+    listViewConfigs: ViewConfigs
+    useNeDB: boolean
+    integration: IntegrationSettings
+    sourceStatus: { [sid: number]: { status: 'ok' | 'error' | 'checking' | null, timestamp: number } }
+}
