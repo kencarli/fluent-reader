@@ -168,7 +168,7 @@ async function onUpgradeItemDB(rawDb: lf.raw.BackStore) {
 export async function init() {
     console.log('[DB] Starting initialization...')
     let usedMemoryFallback = false;
-    
+
     try {
         // Use IndexedDB for persistent storage to prevent connection loss
         console.log('[DB] Attempting IndexedDB connection...')
@@ -193,14 +193,12 @@ export async function init() {
             console.log('[DB] Running validation query...')
             const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
             await sourcesDB.select().from(sources).limit(1).exec()
-            console.log('[DB] Sources query OK')
             await itemsDB.select()
                 .from(items)
                 .where(items.date.gte(cutoff))
                 .orderBy(items.date, lf.Order.DESC)
                 .limit(1)
                 .exec()
-            console.log('[DB] Items query OK')
             console.log('[DB] Database validation successful')
         } catch (validationError: any) {
             console.log('[DB] Database validation failed:', validationError.code)

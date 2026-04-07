@@ -183,6 +183,58 @@ export default class ArticleRatingInline extends React.Component<
                 headerContent={statusIndicators}
             >
                 <Stack tokens={{ childrenGap: 16 }}>
+                    {/* 第一行：三个控件并排 - 始终显示 */}
+                    <Stack horizontal tokens={{ childrenGap: 16 }} wrap verticalAlign="center">
+                        <div style={{ minWidth: 140 }}>
+                            <Toggle
+                                label="✅ 启用 AI 评分"
+                                checked={localSettings.ratingEnabled || false}
+                                onChange={(e, checked) => {
+                                    this.setState(prevState => ({
+                                        localSettings: {
+                                            ...prevState.localSettings,
+                                            ratingEnabled: checked,
+                                        }
+                                    }), () => {
+                                        this.props.onChange(this.state.localSettings)
+                                    })
+                                }}
+                                inlineLabel
+                                styles={{
+                                    label: { fontSize: 12, fontWeight: 600 },
+                                    text: { fontSize: 12 },
+                                    root: { marginTop: 0, alignItems: 'center' },
+                                }}
+                            />
+                        </div>
+
+                        <div style={{ flex: 1 }} />
+
+                        <div style={{ minWidth: 180 }}>
+                            <Toggle
+                                label="⚙️ 导入新文章时自动评分"
+                                checked={localSettings.ratingAutoRate || false}
+                                onChange={(e, checked) => {
+                                    this.setState(prevState => ({
+                                        localSettings: {
+                                            ...prevState.localSettings,
+                                            ratingAutoRate: checked,
+                                        }
+                                    }), () => {
+                                        this.props.onChange(this.state.localSettings)
+                                    })
+                                }}
+                                inlineLabel
+                                styles={{
+                                    label: { fontSize: 12, fontWeight: 600 },
+                                    text: { fontSize: 12 },
+                                    root: { marginTop: 0, alignItems: 'center' },
+                                }}
+                            />
+                        </div>
+                    </Stack>
+
+                    {/* 启用时显示更多选项 */}
                     {localSettings.ratingEnabled && (
                         <>
                             <MessageBar messageBarType={MessageBarType.info}>
@@ -190,57 +242,6 @@ export default class ArticleRatingInline extends React.Component<
                                     ? "当前使用规则评分引擎（无需AI服务）。基于行业/角色关键词匹配、内容质量、结构完整性进行评分。"
                                     : "AI 会根据您的行业和角色偏好，自动为文章评分（1-5 星），帮助您快速识别重要内容。"}
                             </MessageBar>
-
-                            {/* 第一行：三个控件并排 */}
-                            <Stack horizontal tokens={{ childrenGap: 16 }} wrap verticalAlign="center">
-                                <div style={{ minWidth: 140 }}>
-                                    <Toggle
-                                        label="✅ 启用 AI 评分"
-                                        checked={localSettings.ratingEnabled || false}
-                                        onChange={(e, checked) => {
-                                            this.setState(prevState => ({
-                                                localSettings: {
-                                                    ...prevState.localSettings,
-                                                    ratingEnabled: checked,
-                                                }
-                                            }), () => {
-                                                this.props.onChange(this.state.localSettings)
-                                            })
-                                        }}
-                                        inlineLabel
-                                        styles={{
-                                            label: { fontSize: 12, fontWeight: 600 },
-                                            text: { fontSize: 12 },
-                                            root: { marginTop: 0, alignItems: 'center' },
-                                        }}
-                                    />
-                                </div>
-
-                                <div style={{ flex: 1 }} />
-
-                                <div style={{ minWidth: 180 }}>
-                                    <Toggle
-                                        label="⚙️ 导入新文章时自动评分"
-                                        checked={localSettings.ratingAutoRate || false}
-                                        onChange={(e, checked) => {
-                                            this.setState(prevState => ({
-                                                localSettings: {
-                                                    ...prevState.localSettings,
-                                                    ratingAutoRate: checked,
-                                                }
-                                            }), () => {
-                                                this.props.onChange(this.state.localSettings)
-                                            })
-                                        }}
-                                        inlineLabel
-                                        styles={{
-                                            label: { fontSize: 12, fontWeight: 600 },
-                                            text: { fontSize: 12 },
-                                            root: { marginTop: 0, alignItems: 'center' },
-                                        }}
-                                    />
-                                </div>
-                            </Stack>
 
                             {/* 第二行：行业和角色并排 */}
                             <Stack horizontal tokens={{ childrenGap: 32 }} wrap>
@@ -302,6 +303,14 @@ export default class ArticleRatingInline extends React.Component<
                                 </MessageBar>
                             )}
                         </>
+                    )}
+
+                    {/* 未启用时显示提示 */}
+                    {!localSettings.ratingEnabled && (
+                        <MessageBar messageBarType={MessageBarType.info}>
+                            启用 AI 文章评分功能后，系统将自动为您的文章打分（1-5 星），帮助您快速识别重要内容。
+                            您可以选择使用 AI 评分或规则引擎评分。
+                        </MessageBar>
                     )}
                 </Stack>
             </CollapsibleSection>

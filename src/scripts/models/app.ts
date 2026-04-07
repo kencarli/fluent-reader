@@ -16,7 +16,7 @@ import {
     getWindowBreakpoint,
     initTouchBarWithTexts,
 } from "../utils"
-import { INIT_FEEDS, FeedActionTypes, ALL, SOURCE, initFeeds } from "./feed"
+import { INIT_FEEDS, FeedActionTypes, ALL, SOURCE, initFeeds, loadMore } from "./feed"
 import {
     SourceGroupActionTypes,
     UPDATE_SOURCE_GROUP,
@@ -763,7 +763,7 @@ export function initIntl(): AppThunk<Promise<void>> {
 }
 
 export function initApp(): AppThunk {
-    return dispatch => {
+    return (dispatch, getState) => {
         document.body.classList.add(window.utils.platform)
         dispatch(initIntl())
             .then(async () => {
@@ -772,8 +772,10 @@ export function initApp(): AppThunk {
             })
             .then(() => dispatch(initFeeds()))
             .then(async () => {
+                // Fetch new items from sources (background mode, won't dismiss items)
+                await dispatch(fetchItems(true))
+                // Then select all articles page
                 dispatch(selectAllArticles())
-                await dispatch(fetchItems())
             })
             .then(() => {
                 dispatch(updateFavicon())

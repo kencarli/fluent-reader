@@ -21,9 +21,9 @@ import { semanticSearch } from "../semantic-search"
 
 export enum FilterType {
     None,
-    ShowRead = 1 << 0,
-    ShowNotStarred = 1 << 1,
-    ShowHidden = 1 << 2,
+    ShowRead = 1 << 0,        // Show only unread
+    ShowNotStarred = 1 << 1,  // Show only starred (when NOT set, show starred)
+    ShowHidden = 1 << 2,      // Show hidden articles
     FullSearch = 1 << 3,
     CaseInsensitive = 1 << 4,
     CreatorSearch = 1 << 5,
@@ -31,9 +31,9 @@ export enum FilterType {
     RatedOnly = 1 << 7,        // Only show rated articles
     HighRated = 1 << 8,        // Only show highly rated (>=4 stars)
 
-    Default = ShowRead,        // 默认显示未读文章（不要求星标）
-    UnreadOnly = ShowNotStarred,
-    StarredOnly = ShowRead,
+    Default = None,            // Default: show all (including read)
+    UnreadOnly = ShowRead,     // Show only unread
+    StarredOnly = ShowNotStarred,  // Show only starred
     Toggles = ShowHidden | FullSearch | CaseInsensitive | SemanticSearch | RatedOnly | HighRated,
 }
 export class FeedFilter {
@@ -98,12 +98,20 @@ export class FeedFilter {
 static toPredicates(filter: FeedFilter) {
     let type = filter.type
     const predicates = new Array<lf.Predicate>()
-    if (!(type & FilterType.ShowRead))
+    
+    // Filter unread: only if ShowRead flag is set (meaning "show only unread")
+    if (type & FilterType.ShowRead) {
         predicates.push(db.items.hasRead.eq(false))
-    if (!(type & FilterType.ShowNotStarred))
+    }
+    // Filter starred: only if explicitly set to StarredOnly (ShowNotStarred flag)
+    // Default behavior: show all articles (including non-starred)
+    if (type & FilterType.ShowNotStarred) {
         predicates.push(db.items.starred.eq(true))
-    if (!(type & FilterType.ShowHidden))
+    }
+    // Filter hidden: always filter hidden by default (unless ShowHidden is set)
+    if (!(type & FilterType.ShowHidden)) {
         predicates.push(db.items.hidden.eq(false))
+    }
     if (filter.search !== "") {
         const flags = type & FilterType.CaseInsensitive ? "i" : ""
         const regex = RegExp(filter.search, flags)
@@ -190,7 +198,7 @@ export class RSSFeed {
     }
 
     static async loadFeed(feed: RSSFeed, skip = 0): Promise<RSSItem[]> {
-        
+
         if (
             feed.filter.search &&
             feed.filter.type & FilterType.SemanticSearch
