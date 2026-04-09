@@ -189,7 +189,31 @@ class Nav extends React.Component<NavProps, NavState> {
                         />
                     </a>
                 </div>
-                <span className="title">{this.props.state.title}</span>
+                <span
+                    className="title"
+                    onDoubleClick={() => {
+                        // 双击标题栏最大化/还原窗口
+                        const utils = window.utils as any
+                        if (utils.isTauri && utils.maximizeWindow) {
+                            utils.maximizeWindow()
+                        }
+                    }}
+                    onMouseDown={(e) => {
+                        // 拖拽窗口（仅在 Tauri 环境下）
+                        const utils = window.utils as any
+                        if (utils.isTauri && utils.startDraggingWindow && e.buttons === 1) {
+                            // 延迟执行，避免与点击冲突
+                            const timer = setTimeout(() => {
+                                utils.startDraggingWindow()
+                            }, 100)
+                            const clearTimer = () => {
+                                clearTimeout(timer)
+                                document.removeEventListener('mouseup', clearTimer)
+                            }
+                            document.addEventListener('mouseup', clearTimer)
+                        }
+                    }}
+                >{this.props.state.title}</span>
                 <div className="btn-group" style={{ float: "right" }}>
                     <a
                         className={"btn" + this.fetching()}
@@ -239,7 +263,7 @@ class Nav extends React.Component<NavProps, NavState> {
                     <a
                         className="btn"
                         id="digest-toggle"
-                        title="Daily News Briefing"
+                        title={intl.get("nav.digest")}
                         onClick={this.props.digest}
                         onMouseDown={e => {
                             if (
@@ -267,7 +291,7 @@ class Nav extends React.Component<NavProps, NavState> {
                     <a
                         className="btn"
                         id="rating-toggle"
-                        title="文章评分筛选"
+                        title={intl.get("nav.rating")}
                         onClick={this.props.rating}
                         onMouseDown={e => {
                             if (
@@ -320,7 +344,7 @@ class Nav extends React.Component<NavProps, NavState> {
                     <ProgressIndicator
                         className="progress"
                         percentComplete={this.getProgress()}
-                        label="加载订阅源中..."
+                        label={intl.get("nav.loadingSources")}
                     />
                 )}
                 
@@ -329,7 +353,10 @@ class Nav extends React.Component<NavProps, NavState> {
                     <ProgressIndicator
                         className="progress"
                         percentComplete={this.getTranslateProgress()}
-                        label={`翻译中：${this.props.state.translateProgress.completed}/${this.props.state.translateProgress.total}`}
+                        label={intl.get("nav.translating", {
+                            completed: this.props.state.translateProgress.completed,
+                            total: this.props.state.translateProgress.total
+                        })}
                     />
                 )}
                 
@@ -338,7 +365,7 @@ class Nav extends React.Component<NavProps, NavState> {
                     <ProgressIndicator
                         className="progress"
                         percentComplete={null}
-                        label="生成 AI 摘要中..."
+                        label={intl.get("nav.generatingDigest")}
                     />
                 )}
                 
