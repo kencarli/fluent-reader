@@ -638,12 +638,12 @@ function OpenDigestMenu() {
                 // Build detailed error message
                 const missingServices = []
                 if (!settings.openaiApiKey && !settings.nvidiaApiKey && !settings.deepseekApiKey && !settings.ollamaApiUrl) {
-                    missingServices.push('OpenAI/NVIDIA/DeepSeek API Key 或 Ollama API 地址')
+                    missingServices.push(intl.get('digest.missingServices'))
                 }
                 if (settings.ollamaApiUrl && !settings.ollamaModel) {
-                    missingServices.push('Ollama 模型名称')
+                    missingServices.push(intl.get('digest.missingOllamaModel'))
                 }
-                alert(`未配置 AI 服务。请在设置 > 集成 > AI 服务中配置：\n${missingServices.join('、')}`)
+                alert(intl.get('digest.noAIServiceConfigured', { services: missingServices.join('、') }))
                 setGenerating(false)
                 dispatch(setDigestGenerating(false))
                 return
@@ -663,14 +663,14 @@ function OpenDigestMenu() {
                 sourceIds = undefined
             }
 
-            // 手动触发遵循当前视图范围，自动推送才使用自定义源配置
+            // Manually trigger follows current view scope, auto-push uses custom source config
             const finalSourceIds = sourceIds
             const finalGroupIds = undefined
 
             // Calculate hours based on selected date
             const hours = date ? (Date.now() - date.getTime()) / 3600000 : 24
             const hoursRounded = Math.round(hours * 100) / 100  // Round to 2 decimal places
-            const daysText = hours >= 24 ? Math.floor(hours / 24) + '天' : hoursRounded + '小时'
+            const daysText = hours >= 24 ? intl.get('digest.daysText', { days: Math.floor(hours / 24) }) : intl.get('digest.hoursText', { hours: hoursRounded })
             console.log(`[Digest] Selected time range: ${daysText} (${hoursRounded} hours)`)
 
             // Check articles in the selected time range
@@ -679,7 +679,7 @@ function OpenDigestMenu() {
             console.log(`[Digest] Articles found in last ${daysText}: ${allItems.length}`)
 
             if (allItems.length === 0) {
-                alert(`数据库中没有最近${daysText}的文章。请先刷新订阅源获取新文章。`)
+                alert(intl.get('digest.noRecentArticles', { days: daysText }))
                 setGenerating(false)
                 dispatch(setDigestGenerating(false))
                 return
@@ -711,15 +711,15 @@ function OpenDigestMenu() {
             console.error("Digest generation failed:", error)
             
             // Provide more specific error messages
-            let errorMessage = "摘要生成失败"
+            let errorMessage = intl.get('digest.generationFailed')
             if (error.message.includes('Ollama 连接测试失败')) {
-                errorMessage = `摘要生成失败：${error.message}\n\n请检查：\n1. Ollama 服务是否正在运行\n2. 网络连接是否正常\n3. 设置中的 Ollama API 地址是否正确`
+                errorMessage = intl.get('digest.ollamaConnectionFailed', { error: error.message })
             } else if (error.message.includes('No LLM provider configured')) {
-                errorMessage = "摘要生成失败：未配置 AI 服务\n\n请在 设置 > 集成 > AI 服务 中配置 OpenAI、NVIDIA、DeepSeek 或 Ollama"
+                errorMessage = intl.get('digest.noLLMProvider')
             } else if (error.message.includes('Failed to fetch')) {
-                errorMessage = `摘要生成失败：网络连接错误\n\n${error.message}\n\n请检查网络连接或 API 配置`
+                errorMessage = intl.get('digest.networkError', { error: error.message })
             } else {
-                errorMessage = `摘要生成失败：${error.message}`
+                errorMessage = intl.get('digest.generationFailedWithError', { error: error.message })
             }
             
             alert(errorMessage)
@@ -734,26 +734,26 @@ function OpenDigestMenu() {
             key: "section_1",
             itemType: ContextualMenuItemType.Section,
             sectionProps: {
-                title: generating ? "⏳ 正在生成摘要..." : "📰 每日摘要",
+                title: generating ? intl.get('digest.generating') : intl.get('digest.dailyDigest'),
                 items: [
                     {
                         key: "all",
-                        text: "📝 全部文章",
+                        text: intl.get('digest.allArticles'),
                         iconProps: { iconName: generating ? "Sync" : "LightningBolt" },
                         disabled: generating,
                         onClick: () => {
-                            console.log('[Digest] Clicked: 全部文章 (无时间限制)')
+                            console.log('[Digest] Clicked: all articles (no time limit)')
                             generateDigest(null)
                         },
                     },
                     {
                         key: "1d",
-                        text: "🕐 最近 1 天",
+                        text: intl.get('digest.recentDays', { days: 1 }),
                         disabled: generating,
                         onClick: () => {
                             let date = new Date()
                             date.setTime(date.getTime() - 86400000)
-                            console.log('[Digest] Clicked: 最近 1 天')
+                            console.log('[Digest] Clicked: recent 1 day')
                             console.log('[Digest] Time range:', date.toISOString(), 'to', new Date().toISOString())
                             console.log('[Digest] Milliseconds:', 86400000)
                             generateDigest(date)
@@ -761,12 +761,12 @@ function OpenDigestMenu() {
                     },
                     {
                         key: "3d",
-                        text: "🕐 最近 3 天",
+                        text: intl.get('digest.recentDays', { days: 3 }),
                         disabled: generating,
                         onClick: () => {
                             let date = new Date()
                             date.setTime(date.getTime() - 3 * 86400000)
-                            console.log('[Digest] Clicked: 最近 3 天')
+                            console.log('[Digest] Clicked: recent 3 days')
                             console.log('[Digest] Time range:', date.toISOString(), 'to', new Date().toISOString())
                             console.log('[Digest] Milliseconds:', 3 * 86400000)
                             generateDigest(date)
@@ -774,12 +774,12 @@ function OpenDigestMenu() {
                     },
                     {
                         key: "7d",
-                        text: "🕐 最近 7 天",
+                        text: intl.get('digest.recentDays', { days: 7 }),
                         disabled: generating,
                         onClick: () => {
                             let date = new Date()
                             date.setTime(date.getTime() - 7 * 86400000)
-                            console.log('[Digest] Clicked: 最近 7 天')
+                            console.log('[Digest] Clicked: recent 7 days')
                             console.log('[Digest] Time range:', date.toISOString(), 'to', new Date().toISOString())
                             console.log('[Digest] Milliseconds:', 7 * 86400000)
                             generateDigest(date)
@@ -805,7 +805,7 @@ function OpenTranslateMenu() {
             // Check if database is initialized
             if (!db.dbInitialized || !db.itemsDB || !db.items) {
                 console.error('[Translate] Database not initialized. dbInitialized:', db.dbInitialized)
-                alert("数据库未初始化。请刷新页面。")
+                alert(intl.get('translate.dbNotInitialized'))
                 return
             }
 
@@ -881,7 +881,7 @@ function OpenTranslateMenu() {
             console.log('[Translate] Items fetched:', items.length)
 
             if (items.length === 0) {
-                alert("没有找到可翻译的文章。请先刷新订阅源获取新文章，或选择不同的时间范围。")
+                alert(intl.get('translate.noArticlesFound'))
                 return
             }
 
@@ -917,17 +917,17 @@ function OpenTranslateMenu() {
             console.error("Translation failed:", error)
 
             // Provide more specific error messages
-            let errorMessage = "翻译失败"
+            let errorMessage = intl.get('translate.translationFailed')
             if (error.code === 516 || (error.message && error.message.includes('lovefield'))) {
-                errorMessage = "翻译失败：数据库未初始化或访问失败\n\n请刷新页面后重试。"
+                errorMessage = intl.get('translate.dbError')
             } else if (error.message.includes('Ollama 连接测试失败')) {
-                errorMessage = `翻译失败：${error.message}\n\n请检查：\n1. Ollama 服务是否正在运行\n2. 网络连接是否正常\n3. 设置中的 Ollama API 地址是否正确`
+                errorMessage = intl.get('translate.ollamaConnectionFailed', { error: error.message })
             } else if (error.message.includes('No articles to translate')) {
-                errorMessage = "翻译失败：没有找到可翻译的文章"
+                errorMessage = intl.get('translate.noArticlesToTranslate')
             } else if (error.message.includes('Failed to fetch')) {
-                errorMessage = `翻译失败：网络连接错误\n\n${error.message}\n\n请检查网络连接或翻译服务配置`
+                errorMessage = intl.get('translate.networkError', { error: error.message })
             } else {
-                errorMessage = `翻译失败：${error.message}`
+                errorMessage = intl.get('translate.failedWithError', { error: error.message })
             }
 
             alert(errorMessage)
@@ -940,25 +940,25 @@ function OpenTranslateMenu() {
             key: "section_1",
             itemType: ContextualMenuItemType.Section,
             sectionProps: {
-                title: "🌐 翻译",
+                title: intl.get('translate.translate'),
                 items: [
                     {
                         key: "all",
-                        text: "📝 全部文章",
+                        text: intl.get('translate.allArticles'),
                         iconProps: { iconName: "Translate" },
                         onClick: () => {
-                            console.log('[Translate] Clicked: 全部文章 (无时间限制)')
+                            console.log('[Translate] Clicked: all articles (no time limit)')
                             translateItems(null)
                         },
                     },
                     {
                         key: "1d",
-                        text: "🕐 最近 1 天",
+                        text: intl.get('translate.recentDays', { days: 1 }),
                         iconProps: { iconName: "Translate" },
                         onClick: () => {
                             let date = new Date()
                             date.setTime(date.getTime() - 86400000)
-                            console.log('[Translate] Clicked: 最近 1 天')
+                            console.log('[Translate] Clicked: recent 1 day')
                             console.log('[Translate] Time range:', date.toISOString(), 'to', new Date().toISOString())
                             console.log('[Translate] Milliseconds:', 86400000)
                             translateItems(date)
@@ -966,12 +966,12 @@ function OpenTranslateMenu() {
                     },
                     {
                         key: "3d",
-                        text: "🕐 最近 3 天",
+                        text: intl.get('translate.recentDays', { days: 3 }),
                         iconProps: { iconName: "Translate" },
                         onClick: () => {
                             let date = new Date()
                             date.setTime(date.getTime() - 3 * 86400000)
-                            console.log('[Translate] Clicked: 最近 3 天')
+                            console.log('[Translate] Clicked: recent 3 days')
                             console.log('[Translate] Time range:', date.toISOString(), 'to', new Date().toISOString())
                             console.log('[Translate] Milliseconds:', 3 * 86400000)
                             translateItems(date)
@@ -979,12 +979,12 @@ function OpenTranslateMenu() {
                     },
                     {
                         key: "7d",
-                        text: "🕐 最近 7 天",
+                        text: intl.get('translate.recentDays', { days: 7 }),
                         iconProps: { iconName: "Translate" },
                         onClick: () => {
                             let date = new Date()
                             date.setTime(date.getTime() - 7 * 86400000)
-                            console.log('[Translate] Clicked: 最近 7 天')
+                            console.log('[Translate] Clicked: recent 7 days')
                             console.log('[Translate] Time range:', date.toISOString(), 'to', new Date().toISOString())
                             console.log('[Translate] Milliseconds:', 7 * 86400000)
                             translateItems(date)

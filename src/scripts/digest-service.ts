@@ -4,12 +4,20 @@ import * as db from "./db"
 import lf from "lovefield"
 import { semanticSearch } from "./semantic-search"
 import { IntegrationSettings } from "../schema-types"
-import { aiLikeSummary } from "./local-summary"
+import * as path from "path"
+
+// Load AI prompts dynamically
+const aiPrompts = require("./i18n/ai-prompts.json")
 
 const OPENAI_CHAT_API = "https://api.openai.com/v1/chat/completions"
 const NVIDIA_CHAT_API = "https://integrate.api.nvidia.com/v1/chat/completions"
 const DEEPSEEK_CHAT_API = "https://api.deepseek.com/v1/chat/completions"
 const OPENAI_IMAGE_API = "https://api.openai.com/v1/images/generations"
+
+// Check if running in Tauri environment
+function isTauri(): boolean {
+    return typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined
+}
 
 export interface BriefingResult {
     content: string
@@ -68,10 +76,30 @@ export function getLLMProvider(settings: IntegrationSettings): {
  */
 export async function testOllamaConnection(apiUrl: string, model: string): Promise<{ success: boolean, message: string }> {
     try {
+        const baseUrl = apiUrl.replace(/\/$/, '')
+        
+        // In Tauri, use proxy to avoid CORS issues
+        if (isTauri()) {
+            const { proxyOllama } = await import('./tauri-bridge')
+            try {
+                const result = await proxyOllama(`${baseUrl}/api/tags`, 'GET')
+                const models = result?.models || []
+                const hasModel = models.some((m: any) => m.name === model || m.name.startsWith(model))
+                
+                if (hasModel) {
+                    return { success: true, message: `✓ Ollama 连接成功，模型 "${model}" 已就绪` }
+                } else {
+                    return { success: false, message: `模型 "${model}" 未找到。可用模型: ${models.map((m: any) => m.name).join(', ')}` }
+                }
+            } catch (error: any) {
+                return { success: false, message: `Ollama 连接失败：${error.message || error}` }
+            }
+        }
+        
+        // Direct fetch for browser/Electron
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-        const baseUrl = apiUrl.replace(/\/$/, '')
         const response = await fetch(`${baseUrl}/api/tags`, {
             method: 'GET',
             signal: controller.signal,
@@ -91,7 +119,7 @@ export async function testOllamaConnection(apiUrl: string, model: string): Promi
         }
 
         return { success: true, message: `✓ Ollama 连接成功，模型 "${model}" 已就绪` }
-    } catch (error) {
+    } catch (error: any) {
         if (error.name === 'AbortError') {
             return { success: false, message: 'Ollama 连接超时，请检查网络和地址' }
         }
@@ -145,13 +173,14 @@ export interface BriefingResult {
 
 /**
  * Formats a list of articles into a structured text for LLM ingestion.
+ * Optimized for small models (reduced context length)
  */
 export function formatArticlesForAI(items: RSSItem[]): string {
     return items.map((item, index) => {
         const text = extractTextFromHtml(item.content)
-        // Limit each snippet to avoid context overflow (approx 500 chars per item)
-        const snippet = text.substring(0, 500)
-        return `[Article ${index + 1}]\nTitle: ${item.title}\nSource: ${item.source}\nContent: ${snippet}\n---\n`
+        // 优化：减少每篇 snippets 长度（从 500 降到 250）
+        const snippet = text.substring(0, 250)
+        return `[${index + 1}] ${item.title}\n${snippet}\n---\n`
     }).join("\n")
 }
 
@@ -182,11 +211,17 @@ export async function generateAIDigest(
     }
 
     const context = formatArticlesForAI(items)
-    const systemPrompt = language.startsWith("zh")
-        ? "你是一个资深的科技/新闻编辑。请根据提供的多篇文章内容，生成一份结构清晰、可读性强的每日报送。包括：1. 核心综述（一段话总结今日重点）；2. 分类资讯（按主题归类，每条包含标题和简要概括）；3. 深度观察（如果有值得深度阅读的内容）。使用 Markdown 格式。"
-        : "You are a senior news editor. Based on the provided articles, generate a structured and highly readable daily briefing. Include: 1. Executive Summary; 2. Categorized News (grouped by topic, each with title and brief summary); 3. Deep Dives (if any significant content found). Use Markdown format."
-
-    const userPrompt = `Here are the articles:\n\n${context}\n\nPlease generate the briefing in ${language.startsWith("zh") ? "Chinese" : "English"}.`
+    
+    // Get language code (first 2 characters)
+    const langCode = language.substring(0, 2).toLowerCase()
+    
+    // Get prompts based on language, fallback to English
+    const prompts = aiPrompts.digest as any
+    const systemPrompt = prompts.systemPrompt[langCode] || prompts.systemPrompt.en
+    const userPromptTemplate = prompts.userPromptTemplate[langCode] || prompts.userPromptTemplate.en
+    
+    // Replace placeholders
+    const userPrompt = userPromptTemplate.replace('{articles}', context)
 
     try {
         // Build request body based on provider
@@ -209,31 +244,40 @@ export async function generateAIDigest(
             temperature: 0.7
         }
 
-        const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-        }
+        let data: any
         
-        // Add Authorization header for cloud providers (not Ollama)
-        if (provider.apiKey) {
-            headers["Authorization"] = `Bearer ${provider.apiKey}`
+        // In Tauri, use proxy for Ollama to avoid CORS issues
+        if (isTauri() && provider.provider === 'ollama') {
+            const { proxyOllama } = await import('./tauri-bridge')
+            data = await proxyOllama(provider.apiUrl, 'POST', requestBody)
+        } else {
+            // Direct fetch for cloud providers or browser/Electron
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+            }
+
+            // Add Authorization header for cloud providers (not Ollama)
+            if (provider.apiKey) {
+                headers["Authorization"] = `Bearer ${provider.apiKey}`
+            }
+
+            const response = await fetch(provider.apiUrl, {
+                method: "POST",
+                headers,
+                body: JSON.stringify(requestBody)
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(`LLM API error: ${error.error?.message || response.statusText}`)
+            }
+
+            data = await response.json()
         }
 
-        const response = await fetch(provider.apiUrl, {
-            method: "POST",
-            headers,
-            body: JSON.stringify(requestBody)
-        })
-
-        if (!response.ok) {
-            const error = await response.json()
-            throw new Error(`LLM API error: ${error.error?.message || response.statusText}`)
-        }
-
-        const data = await response.json()
-        
         // Extract content based on provider
-        const content = provider.provider === 'ollama' 
-            ? data.message?.content 
+        const content = provider.provider === 'ollama'
+            ? data.message?.content
             : data.choices[0].message.content
         
         if (!content) {
@@ -287,7 +331,7 @@ export async function generateCoverImage(
 
 /**
  * Enhanced digest generation with topic filtering and DALL-E support.
- * Falls back to local summarization if AI services are unavailable.
+ * Requires AI service to be configured - no local fallback.
  */
 export async function generateEnhancedDigest(
     options: {
@@ -299,13 +343,17 @@ export async function generateEnhancedDigest(
         sourceIds?: number[],        // Optional: filter by specific sources
         groupIds?: number[],         // Optional: filter by specific groups
         groups?: any[],              // Optional: groups array for group-based filtering
-        useLocalFallback?: boolean   // Use local summarization if AI fails
     }
 ): Promise<BriefingResult> {
-    const { settings, language = "en", topics = [], dalleEnabled = false, hours = 24, sourceIds, groupIds, groups, useLocalFallback = true } = options
+    const { settings, language = "en", topics = [], dalleEnabled = false, hours = 24, sourceIds, groupIds, groups } = options
 
     // Get LLM provider
     const provider = getLLMProvider(settings)
+
+    // Must have AI provider configured
+    if (!provider) {
+        throw new Error("未配置 AI 服务。请在设置 > 集成 > AI 与推送服务中配置 OpenAI、NVIDIA、DeepSeek 或 Ollama。")
+    }
 
     // Determine source IDs to use
     let finalSourceIds: number[] | undefined = sourceIds
@@ -331,8 +379,8 @@ export async function generateEnhancedDigest(
     let items = await getRecentItems(hours, finalSourceIds)
     if (items.length === 0) throw new Error("No articles available.")
 
-    // 2. Topic Filtering (Semantic Search) - only if AI provider available
-    if (topics.length > 0 && provider) {
+    // 2. Topic Filtering (Semantic Search)
+    if (topics.length > 0) {
         const itemMap: { [_id: number]: RSSItem } = {}
         items.forEach(i => itemMap[i._id] = i)
 
@@ -340,168 +388,130 @@ export async function generateEnhancedDigest(
         items = filteredResults.map(r => r.item)
     }
 
-    // Limit to top 15 items
-    const selectedItems = items.slice(0, 15)
+    // Limit to top items (optimized for small models)
+    const maxItems = provider.provider === 'ollama' ? 8 : 15  // Ollama 小模型减少数量
+    const selectedItems = items.slice(0, maxItems)
 
-    // 3. Generate Content
+    // 3. Generate Content using AI
     const context = formatArticlesForAI(selectedItems)
     const isChinese = language.startsWith("zh")
 
-    // Try AI first if provider is available
-    if (provider) {
+    // 简化的提示词（减少处理时间）
+    const systemPrompt = isChinese
+        ? "你是新闻编辑。请将以下文章摘要整理成简洁的中文简报，包含：1.今日要点（3-5条最重要新闻）；2.分类摘要（科技、商业等）。每条新闻一句话总结。使用 Markdown 格式。"
+        : "You are a news editor. Create a concise briefing from these article summaries. Include: 1. Key Points (3-5 most important); 2. Category Summary. One sentence per news item. Use Markdown."
+
+    const userPrompt = `Articles:\n\n${context}\n\nGenerate briefing in ${isChinese ? "Chinese" : "English"}.`
+
+    // Build request body based on provider
+    const requestBody = provider.provider === 'ollama' ? {
+        model: provider.model,
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+        ],
+        stream: false,
+        options: {
+            temperature: 0.7,
+            num_ctx: 4096,  // 限制上下文长度
+            num_predict: 1024  // 限制输出长度
+        }
+    } : {
+        model: provider.model,
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+        ],
+        temperature: 0.7
+    }
+
+    console.log(`[Digest] 准备生成摘要: ${selectedItems.length} 篇文章`)
+    console.log(`[Digest] 输入大小: ~${Math.round(context.length / 4)} tokens`)
+
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+    }
+
+    // Add Authorization header for cloud providers (not Ollama)
+    if (provider.apiKey) {
+        headers["Authorization"] = `Bearer ${provider.apiKey}`
+    }
+
+    let chatData: any
+
+    // In Tauri, use proxy for Ollama to avoid CORS issues
+    console.log('[Digest] 准备调用 LLM API')
+    console.log('[Digest] Provider:', provider.provider)
+    console.log('[Digest] API URL:', provider.apiUrl)
+    console.log('[Digest] Is Tauri:', isTauri())
+    console.log('[Digest] Request body:', JSON.stringify(requestBody).substring(0, 200) + '...')
+
+    if (isTauri() && provider.provider === 'ollama') {
+        console.log('[Digest] 使用 Tauri 代理调用 Ollama')
+        const { proxyOllama } = await import('./tauri-bridge')
         try {
-            const systemPrompt = isChinese
-                ? "你是一个资深的全球科技新闻编辑。请根据提供的文章（包括外语文章），生成一份结构清晰、可读性强的每日报送。如果原始文章是英文或其他语言，请将其要点翻译并汇总为中文。报送需包含：1. 核心综述（今日全球大趋势）；2. 专题资讯（按主题分类，每条包含深度总结）；3. 趣味/深度推荐。使用 Markdown 格式。"
-                : "You are a senior global news editor. Generate a structured daily briefing based on the provided articles. If articles are in other languages, translate and summarize them into English. Include: 1. Executive Summary; 2. Categorized News (deep summaries); 3. Deep Dives/Recommendations. Use Markdown format."
+            chatData = await proxyOllama(provider.apiUrl, 'POST', requestBody)
+            console.log('[Digest] Ollama 代理调用成功')
+            console.log('[Digest] 响应数据:', JSON.stringify(chatData).substring(0, 300) + '...')
+        } catch (error: any) {
+            console.error('[Digest] Ollama 代理调用失败:', error)
+            // 提供更详细的错误提示
+            let errorMsg = error.message || String(error)
+            if (errorMsg.includes('timed out') || errorMsg.includes('timeout')) {
+                errorMsg = `Ollama 请求超时。可能原因：
+1. 模型 "${provider.model}" 正在首次加载，请耐心等待
+2. Ollama 服务未启动，请检查：http://localhost:11434
+3. 模型文件过大，建议先运行：ollama pull ${provider.model}
 
-            const userPrompt = `Articles:\n\n${context}\n\nPlease generate the briefing in ${isChinese ? "Chinese" : "English"}.`
-
-            // Build request body based on provider
-            const requestBody = provider.provider === 'ollama' ? {
-                model: provider.model,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userPrompt }
-                ],
-                stream: false,
-                options: {
-                    temperature: 0.7,
-                }
-            } : {
-                model: provider.model,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userPrompt }
-                ],
-                temperature: 0.7
+您可以先在浏览器测试：打开 http://localhost:11434 确认 Ollama 正在运行`
+            } else if (errorMsg.includes('connection refused') || errorMsg.includes('connect')) {
+                errorMsg = `无法连接到 Ollama 服务。
+请检查：
+1. Ollama 是否已启动（默认地址：http://localhost:11434）
+2. 当前配置的地址：${provider.apiUrl}`
             }
-
-            const headers: Record<string, string> = {
-                "Content-Type": "application/json",
-            }
-
-            // Add Authorization header for cloud providers (not Ollama)
-            if (provider.apiKey) {
-                headers["Authorization"] = `Bearer ${provider.apiKey}`
-            }
-
-            const chatResponse = await fetch(provider.apiUrl, {
-                method: "POST",
-                headers,
-                body: JSON.stringify(requestBody)
-            })
-
-            if (!chatResponse.ok) {
-                const error = await chatResponse.json()
-                throw new Error(`LLM API error: ${error.error?.message}`)
-            }
-
-            const chatData = await chatResponse.json()
-
-            // Extract content based on provider
-            const content = provider.provider === 'ollama'
-                ? chatData.message?.content
-                : chatData.choices[0].message.content
-
-            if (!content) {
-                throw new Error('No content generated from LLM')
-            }
-
-            // 4. DALL-E Image (only available for OpenAI)
-            let coverUrl: string | undefined = undefined
-            if (dalleEnabled && provider.provider === "openai") {
-                // Use the first paragraph as theme for DALL-E
-                const firstPara = content.split('\n').filter(l => l.trim().length > 20)[0] || content
-                coverUrl = await generateCoverImage(firstPara, provider.apiKey)
-            }
-
-            return {
-                content,
-                timestamp: new Date(),
-                articleCount: selectedItems.length,
-                coverUrl
-            }
-        } catch (error) {
-            console.error('[Digest] AI generation failed:', error)
-            if (!useLocalFallback) {
-                throw error
-            }
-            // Continue to local fallback
-            console.log('[Digest] Using local summarization as fallback')
+            throw new Error(`Ollama 代理调用失败: ${errorMsg}`)
         }
-    }
-
-    // Local summarization fallback
-    const isLocalFallback = !provider || useLocalFallback
-    
-    if (isLocalFallback) {
-        // Generate local summary
-        const articleTexts = selectedItems.map((item, index) => {
-            const title = item.title || `Article ${index + 1}`
-            const content = extractTextFromHtml(item.content || '').substring(0, 500)
-            return `[${title}]\n${content}\n`
+    } else {
+        console.log('[Digest] 使用直接 fetch 调用')
+        // Direct fetch for cloud providers
+        const chatResponse = await fetch(provider.apiUrl, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(requestBody)
         })
 
-        const fullText = articleTexts.join('\n---\n')
-        
-        // Determine sentence count based on article count
-        const sentenceCount = Math.min(10, Math.max(5, selectedItems.length * 2))
-
-        const summary = aiLikeSummary(fullText, {
-            sentenceCount,
-            language: isChinese ? 'zh' : 'en'
-        })
-
-        // Format as markdown
-        const content = isChinese
-            ? `# 📰 每日资讯摘要
-
-**日期**: ${new Date().toLocaleDateString('zh-CN')}
-**文章数量**: ${selectedItems.length} 篇
-
----
-
-## 📝 内容摘要
-
-${summary}
-
----
-
-## 📄 文章列表
-
-${selectedItems.map((item, i) => `${i + 1}. **${item.title}** - ${item.source || '未知来源'}`).join('\n')}
-
----
-
-*注: 此为本地自动摘要，未使用 AI 服务。*`
-            : `# 📰 Daily News Summary
-
-**Date**: ${new Date().toLocaleDateString('en-US')}
-**Articles**: ${selectedItems.length}
-
----
-
-## 📝 Summary
-
-${summary}
-
----
-
-## 📄 Article List
-
-${selectedItems.map((item, i) => `${i + 1}. **${item.title}** - ${item.source || 'Unknown'}`).join('\n')}
-
----
-
-*Note: This is a local auto-summary, AI services were not used.*`
-
-        return {
-            content,
-            timestamp: new Date(),
-            articleCount: selectedItems.length
+        if (!chatResponse.ok) {
+            const error = await chatResponse.json()
+            throw new Error(`LLM API error: ${error.error?.message || chatResponse.statusText}`)
         }
+
+        chatData = await chatResponse.json()
+        console.log('[Digest] 直接调用成功')
+        console.log('[Digest] 响应数据:', JSON.stringify(chatData).substring(0, 300) + '...')
     }
 
-    // Should not reach here, but just in case
-    throw new Error('Failed to generate digest: no available method')
+    // Extract content based on provider
+    const content = provider.provider === 'ollama'
+        ? chatData.message?.content
+        : chatData.choices[0].message.content
+
+    if (!content) {
+        throw new Error('LLM 未返回有效内容')
+    }
+
+    // 4. DALL-E Image (only available for OpenAI)
+    let coverUrl: string | undefined = undefined
+    if (dalleEnabled && provider.provider === "openai") {
+        // Use the first paragraph as theme for DALL-E
+        const firstPara = content.split('\n').filter(l => l.trim().length > 20)[0] || content
+        coverUrl = await generateCoverImage(firstPara, provider.apiKey)
+    }
+
+    return {
+        content,
+        timestamp: new Date(),
+        articleCount: selectedItems.length,
+        coverUrl
+    }
 }
