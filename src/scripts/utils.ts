@@ -76,17 +76,36 @@ export async function decodeFetchResponse(response: Response, isHTML = false) {
 export async function parseRSS(url: string) {
     let result: Response
     try {
-        result = await fetch(url, { credentials: "omit" })
-    } catch {
-        throw new Error(intl.get("log.networkError"))
+        // Check if running in Tauri environment
+        const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined
+
+        if (isTauri) {
+            // Use Tauri backend proxy to avoid CORS
+            const { fetchRSS } = await import('./tauri-bridge')
+            const xmlString = await fetchRSS(url)
+            return await rssParser.parseString(xmlString)
+        } else {
+            // Direct fetch for browser/Electron environment
+            result = await fetch(url, { credentials: "omit" })
+        }
+    } catch (err: any) {
+        // If it's already a parsing error, rethrow it
+        if (err.message && (err.message.includes('parse') || err.message.includes('XML'))) {
+            throw err
+        }
+        // Provide more specific error message
+        const errorMsg = err.message || String(err)
+        console.error(`[RSS] Failed to fetch ${url}:`, errorMsg)
+        throw new Error(`${intl.get("log.networkError")} (${errorMsg})`)
     }
     if (result && result.ok) {
         try {
             return await rssParser.parseString(
                 await decodeFetchResponse(result)
             )
-        } catch {
-            throw new Error(intl.get("log.parseError"))
+        } catch (err: any) {
+            console.error(`[RSS] Failed to parse ${url}:`, err)
+            throw new Error(`${intl.get("log.parseError")} (${err.message || String(err)})`)
         }
     } else {
         throw new Error(result.status + " " + result.statusText)
