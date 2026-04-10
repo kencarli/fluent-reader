@@ -440,7 +440,7 @@ export const startTranslateWithTimeRange = (date?: Date | null): AppThunk<Promis
                 items = await query.exec() as RSSItem[]
             } else if (feedId === SOURCE) {
                 // Sources view - no articles to translate
-                alert("Please select a specific source or group first")
+                alert(intl.get("translate.selectSource"))
                 return
             } else if (feedId.startsWith("s-")) {
                 // Single source
@@ -494,7 +494,7 @@ export const startTranslateWithTimeRange = (date?: Date | null): AppThunk<Promis
             }
 
             if (items.length === 0) {
-                alert("No articles to translate")
+                alert(intl.get("translate.noArticlesFound"))
                 return
             }
 
@@ -511,7 +511,7 @@ export const startTranslateWithTimeRange = (date?: Date | null): AppThunk<Promis
             )
 
             dispatch(translateComplete(translatedTitles))
-            dispatch(translateCompleteNotify(`翻译完成 ${translatedTitles.length} 篇标题`))
+            dispatch(translateCompleteNotify(intl.get("translate.completed", { count: translatedTitles.length })))
 
             // Store translated titles in session storage (temporary solution)
             const translations = {}
@@ -768,14 +768,22 @@ export function initApp(): AppThunk {
         dispatch(initIntl())
             .then(async () => {
                 if (window.utils.platform === "darwin") initTouchBarWithTexts()
+                // Ensure default filter type shows all articles (including read)
+                // Only set if not already configured
+                const currentFilter = window.settings.getFilterType()
+                if (currentFilter === null || currentFilter === undefined) {
+                    // 0 = FilterType.None (show all), | 16 = CaseInsensitive for search
+                    window.settings.setFilterType(0 | 16)
+                }
                 await dispatch(initSources())
             })
-            .then(() => dispatch(initFeeds()))
             .then(async () => {
-                // Fetch new items from sources (background mode, won't dismiss items)
+                // Fetch new items from sources FIRST (background mode, won't dismiss items)
                 await dispatch(fetchItems(true))
-                // Then select all articles page
-                dispatch(selectAllArticles())
+                // THEN initialize feeds with the fetched items
+                await dispatch(initFeeds())
+                // Then select all articles page with init=true to reload feeds
+                dispatch(selectAllArticles(true))
             })
             .then(() => {
                 dispatch(updateFavicon())
@@ -842,7 +850,7 @@ export function appReducer(
                 ...state,
                 translating: false,
                 translateProgress: { completed: 0, total: 0 },
-                translateCompleteMessage: `翻译完成 ${action.payload.translatedTitles.length} 篇标题`
+                translateCompleteMessage: intl.get("translate.completed", { count: action.payload.translatedTitles.length })
             }
         case TRANSLATE_COMPLETE_NOTIFY:
             return {
@@ -1113,28 +1121,6 @@ export function appReducer(
                             ? ContextMenuType.Hidden
                             : ContextMenuType.OpenRating,
                     event: "#rating-toggle",
-                },
-            }
-        case OPEN_DIGEST_MENU:
-            return {
-                ...state,
-                contextMenu: {
-                    type:
-                        state.contextMenu.type === ContextMenuType.OpenDigest
-                            ? ContextMenuType.Hidden
-                            : ContextMenuType.OpenDigest,
-                    event: "#digest-toggle",
-                },
-            }
-        case OPEN_TRANSLATE_MENU:
-            return {
-                ...state,
-                contextMenu: {
-                    type:
-                        state.contextMenu.type === ContextMenuType.OpenTranslate
-                            ? ContextMenuType.Hidden
-                            : ContextMenuType.OpenTranslate,
-                    event: "#translate-toggle",
                 },
             }
         case TOGGLE_MENU:

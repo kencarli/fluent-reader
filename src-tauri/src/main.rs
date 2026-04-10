@@ -45,31 +45,295 @@ pub struct AppState {
 
 // ==================== RSS 抓取命令 ====================
 
+/// 清理 RSS XML 内容,修复常见的格式问题
+fn clean_rss_xml(xml: &str) -> String {
+    let mut cleaned = String::with_capacity(xml.len());
+    let mut in_tag = false;
+    let mut in_cdata = false;
+    let mut chars = xml.chars().peekable();
+    // 用于检测 CDATA 的字符缓冲区（保存最近的几个字符）
+    let mut char_buffer: Vec<char> = Vec::with_capacity(10);
+
+    while let Some(c) = chars.next() {
+        // 检测 CDATA 区域 - 使用字符缓冲区而不是字节索引
+        char_buffer.push(c);
+        if char_buffer.len() > 10 {
+            char_buffer.remove(0);
+        }
+        
+        if !in_tag {
+            let buffer_str: String = char_buffer.iter().collect();
+            if buffer_str.ends_with("<![CDATA") {
+                in_cdata = true;
+            }
+        }
+        
+        if in_cdata && c == ']' && chars.peek() == Some(&']') {
+            in_cdata = false;
+        }
+        
+        if c == '<' {
+            in_tag = true;
+            cleaned.push(c);
+        } else if c == '>' {
+            in_tag = false;
+            cleaned.push(c);
+        } else if in_tag {
+            // 在标签内部,直接复制
+            cleaned.push(c);
+        } else if in_cdata {
+            // 在 CDATA 内部,直接复制
+            cleaned.push(c);
+        } else {
+            // 在标签外部,修复未编码的 <
+            if c == '<' {
+                cleaned.push_str("&lt;");
+            } else if c == '&' {
+                // 检查是否是实体引用
+                let mut entity = String::from("&");
+                let mut is_entity = false;
+                let mut temp_chars = chars.clone();
+                
+                while let Some(next_c) = temp_chars.next() {
+                    entity.push(next_c);
+                    if next_c == ';' {
+                        is_entity = true;
+                        break;
+                    }
+                    if !next_c.is_alphanumeric() && next_c != '#' {
+                        break;
+                    }
+                }
+                
+                if is_entity {
+                    // 是实体引用,消耗这些字符
+                    for _ in 0..entity.len() - 1 {
+                        chars.next();
+                    }
+                    cleaned.push_str(&entity);
+                } else {
+                    // 不是实体引用,转义 &
+                    cleaned.push_str("&amp;");
+                }
+            } else {
+                cleaned.push(c);
+            }
+        }
+    }
+    
+    cleaned
+}
+
 #[tauri::command]
 async fn fetch_rss_feed(url: String) -> Result<String, String> {
+    // 首先尝试直接访问
+    let result = fetch_rss_direct(&url).await;
+    
+    match result {
+        Ok(content) => Ok(content),
+        Err(e) => {
+            // 如果失败，尝试通过 rss2json API 获取
+            println!("[RSS] Direct fetch failed: {}, trying rss2json proxy", e);
+            fetch_rss_via_proxy(&url).await
+        }
+    }
+}
+
+async fn fetch_rss_direct(url: &str) -> Result<String, String> {
+    // 使用更像浏览器的 User-Agent 和请求头来绕过 Cloudflare 等保护
     let client = reqwest::Client::builder()
-        .user_agent("FluentReader/1.1.4")
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .gzip(true)
         .build()
         .map_err(|e| e.to_string())?;
 
     let response = client
-        .get(&url)
+        .get(url)
+        .header("Accept", "application/rss+xml, application/xml, text/xml, text/html, */*;q=0.9")
+        .header("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7")
+        .header("Accept-Encoding", "gzip, deflate, br")
+        .header("Connection", "keep-alive")
+        .header("Cache-Control", "max-age=0")
         .send()
         .await
         .map_err(|e| format!("Failed to fetch RSS: {}", e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("HTTP {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
+    }
 
     let body = response
         .text()
         .await
         .map_err(|e| format!("Failed to read response: {}", e))?;
 
-    Ok(body)
+    // 清理 XML 内容,修复格式问题
+    Ok(clean_rss_xml(&body))
+}
+
+async fn fetch_rss_via_proxy(url: &str) -> Result<String, String> {
+    // 使用 rss2json API 作为代理
+    let encoded_url = urlencoding::encode(url);
+    let api_url = format!("https://api.rss2json.com/v1/api.json?rss_url={}", encoded_url);
+    
+    println!("[RSS] Trying rss2json proxy: {}", api_url);
+    
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .get(&api_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch via proxy: {}", e))?;
+
+    let status = response.status();
+    println!("[RSS] rss2json response status: {}", status);
+
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read proxy response: {}", e))?;
+
+    println!("[RSS] rss2json response length: {} bytes", body.len());
+
+    // 将 JSON 转换回 RSS XML 格式
+    let json: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(j) => j,
+        Err(e) => {
+            println!("[RSS] Failed to parse JSON: {}", e);
+            println!("[RSS] Response preview: {}", &body[..body.len().min(500)]);
+            return Err(format!("Failed to parse JSON: {}", e));
+        }
+    };
+
+    println!("[RSS] rss2json status field: {:?}", json["status"]);
+
+    if json["status"] == "ok" {
+        // 构建简单的 RSS XML
+        let title = json["feed"]["title"].as_str().unwrap_or("");
+        let link = json["feed"]["link"].as_str().unwrap_or("");
+        let description = json["feed"]["description"].as_str().unwrap_or("");
+        
+        let mut xml = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>{}</title>
+    <link>{}</link>
+    <description>{}</description>
+"#, escape_xml(title), escape_xml(link), escape_xml(description));
+
+        if let Some(items) = json["items"].as_array() {
+            println!("[RSS] Converting {} items from JSON to XML", items.len());
+            for item in items {
+                let item_title = item["title"].as_str().unwrap_or("");
+                let item_link = item["link"].as_str().unwrap_or("");
+                let item_desc = item["description"].as_str().unwrap_or("");
+                let item_date = item["pubDate"].as_str().unwrap_or("");
+                let item_content = item["content"].as_str().unwrap_or("");
+                let item_author = item["author"].as_str().unwrap_or("");
+                
+                xml.push_str(&format!(r#"    <item>
+      <title>{}</title>
+      <link>{}</link>
+      <description>{}</description>
+      <content:encoded><![CDATA[{}]]></content:encoded>
+      <author>{}</author>
+      <pubDate>{}</pubDate>
+    </item>
+"#, 
+                    escape_xml(item_title), 
+                    escape_xml(item_link), 
+                    escape_xml(item_desc),
+                    item_content,
+                    escape_xml(item_author),
+                    escape_xml(item_date)
+                ));
+            }
+        }
+
+        xml.push_str("  </channel>\n</rss>");
+        println!("[RSS] Successfully converted to XML, {} bytes", xml.len());
+        Ok(xml)
+    } else {
+        let error_msg = json["message"].as_str().unwrap_or("Unknown error");
+        println!("[RSS] rss2json API error: {}", error_msg);
+        Err(format!("rss2json API returned error: {}", error_msg))
+    }
+}
+
+fn escape_xml(s: &str) -> String {
+    s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&apos;")
+}
+
+// ==================== 网页内容获取命令 ====================
+
+#[tauri::command]
+async fn fetch_webpage(url: String) -> Result<String, String> {
+    // 创建更像浏览器的 HTTP 客户端
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .gzip(true)
+        .brotli(true)
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .cookie_store(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // 第一次请求：获取 HTML
+    let response = client
+        .get(&url)
+        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+        .header("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7")
+        .header("Accept-Encoding", "gzip, deflate, br")
+        .header("Connection", "keep-alive")
+        .header("Sec-Ch-Ua", "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"")
+        .header("Sec-Ch-Ua-Mobile", "?0")
+        .header("Sec-Ch-Ua-Platform", "\"Windows\"")
+        .header("Sec-Fetch-Dest", "document")
+        .header("Sec-Fetch-Mode", "navigate")
+        .header("Sec-Fetch-Site", "none")
+        .header("Sec-Fetch-User", "?1")
+        .header("Upgrade-Insecure-Requests", "1")
+        .header("Cache-Control", "max-age=0")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch webpage: {}", e))?;
+
+    let status = response.status();
+    
+    // 即使 403 也返回内容，让前端 Mercury Parser 尝试处理
+    if !status.is_success() && status.as_u16() != 403 {
+        return Err(format!("HTTP {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
+    }
+
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read webpage: {}", e))?;
+
+    // 返回原始 HTML，前端会使用 Mercury Parser 提取正文
+    if status.as_u16() == 403 {
+        // 对于 403，在返回的 HTML 中添加提示
+        Ok(format!("<!-- HTTP 403: Access denied. Website may have anti-bot protection. -->\n{}", body))
+    } else {
+        Ok(body)
+    }
 }
 
 #[tauri::command]
 async fn fetch_multiple_feeds(urls: Vec<String>) -> Result<Vec<(String, Result<String, String>)>, String> {
+    // 使用更像浏览器的 User-Agent 和请求头
     let client = reqwest::Client::builder()
-        .user_agent("FluentReader/1.1.4")
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .gzip(true)
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -79,14 +343,24 @@ async fn fetch_multiple_feeds(urls: Vec<String>) -> Result<Vec<(String, Result<S
         let result = async {
             let response = client
                 .get(&url)
+                .header("Accept", "application/rss+xml, application/xml, text/xml, text/html, */*;q=0.9")
+                .header("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7")
                 .send()
                 .await
                 .map_err(|e| e.to_string())?;
-            
-            response
+
+            let status = response.status();
+            if !status.is_success() {
+                return Err(format!("HTTP {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
+            }
+
+            let body = response
                 .text()
                 .await
-                .map_err(|e| e.to_string())
+                .map_err(|e| e.to_string())?;
+
+            // 清理 XML 内容
+            Ok(clean_rss_xml(&body))
         }.await;
 
         match result {
@@ -365,6 +639,113 @@ async fn request_attention(window: tauri::Window) {
     window.set_always_on_top(false).ok();
 }
 
+// ==================== 对话框命令 ====================
+
+#[tauri::command]
+async fn show_open_dialog(
+    app: tauri::AppHandle,
+    filters: Option<Vec<(String, Vec<String>)>>,
+    default_path: Option<String>,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    
+    let mut dialog = app.dialog().file();
+    
+    // 添加过滤器
+    if let Some(f) = filters {
+        for (name, extensions) in f {
+            let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+            dialog = dialog.add_filter(&name, &ext_refs);
+        }
+    }
+    
+    // 设置默认文件名
+    if let Some(path) = default_path {
+        if let Some(file_name) = std::path::Path::new(&path).file_name() {
+            if let Some(name_str) = file_name.to_str() {
+                dialog = dialog.set_file_name(name_str);
+            }
+        }
+    }
+    
+    // 阻塞式选择文件
+    let result = dialog.blocking_pick_file();
+    
+    match result {
+        Some(path) => {
+            // FilePath 枚举转换为字符串
+            match path {
+                tauri_plugin_dialog::FilePath::Path(p) => {
+                    Ok(p.to_str().map(|s| s.to_string()))
+                }
+                tauri_plugin_dialog::FilePath::Url(url) => {
+                    Ok(Some(url.to_string()))
+                }
+            }
+        }
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+async fn show_save_dialog(
+    app: tauri::AppHandle,
+    filters: Option<Vec<(String, Vec<String>)>>,
+    default_path: Option<String>,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    
+    let mut dialog = app.dialog().file();
+    
+    // 添加过滤器
+    if let Some(f) = filters {
+        for (name, extensions) in f {
+            let ext_refs: Vec<&str> = extensions.iter().map(|s| s.as_str()).collect();
+            dialog = dialog.add_filter(&name, &ext_refs);
+        }
+    }
+    
+    // 设置默认文件名
+    if let Some(path) = default_path {
+        if let Some(file_name) = std::path::Path::new(&path).file_name() {
+            if let Some(name_str) = file_name.to_str() {
+                dialog = dialog.set_file_name(name_str);
+            }
+        }
+    }
+    
+    // 阻塞式保存文件
+    let result = dialog.blocking_save_file();
+    
+    match result {
+        Some(path) => {
+            match path {
+                tauri_plugin_dialog::FilePath::Path(p) => {
+                    Ok(p.to_str().map(|s| s.to_string()))
+                }
+                tauri_plugin_dialog::FilePath::Url(url) => {
+                    Ok(Some(url.to_string()))
+                }
+            }
+        }
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+async fn read_file(path: String) -> Result<String, String> {
+    use std::fs;
+    fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read file: {}", e))
+}
+
+#[tauri::command]
+async fn write_file(path: String, content: String) -> Result<(), String> {
+    use std::fs;
+    fs::write(&path, content)
+        .map_err(|e| format!("Failed to write file: {}", e))
+}
+
 // ==================== Ollama 代理命令 ====================
 
 #[derive(Debug, Deserialize)]
@@ -440,9 +821,15 @@ fn main() {
             // RSS 相关
             fetch_rss_feed,
             fetch_multiple_feeds,
+            fetch_webpage,
             // 文件操作
             read_file_content,
             save_file_content,
+            read_file,
+            write_file,
+            // 对话框
+            show_open_dialog,
+            show_save_dialog,
             // 系统相关
             get_app_version,
             get_app_data_dir,
