@@ -76,10 +76,17 @@ type ArticleState = {
 }
 
 class Article extends React.Component<ArticleProps, ArticleState> {
-    webview: Electron.WebviewTag
+    articleFrameRef: React.RefObject<HTMLIFrameElement>
+    articleFrame: HTMLIFrameElement | null
+    iframeReady: boolean
+    messageHandler: ((event: MessageEvent) => void) | null
 
     constructor(props: ArticleProps) {
         super(props)
+        this.articleFrameRef = React.createRef()
+        this.articleFrame = null
+        this.iframeReady = false
+        this.messageHandler = null
         this.state = {
             fontFamily: window.settings.getFont(),
             fontSize: window.settings.getFontSize(),
@@ -397,9 +404,9 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         this.setState({ error: true, errorDescription: reason })
     }
     webviewReload = () => {
-        if (this.webview) {
+        if (this.articleFrame) {
             this.setState({ loaded: false, error: false })
-            this.webview.reload()
+            this.articleFrame.src = this.articleFrame.src
         } else if (this.state.loadFull) {
             this.loadFull()
         }
@@ -407,23 +414,68 @@ class Article extends React.Component<ArticleProps, ArticleState> {
 
     componentDidMount = () => {
         this.loadHighlights()
-        let webview = document.getElementById("article") as Electron.WebviewTag
-        if (webview != this.webview) {
-            this.webview = webview
-            if (webview) {
-                webview.focus()
-                this.setState({ loaded: false, error: false })
-                webview.addEventListener("did-stop-loading", this.webviewLoaded)
-                let card = document.querySelector(
-                    `#refocus div[data-iid="${this.props.item._id}"]`
-                ) as HTMLElement
-                // @ts-ignore
-                if (card) card.scrollIntoViewIfNeeded()
+        // Use iframe instead of webview for Tauri compatibility
+        const articleFrame = document.getElementById("article") as HTMLIFrameElement
+        if (articleFrame) {
+            this.articleFrame = articleFrame
+            this.setState({ loaded: false, error: false })
+            
+            // Track if iframe is ready
+            this.iframeReady = false
+            
+            // Listen for article ready message
+            this.messageHandler = (event: MessageEvent) => {
+                if (event.data && event.data.type === 'articleReady') {
+                    console.log(`[Article] Received articleReady, iframe is ready`)
+                    this.iframeReady = true
+
+                    // If we have content, send it now
+                    if (this.state.loadFull && this.state.fullContent && this.articleFrame) {
+                        console.log(`[Article] Sending full content to iframe, length: ${this.state.fullContent.length}`)
+                        this.articleFrame.contentWindow?.postMessage({
+                            type: 'fullContent',
+                            html: this.state.fullContent,
+                            url: this.props.item.link,
+                            loadFull: true
+                        }, '*')
+                    }
+                }
+                
+                // Handle request to load URL directly (when content extraction fails)
+                if (event.data && event.data.type === 'requestDirectLoad') {
+                    console.log(`[Article] Received requestDirectLoad, opening in external browser: ${event.data.url}`)
+                    // Use Tauri's openExternal if available, otherwise fall back to window.open
+                    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
+                        // Tauri environment - use Tauri's shell API
+                        import('../scripts/tauri-bridge').then(({ openExternal }) => {
+                            openExternal(event.data.url)
+                        }).catch(() => {
+                            // Fallback if Tauri bridge fails
+                            window.open(event.data.url, '_blank')
+                        })
+                    } else {
+                        // Non-Tauri environment
+                        window.open(event.data.url, '_blank')
+                    }
+                }
             }
+            window.addEventListener('message', this.messageHandler)
+            
+            articleFrame.onload = () => {
+                this.webviewLoaded()
+            }
+            let card = document.querySelector(
+                `#refocus div[data-iid="${this.props.item._id}"]`
+            ) as HTMLElement
+            // @ts-ignore
+            if (card) card.scrollIntoViewIfNeeded()
         }
     }
-    componentDidUpdate = (prevProps: ArticleProps) => {
+    componentDidUpdate = (prevProps: ArticleProps, prevState: ArticleState) => {
         if (prevProps.item._id != this.props.item._id) {
+            // Reset iframe ready flag when switching articles
+            this.iframeReady = false
+            
             this.loadHighlights()
             this.setState({
                 loadWebpage:
@@ -441,14 +493,18 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             if (this.props.source.openTarget === SourceOpenTarget.FullContent)
                 this.loadFull()
         }
-        // Only call mount logic if webview changed
-        let webview = document.getElementById("article") as Electron.WebviewTag
-        if (webview != this.webview) {
-            this.componentDidMount()
-        }
     }
 
     componentWillUnmount = () => {
+        // Remove message listener
+        if (this.messageHandler) {
+            window.removeEventListener('message', this.messageHandler)
+        }
+        
+        // Clean up iframe ready flag
+        this.iframeReady = false
+        this.articleFrame = null
+
         let refocus = document.querySelector(
             `#refocus div[data-iid="${this.props.item._id}"]`
         ) as HTMLElement
@@ -600,16 +656,19 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             return
         }
 
+        console.log(`[loadFull] Starting to load content for: ${this.props.item.link}`)
+        const startTime = Date.now()
+
         this.setState({ fullContent: "", loaded: false, error: false })
         const link = this.props.item.link
         const cacheKey = `fullcontent_${this.props.item._id}`
-        const timeout = 15000 // 15 秒超时
 
         // Try to get from cache first
         try {
             const cached = await window.utils.getCache(cacheKey)
             if (cached && cached.html) {
                 if (link === this.props.item.link) {
+                    console.log(`[loadFull] Loaded from cache in ${Date.now() - startTime}ms`)
                     this.setState({ fullContent: cached.html, loaded: true })
                     return
                 }
@@ -619,29 +678,67 @@ class Article extends React.Component<ArticleProps, ArticleState> {
         }
 
         try {
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), timeout)
+            // Check if running in Tauri environment
+            // Tauri v2: Check for __TAURI__ object or try to use the invoke function
+            const isTauri = typeof window !== 'undefined' && (
+                (window as any).__TAURI_INTERNALS__ !== undefined ||
+                (window as any).__TAURI__ !== undefined ||
+                (window as any).__TAURI_POST_MESSAGE__ !== undefined
+            )
 
-            const result = await fetch(link, {
-                signal: controller.signal,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            })
-            clearTimeout(timeoutId)
+            let html: string
+            if (isTauri) {
+                console.log(`[loadFull] Using Tauri backend proxy...`)
+                // Use Tauri backend proxy to avoid CORS
+                const { fetchWebpage } = await import('../scripts/tauri-bridge')
+                html = await fetchWebpage(link)
+                console.log(`[loadFull] Tauri proxy completed in ${Date.now() - startTime}ms, content length: ${html.length}`)
+                // Don't use Mercury here, let the iframe's article.js handle it
+            } else {
+                console.log(`[loadFull] Using direct fetch...`)
+                // Direct fetch for browser/Electron environment
+                const controller = new AbortController()
+                const timeoutId = setTimeout(() => controller.abort(), 15000)
 
-            if (!result || !result.ok) throw new Error(`HTTP ${result?.status || 'unknown'}`)
-            const html = await decodeFetchResponse(result, true)
+                const result = await fetch(link, {
+                    signal: controller.signal,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                })
+                clearTimeout(timeoutId)
+
+                if (!result || !result.ok) throw new Error(`HTTP ${result?.status || 'unknown'}`)
+                html = await decodeFetchResponse(result, true)
+                console.log(`[loadFull] Direct fetch completed in ${Date.now() - startTime}ms`)
+            }
+
             if (link === this.props.item.link) {
                 // Cache the result
                 try {
                     await window.utils.setCache(cacheKey, { html }, 86400000) // Cache for 24 hours
+                    console.log(`[loadFull] Cached content, total time: ${Date.now() - startTime}ms`)
                 } catch (e) {
                     // Ignore cache errors
                 }
+                console.log(`[loadFull] Setting fullContent state, length: ${html.length}`)
                 this.setState({ fullContent: html, loaded: true })
+                
+                // If iframe is already ready, send content now
+                if (this.iframeReady && this.articleFrame) {
+                    console.log(`[loadFull] Iframe is ready, sending full content now, length: ${html.length}`)
+                    this.articleFrame.contentWindow?.postMessage({
+                        type: 'fullContent',
+                        html: html,
+                        url: this.props.item.link,
+                        loadFull: true
+                    }, '*')
+                } else {
+                    console.log(`[loadFull] Content loaded, waiting for iframe to signal ready...`)
+                }
             }
         } catch (error) {
+            console.error(`[loadFull] Error after ${Date.now() - startTime}ms:`, error)
             if (link === this.props.item.link) {
                 this.setState({
                     loaded: true,
@@ -661,6 +758,12 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 : this.state.loadFull
                     ? this.state.fullContent
                     : this.props.item.content
+        
+        // For loadFull mode, use minimal URL (content will be sent via postMessage)
+        if (this.state.loadFull && this.state.fullContent) {
+            return `article/article.html?u=${encodeURIComponent(this.props.item.link)}&m=1&itemId=${this.props.item._id}`
+        }
+        
         const a = encodeURIComponent(content)
         const h = encodeURIComponent(
             renderToString(
@@ -688,7 +791,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             color: "var(--text-primary)"
                         }}>
                             <strong style={{ display: "block", marginBottom: "8px", opacity: 0.8 }}>
-                                {this.state.showTranslation ? 'AI 小结' : 'AI Summary'}
+                                {this.state.showTranslation ? intl.get("article.aiSummaryTranslated") : intl.get("article.aiSummary")}
                             </strong>
                             {this.state.showTranslation && this.state.translatedSummary
                                 ? this.state.translatedSummary
@@ -725,7 +828,7 @@ class Article extends React.Component<ArticleProps, ArticleState> {
             .replace(/\+/g, '-').replace(/\//g, '_')
         const encodedHighlights = btoa(unescape(encodeURIComponent(h)))
             .replace(/\+/g, '-').replace(/\//g, '_')
-        
+
         return `article/article.html?a=${encodedContent}&h=${encodedHighlights}&f=${encodeURIComponent(
             this.state.fontFamily
         )}&s=${this.state.fontSize}&d=${this.props.source.textDir}&u=${encodeURIComponent(this.props.item.link)
@@ -829,8 +932,8 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                     <CommandBarButton
                         title={
                             this.state.summarizing
-                                ? "Summarizing..."
-                                : "AI Summary"
+                                ? intl.get("article.summarizing")
+                                : intl.get("article.aiSummary")
                         }
                         className={this.state.showSummary ? "active" : ""}
                         iconProps={{ iconName: "LightningBolt" }}
@@ -856,7 +959,8 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                 </Stack>
             </Stack>
             {(!this.state.loadFull || this.state.fullContent) && (
-                <webview
+                <iframe
+                    ref={this.articleFrameRef}
                     id="article"
                     className={this.state.error ? "error" : ""}
                     key={
@@ -869,9 +973,24 @@ class Article extends React.Component<ArticleProps, ArticleState> {
                             ? this.props.item.link
                             : this.articleView()
                     }
-                    allowpopups={"true" as unknown as boolean}
-                    webpreferences="contextIsolation,autoplayPolicy=document-user-activation-required,allowFileAccessFromFileURLs"
-                    partition={this.state.loadWebpage ? "sandbox" : undefined}
+                    onLoad={() => {
+                        // Send content to iframe after it loads
+                        if (this.state.loadFull && this.state.fullContent && this.articleFrameRef.current) {
+                            console.log(`[iframe onLoad] Sending full content to iframe via postMessage, length: ${this.state.fullContent.length}`)
+                            this.articleFrameRef.current.contentWindow?.postMessage({
+                                type: 'fullContent',
+                                html: this.state.fullContent,
+                                url: this.props.item.link,
+                                loadFull: true
+                            }, '*')
+                        }
+                    }}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                        display: 'block'
+                    }}
                 />
             )}
             {this.state.error && (
