@@ -316,6 +316,55 @@ async fn get_cache_size() -> Result<u64, String> {
     Ok(total_size)
 }
 
+// ==================== 窗口控制命令 ====================
+
+#[tauri::command]
+async fn close_window(window: tauri::Window) {
+    window.close().ok();
+}
+
+#[tauri::command]
+async fn minimize_window(window: tauri::Window) {
+    window.minimize().ok();
+}
+
+#[tauri::command]
+async fn maximize_window(window: tauri::Window) {
+    if window.is_maximized().unwrap_or(false) {
+        window.unmaximize().ok();
+    } else {
+        window.maximize().ok();
+    }
+}
+
+#[tauri::command]
+async fn is_maximized(window: tauri::Window) -> Result<bool, String> {
+    window.is_maximized().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn is_fullscreen(window: tauri::Window) -> Result<bool, String> {
+    window.is_fullscreen().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn is_focused(window: tauri::Window) -> Result<bool, String> {
+    window.is_focused().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn request_focus(window: tauri::Window) {
+    window.set_focus().ok();
+}
+
+#[tauri::command]
+async fn request_attention(window: tauri::Window) {
+    window.set_always_on_top(true).ok();
+    // 使用异步延迟
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    window.set_always_on_top(false).ok();
+}
+
 // ==================== Ollama 代理命令 ====================
 
 #[derive(Debug, Deserialize)]
@@ -400,6 +449,15 @@ fn main() {
             write_clipboard,
             show_error_box,
             show_message_box,
+            // 窗口控制
+            close_window,
+            minimize_window,
+            maximize_window,
+            is_maximized,
+            is_fullscreen,
+            is_focused,
+            request_focus,
+            request_attention,
             // 设置管理
             set_setting,
             get_setting,
