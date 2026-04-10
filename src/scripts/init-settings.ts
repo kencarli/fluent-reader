@@ -54,6 +54,21 @@ function initWindowUtils() {
             utils.isFullscreen = () => import('./tauri-bridge').then(m => m.isFullscreen())
             utils.isFocused = () => import('./tauri-bridge').then(m => m.isFocused())
             utils.startDraggingWindow = () => import('./tauri-bridge').then(m => m.startDragging())
+            
+            // 文件对话框
+            utils.showOpenDialog = async (filters: any) => {
+                const { openFile } = await import('./tauri-bridge')
+                return await openFile(filters)
+            }
+            utils.showSaveDialog = async (filters: any, defaultPath: string) => {
+                const { saveFile } = await import('./tauri-bridge')
+                // saveFile 返回 boolean，需要调整返回值
+                return await saveFile(defaultPath, '')
+            }
+            utils.showFolderDialog = async () => {
+                const { open } = await import('@tauri-apps/plugin-dialog')
+                return await open({ directory: true })
+            }
         }
 
         window.utils = utils
