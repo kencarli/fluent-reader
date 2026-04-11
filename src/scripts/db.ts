@@ -225,6 +225,71 @@ export async function init() {
         dbInitialized = true
         console.log('[DB] Initialization complete with IndexedDB')
     } catch (error: any) {
+        // Error 201 = DUPLICATE_PRIMARY_KEY - database is corrupted
+        if (error.code === 201) {
+            console.warn('[DB] Database corrupted (error 201), deleting and recreating...')
+            try {
+                // Delete existing corrupted databases
+                const deleteRequest1 = indexedDB.deleteDatabase('sourcesDB')
+                const deleteRequest2 = indexedDB.deleteDatabase('itemsDB')
+                
+                await new Promise<void>((resolve, reject) => {
+                    let completed = 0
+                    const checkDone = () => {
+                        completed++
+                        if (completed === 2) resolve()
+                    }
+                    
+                    deleteRequest1.onsuccess = () => {
+                        console.log('[DB] sourcesDB deleted')
+                        checkDone()
+                    }
+                    deleteRequest1.onerror = () => {
+                        console.warn('[DB] Failed to delete sourcesDB')
+                        checkDone()
+                    }
+                    
+                    deleteRequest2.onsuccess = () => {
+                        console.log('[DB] itemsDB deleted')
+                        checkDone()
+                    }
+                    deleteRequest2.onerror = () => {
+                        console.warn('[DB] Failed to delete itemsDB')
+                        checkDone()
+                    }
+                })
+                
+                // Wait a bit for deletion to complete
+                await new Promise(resolve => setTimeout(resolve, 500))
+                
+                // Recreate schema objects (they were invalidated)
+                const freshSourcesSchema = createSourcesDBSchema()
+                const freshItemsSchema = createItemsDBSchema()
+                
+                // Reconnect with fresh databases
+                sourcesDB = await freshSourcesSchema.connect({
+                    onUpgrade: onUpgradeSourceDB,
+                    // @ts-ignore
+                    storeType: INDEXED_DB
+                })
+                sources = sourcesDB.getSchema().table("sources")
+                console.log('[DB] Sources DB recreated successfully')
+
+                itemsDB = await freshItemsSchema.connect({
+                    onUpgrade: onUpgradeItemDB,
+                    // @ts-ignore
+                    storeType: INDEXED_DB
+                })
+                items = itemsDB.getSchema().table("items")
+                console.log('[DB] Items DB recreated successfully')
+                
+                dbInitialized = true
+                console.log('[DB] Database recreation complete')
+            } catch (recreateError) {
+                console.error('[DB] Failed to recreate database:', recreateError)
+                throw recreateError
+            }
+        } else {
         console.error('[DB] Initialization failed:', error)
         console.error('[DB] Error message:', error.message)
         console.error('[DB] Error code:', error.code)
