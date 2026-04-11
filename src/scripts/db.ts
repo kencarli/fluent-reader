@@ -232,14 +232,14 @@ export async function init() {
                 // Delete existing corrupted databases
                 const deleteRequest1 = indexedDB.deleteDatabase('sourcesDB')
                 const deleteRequest2 = indexedDB.deleteDatabase('itemsDB')
-                
+
                 await new Promise<void>((resolve, reject) => {
                     let completed = 0
                     const checkDone = () => {
                         completed++
                         if (completed === 2) resolve()
                     }
-                    
+
                     deleteRequest1.onsuccess = () => {
                         console.log('[DB] sourcesDB deleted')
                         checkDone()
@@ -248,7 +248,7 @@ export async function init() {
                         console.warn('[DB] Failed to delete sourcesDB')
                         checkDone()
                     }
-                    
+
                     deleteRequest2.onsuccess = () => {
                         console.log('[DB] itemsDB deleted')
                         checkDone()
@@ -258,14 +258,14 @@ export async function init() {
                         checkDone()
                     }
                 })
-                
+
                 // Wait a bit for deletion to complete
                 await new Promise(resolve => setTimeout(resolve, 500))
-                
+
                 // Recreate schema objects (they were invalidated)
                 const freshSourcesSchema = createSourcesDBSchema()
                 const freshItemsSchema = createItemsDBSchema()
-                
+
                 // Reconnect with fresh databases
                 sourcesDB = await freshSourcesSchema.connect({
                     onUpgrade: onUpgradeSourceDB,
@@ -282,21 +282,15 @@ export async function init() {
                 })
                 items = itemsDB.getSchema().table("items")
                 console.log('[DB] Items DB recreated successfully')
-                
+
                 dbInitialized = true
                 console.log('[DB] Database recreation complete')
             } catch (recreateError) {
                 console.error('[DB] Failed to recreate database:', recreateError)
                 throw recreateError
             }
-        } else {
-        console.error('[DB] Initialization failed:', error)
-        console.error('[DB] Error message:', error.message)
-        console.error('[DB] Error code:', error.code)
-        console.error('[DB] Error stack:', error.stack)
-
-        // Error 300 or 516: Database version mismatch - use memory database
-        if (error.code === 300 || error.code === 516) {
+        } else if (error.code === 300 || error.code === 516) {
+            // Error 300 or 516: Database version mismatch - use memory database
             console.log('[DB] Database version mismatch detected')
             console.log('[DB] Using memory database...')
             usedMemoryFallback = true;
@@ -319,15 +313,20 @@ export async function init() {
                 console.log('[DB] Memory database initialized successfully')
                 console.log('[DB] NOTE: Your existing data in IndexedDB is safe')
                 console.log('[DB] NOTE: Data will not persist between sessions')
-                return
             } catch (memoryError: any) {
                 console.error('[DB] Memory database initialization failed:', memoryError)
                 throw memoryError
             }
+        } else {
+            // Other errors - log and throw
+            console.error('[DB] Initialization failed:', error)
+            console.error('[DB] Error message:', error.message)
+            console.error('[DB] Error code:', error.code)
+            console.error('[DB] Error stack:', error.stack)
+            
+            dbInitialized = false
+            throw error
         }
-
-        dbInitialized = false
-        throw error
     }
 
     await initHighlightsDB();
