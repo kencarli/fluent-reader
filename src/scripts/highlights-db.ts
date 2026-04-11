@@ -5,6 +5,7 @@ const INDEXED_DB = 0  // lf.schema.DataStoreType.INDEXED_DB
 
 export let highlightsDB: lf.Database;
 export let highlights: lf.schema.Table;
+let highlightsDBInitialized = false;
 
 const hdbSchema = lf.schema.create("highlightsDB", 1);
 
@@ -20,11 +21,16 @@ hdbSchema
     .addIndex("idxItemId", ["itemId"], false);
 
 export async function initHighlightsDB() {
+    // Prevent duplicate initialization
+    if (highlightsDBInitialized && highlightsDB && highlights) {
+        return;
+    }
+
     try {
         // @ts-ignore - Lovefield types are incomplete
         highlightsDB = await hdbSchema.connect({ storeType: INDEXED_DB });
         highlights = highlightsDB.getSchema().table("highlights");
-        
+
         // Validate database connection
         try {
             await highlightsDB.select().from(highlights).limit(1).exec()
@@ -36,6 +42,8 @@ export async function initHighlightsDB() {
             }
             console.log('[HighlightsDB] Initialized with IndexedDB');
         }
+
+        highlightsDBInitialized = true;
     } catch (error: any) {
         console.error('[HighlightsDB] Initialization failed:', error.code)
         if (error.code === 300 || error.code === 516) {

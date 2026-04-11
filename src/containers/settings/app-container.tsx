@@ -13,7 +13,8 @@ import { AppDispatch } from "../../scripts/utils"
 const mapDispatchToProps = (dispatch: AppDispatch) => ({
     setLanguage: (option: string) => {
         window.settings.setLocaleSettings(option)
-        dispatch(initIntl())
+        // Reload the app to apply new language
+        window.location.reload()
     },
     setFetchInterval: (interval: number) => {
         window.settings.setFetchInterval(interval)

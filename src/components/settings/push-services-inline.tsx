@@ -61,12 +61,12 @@ export default class PushServicesInline extends React.Component<
             <Stack horizontal tokens={{ childrenGap: 8 }}>
                 {hasDingtalk && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ 钉钉
+                        {intl.get("settings.integrations.dingtalkStatus")}
                     </Label>
                 )}
                 {hasWecom && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ 企业微信
+                        {intl.get("settings.integrations.wecomStatus")}
                     </Label>
                 )}
             </Stack>

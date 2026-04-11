@@ -73,7 +73,7 @@ class Settings extends React.Component<SettingsProps> {
                     )}
                     <Pivot>
                         <PivotItem
-                            headerText={intl.get("settings.sources")}
+                            headerText={intl.get("settings.sourcesTab")}
                             itemIcon="Source">
                             <SourcesTabContainer />
                         </PivotItem>
@@ -83,12 +83,12 @@ class Settings extends React.Component<SettingsProps> {
                             <GroupsTabContainer />
                         </PivotItem>
                         <PivotItem
-                            headerText={intl.get("settings.rules")}
+                            headerText={intl.get("settings.rulesTab")}
                             itemIcon="FilterSettings">
                             <RulesTabContainer />
                         </PivotItem>
                         <PivotItem
-                            headerText={intl.get("settings.service")}
+                            headerText={intl.get("settings.serviceTab")}
                             itemIcon="CloudImportExport">
                             <ServiceTabContainer />
                         </PivotItem>
@@ -98,7 +98,7 @@ class Settings extends React.Component<SettingsProps> {
                             <IntegrationTab />
                         </PivotItem>
                         <PivotItem
-                            headerText={intl.get("settings.app")}
+                            headerText={intl.get("settings.appTab")}
                             itemIcon="Settings">
                             <AppTabContainer />
                         </PivotItem>

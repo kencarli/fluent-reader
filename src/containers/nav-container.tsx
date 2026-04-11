@@ -16,6 +16,7 @@ import {
     clearTranslateNotification,
 } from "../scripts/models/app"
 import { toggleSearch } from "../scripts/models/page"
+import { initFeeds } from "../scripts/models/feed"
 import { ViewType } from "../schema-types"
 import Nav from "../components/nav"
 
@@ -35,9 +36,18 @@ const mapDispatchToProps = dispatch => ({
     settings: () => dispatch(toggleSettings()),
     search: () => dispatch(toggleSearch()),
     markAllRead: () => dispatch(openMarkAllMenu()),
-    digest: () => dispatch(openDigestMenu()),
-    translate: () => dispatch(openTranslateMenu()),
-    rating: () => dispatch(openRatingMenu()),
+    digest: () => {
+        dispatch(initFeeds())
+        dispatch(openDigestMenu())
+    },
+    translate: () => {
+        dispatch(initFeeds())
+        dispatch(openTranslateMenu())
+    },
+    rating: () => {
+        dispatch(initFeeds())
+        dispatch(openRatingMenu())
+    },
     clearTranslateNotification: () => dispatch(clearTranslateNotification()),
 })
 

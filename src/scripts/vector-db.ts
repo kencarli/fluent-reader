@@ -20,11 +20,17 @@ export interface VectorRecord {
 
 let vectorDB: lf.Database
 let vectors: lf.schema.Table
+let vectorDBInitialized = false
 
 /**
  * Initialize vector database
  */
 export async function initVectorDB(): Promise<void> {
+    // Prevent duplicate initialization
+    if (vectorDBInitialized && vectorDB && vectors) {
+        return
+    }
+
     const schemaBuilder = lf.schema.create(VECTOR_DB_NAME, VECTOR_DB_VERSION)
 
     schemaBuilder
@@ -39,7 +45,7 @@ export async function initVectorDB(): Promise<void> {
         // @ts-ignore
         vectorDB = await schemaBuilder.connect({ storeType: INDEXED_DB })
         vectors = vectorDB.getSchema().table(VECTOR_TABLE_NAME)
-        
+
         // Validate database connection
         try {
             await vectorDB.select().from(vectors).limit(1).exec()
@@ -51,6 +57,8 @@ export async function initVectorDB(): Promise<void> {
             }
             console.log('[VectorDB] Initialized with IndexedDB')
         }
+
+        vectorDBInitialized = true
     } catch (error: any) {
         console.error('[VectorDB] Initialization failed:', error.code)
         if (error.code === 300 || error.code === 516) {

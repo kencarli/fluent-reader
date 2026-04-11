@@ -8,11 +8,9 @@ const getApp = (state: RootState) => state.app
 
 const mapStateToProps = createSelector([getApp], app => ({
     display: app.settings.display,
-    blocked:
-        !app.sourceInit ||
-        app.syncing ||
-        app.fetchingItems ||
-        app.settings.saving,
+    // Only block if actively saving or syncing, allow viewing settings during initial load
+    // This prevents the settings page from appearing blank when sourceInit is false
+    blocked: app.syncing || app.settings.saving,
     exitting: app.settings.saving,
 }))
 

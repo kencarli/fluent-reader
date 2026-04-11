@@ -156,7 +156,7 @@ export default class ArticleRatingInline extends React.Component<
             <Stack horizontal tokens={{ childrenGap: 8 }}>
                 {localSettings.ratingEnabled && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ 已启用
+                        {intl.get('settings.rating.enabledStatus')}
                     </Label>
                 )}
                 {ollamaConnected && (
@@ -166,12 +166,12 @@ export default class ArticleRatingInline extends React.Component<
                 )}
                 {useRuleEngine && localSettings.ratingEnabled && (
                     <Label style={{ color: "var(--neutralSecondary)", fontSize: 12, margin: 0 }}>
-                        ⚙️ 规则引擎
+                        {intl.get('settings.rating.ruleEngineStatus')}
                     </Label>
                 )}
                 {ratedCount > 0 && (
                     <Label style={{ color: "var(--neutralSecondary)", fontSize: 12, margin: 0 }}>
-                        已评分：{ratedCount}篇
+                        {intl.get('settings.rating.ratedCount', { count: ratedCount })}
                     </Label>
                 )}
             </Stack>
@@ -179,7 +179,7 @@ export default class ArticleRatingInline extends React.Component<
 
         return (
             <CollapsibleSection
-                title="AI 文章评分"
+                title={intl.get('settings.rating.title')}
                 headerContent={statusIndicators}
             >
                 <Stack tokens={{ childrenGap: 16 }}>
@@ -187,7 +187,7 @@ export default class ArticleRatingInline extends React.Component<
                     <Stack horizontal tokens={{ childrenGap: 16 }} wrap verticalAlign="center">
                         <div style={{ minWidth: 140 }}>
                             <Toggle
-                                label="✅ 启用 AI 评分"
+                                label={intl.get('settings.rating.enableToggle')}
                                 checked={localSettings.ratingEnabled || false}
                                 onChange={(e, checked) => {
                                     this.setState(prevState => ({
@@ -212,7 +212,7 @@ export default class ArticleRatingInline extends React.Component<
 
                         <div style={{ minWidth: 180 }}>
                             <Toggle
-                                label="⚙️ 导入新文章时自动评分"
+                                label={intl.get('settings.rating.autoRate')}
                                 checked={localSettings.ratingAutoRate || false}
                                 onChange={(e, checked) => {
                                     this.setState(prevState => ({
@@ -239,15 +239,15 @@ export default class ArticleRatingInline extends React.Component<
                         <>
                             <MessageBar messageBarType={MessageBarType.info}>
                                 {useRuleEngine
-                                    ? "当前使用规则评分引擎（无需AI服务）。基于行业/角色关键词匹配、内容质量、结构完整性进行评分。"
-                                    : "AI 会根据您的行业和角色偏好，自动为文章评分（1-5 星），帮助您快速识别重要内容。"}
+                                    ? intl.get('settings.rating.ruleEngineDesc')
+                                    : intl.get('settings.rating.aiDesc')}
                             </MessageBar>
 
                             {/* 第二行：行业和角色并排 */}
                             <Stack horizontal tokens={{ childrenGap: 32 }} wrap>
                                 <div style={{ flex: 1, minWidth: 200 }}>
                                     <Label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-                                        🏭 您的行业？（多选）
+                                        {intl.get('settings.rating.industryLabel')}
                                     </Label>
                                     <Stack wrap tokens={{ childrenGap: 4 }}>
                                         {INDUSTRY_OPTIONS.map(opt => (
@@ -267,7 +267,7 @@ export default class ArticleRatingInline extends React.Component<
 
                                 <div style={{ flex: 1, minWidth: 200 }}>
                                     <Label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-                                        👨‍⚕️ 您的工作角色？（多选）
+                                        {intl.get('settings.rating.roleLabel')}
                                     </Label>
                                     <Stack wrap tokens={{ childrenGap: 4 }}>
                                         {ROLE_OPTIONS.map(opt => (
@@ -287,19 +287,18 @@ export default class ArticleRatingInline extends React.Component<
                             </Stack>
 
                             <MessageBar messageBarType={MessageBarType.info}>
-                                💡 提示：点击导航栏的 ⭐ 按钮，可以快速开始评分或筛选文章。
+                                {intl.get('settings.rating.tip')}
                             </MessageBar>
 
                             {!ollamaConnected && useRuleEngine && (
                                 <MessageBar messageBarType={MessageBarType.warning}>
-                                    ⚙️ Ollama 未连接，已自动切换到规则评分引擎（无需配置，开箱即用）。
-                                    如需更精准的AI评分，请配置 Ollama API 地址和模型。
+                                    {intl.get('settings.rating.ollamaNotConnected')}
                                 </MessageBar>
                             )}
 
                             {!ollamaConnected && !useRuleEngine && (
                                 <MessageBar messageBarType={MessageBarType.warning}>
-                                    请先在"AI 服务配置"中配置 Ollama API 地址和模型。
+                                    {intl.get('settings.rating.configureOllama')}
                                 </MessageBar>
                             )}
                         </>
@@ -308,8 +307,7 @@ export default class ArticleRatingInline extends React.Component<
                     {/* 未启用时显示提示 */}
                     {!localSettings.ratingEnabled && (
                         <MessageBar messageBarType={MessageBarType.info}>
-                            启用 AI 文章评分功能后，系统将自动为您的文章打分（1-5 星），帮助您快速识别重要内容。
-                            您可以选择使用 AI 评分或规则引擎评分。
+                            {intl.get('settings.rating.notEnabledHint')}
                         </MessageBar>
                     )}
                 </Stack>

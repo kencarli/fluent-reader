@@ -1,4 +1,5 @@
 import * as React from "react"
+import intl from "react-intl-universal"
 import { Icon, Callout, Stack, Label, Separator } from "@fluentui/react"
 import { ArticleRating } from "../../scripts/ratings-db"
 
@@ -68,14 +69,14 @@ export default class RatingBadge extends React.Component<RatingBadgeProps, Ratin
                     >
                         <Stack tokens={{ childrenGap: 10 }}>
                             <Label style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>
-                                📊 AI 评分详情
+                                📊 {intl.get("rating.details")}
                             </Label>
-                            
+
                             <Separator style={{ margin: 0 }} />
-                            
+
                             <div>
                                 <Label style={{ fontSize: 12, margin: 0, opacity: 0.8 }}>
-                                    综合评分
+                                    {intl.get("rating.overallScore")}
                                 </Label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ fontSize: 20, fontWeight: 700 }}>
@@ -89,7 +90,7 @@ export default class RatingBadge extends React.Component<RatingBadgeProps, Ratin
 
                             <div>
                                 <Label style={{ fontSize: 11, margin: 0, opacity: 0.8 }}>
-                                    🏥 行业相关性
+                                    🏥 {intl.get("rating.industryRelevance")}
                                 </Label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 2 }}>
                                     {this.renderMiniStars(rating.industryScore)}
@@ -107,7 +108,7 @@ export default class RatingBadge extends React.Component<RatingBadgeProps, Ratin
 
                             <div>
                                 <Label style={{ fontSize: 11, margin: '8px 0 0 0', opacity: 0.8 }}>
-                                    👨‍⚕️ 角色相关性
+                                    👨‍⚕️ {intl.get("rating.roleRelevance")}
                                 </Label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 2 }}>
                                     {this.renderMiniStars(rating.roleScore)}
@@ -125,7 +126,7 @@ export default class RatingBadge extends React.Component<RatingBadgeProps, Ratin
 
                             <div>
                                 <Label style={{ fontSize: 11, margin: '8px 0 0 0', opacity: 0.8 }}>
-                                    📝 内容质量
+                                    📝 {intl.get("rating.contentQuality")}
                                 </Label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 2 }}>
                                     {this.renderMiniStars(rating.qualityScore)}
@@ -148,7 +149,7 @@ export default class RatingBadge extends React.Component<RatingBadgeProps, Ratin
                             )}
 
                             <Label style={{ fontSize: 9, margin: '4px 0 0 0', opacity: 0.4 }}>
-                                模型：{rating.model}
+                                {intl.get("rating.model")}: {rating.model}
                             </Label>
                         </Stack>
                     </Callout>

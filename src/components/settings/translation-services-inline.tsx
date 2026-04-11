@@ -22,6 +22,7 @@ type TranslationServicesInlineState = {
     localSettings: IntegrationSettings
     testResult: string | null
     isTesting: boolean
+    isTestSuccess: boolean
 }
 
 export default class TranslationServicesInline extends React.Component<
@@ -34,6 +35,7 @@ export default class TranslationServicesInline extends React.Component<
             localSettings: { ...props.settings },
             testResult: null,
             isTesting: false,
+            isTestSuccess: false,
         }
     }
 
@@ -102,52 +104,53 @@ export default class TranslationServicesInline extends React.Component<
             if (service === "libretranslate" || service === "auto") {
                 if (localSettings.libretranslateApiUrl) {
                     success = true
-                    message = "LibreTranslate 翻译已就绪"
+                    message = intl.get("settings.translation.libretranslateReady")
                 }
             }
 
             if (service === "baidu" || service === "auto") {
                 if (localSettings.baiduTranslateAppId && localSettings.baiduTranslateSecret) {
                     success = true
-                    message = "百度翻译 API 已配置"
+                    message = intl.get("settings.translation.baiduConfigured")
                 }
             }
 
             if (service === "deepl" || service === "auto") {
                 if (localSettings.deeplTranslateApiKey) {
                     success = true
-                    message = "DeepL 翻译已就绪"
+                    message = intl.get("settings.translation.deeplReady")
                 }
             }
 
             if (service === "mymemory" || service === "auto") {
                 // MyMemory doesn't need configuration, always available
                 success = true
-                message = "MyMemory 翻译已就绪"
+                message = intl.get("settings.translation.mymemoryReady")
             }
 
             if (service === "ollama" || service === "auto") {
                 if (localSettings.ollamaApiUrl && localSettings.ollamaModel) {
                     success = true
-                    message = "Ollama 翻译已就绪"
+                    message = intl.get("settings.translation.ollamaReady")
                 }
             }
 
             if (!success) {
-                message = "未配置翻译服务"
+                message = intl.get("settings.translation.noServiceConfigured")
             }
 
-            this.setState({ testResult: message, isTesting: false })
+            this.setState({ testResult: message, isTesting: false, isTestSuccess: success })
         } catch (error) {
             this.setState({
-                testResult: `测试失败: ${error instanceof Error ? error.message : '未知错误'}`,
-                isTesting: false
+                testResult: intl.get("settings.translation.testFailed", { error: error instanceof Error ? error.message : intl.get("settings.translation.unknownError") }),
+                isTesting: false,
+                isTestSuccess: false
             })
         }
     }
 
     render() {
-        const { localSettings, testResult, isTesting } = this.state
+        const { localSettings, testResult, isTesting, isTestSuccess } = this.state
         const selectedService = localSettings.translationService || "auto"
         const selectedMode = localSettings.translationMode || "full"
 
@@ -160,16 +163,16 @@ export default class TranslationServicesInline extends React.Component<
             <Stack horizontal tokens={{ childrenGap: 8 }}>
                 {hasConfig && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ 已配置
+                        {intl.get("settings.translation.configured")}
                     </Label>
                 )}
                 <Label style={{ color: "var(--neutralSecondary)", fontSize: 12, margin: 0 }}>
-                    {selectedService === "auto" ? "自动（推荐）" :
-                     selectedService === "libretranslate" ? "LibreTranslate（开源）" :
-                     selectedService === "baidu" ? "百度翻译" :
-                     selectedService === "deepl" ? "DeepL（高质量）" :
-                     selectedService === "mymemory" ? "MyMemory（免费）" :
-                     selectedService === "ollama" ? "Ollama（本地）" : "未知"}
+                    {selectedService === "auto" ? intl.get("settings.translation.serviceName.auto") :
+                     selectedService === "libretranslate" ? intl.get("settings.translation.serviceName.libretranslate") :
+                     selectedService === "baidu" ? intl.get("settings.translation.serviceName.baidu") :
+                     selectedService === "deepl" ? intl.get("settings.translation.serviceName.deepl") :
+                     selectedService === "mymemory" ? intl.get("settings.translation.serviceName.mymemory") :
+                     selectedService === "ollama" ? intl.get("settings.translation.serviceName.ollama") : intl.get("settings.translation.serviceName.unknown")}
                 </Label>
             </Stack>
         )
@@ -187,12 +190,12 @@ export default class TranslationServicesInline extends React.Component<
                                 label={intl.get("settings.translation.service")}
                                 selectedKey={selectedService}
                                 options={[
-                                    { key: "auto", text: "自动模式（推荐）" },
-                                    { key: "baidu", text: "百度翻译（需配置 API Key）" },
-                                    { key: "deepl", text: "DeepL 翻译（高质量，国内可用）" },
-                                    { key: "ollama", text: "Ollama（本地运行）" },
-                                    { key: "libretranslate", text: "LibreTranslate（开源，可自托管）" },
-                                    { key: "mymemory", text: "MyMemory 翻译（免费，无需配置）" },
+                                    { key: "auto", text: intl.get("settings.translation.serviceOption.auto") },
+                                    { key: "baidu", text: intl.get("settings.translation.serviceOption.baidu") },
+                                    { key: "deepl", text: intl.get("settings.translation.serviceOption.deepl") },
+                                    { key: "ollama", text: intl.get("settings.translation.serviceOption.ollama") },
+                                    { key: "libretranslate", text: intl.get("settings.translation.serviceOption.libretranslate") },
+                                    { key: "mymemory", text: intl.get("settings.translation.serviceOption.mymemory") },
                                 ]}
                                 onChange={this.handleServiceChange}
                                 styles={{ root: { width: '100%' } }}
@@ -214,18 +217,18 @@ export default class TranslationServicesInline extends React.Component<
 
                     <MessageBar messageBarType={MessageBarType.info}>
                         {selectedService === "auto"
-                            ? "✓ 自动模式：优先使用已配置的服务，失败时自动切换。"
+                            ? intl.get("settings.translation.serviceHint.auto")
                             : selectedService === "baidu"
-                            ? "✓ 百度翻译在中国大陆稳定。需配置 API Key（免费额度 200万字符/月）。"
+                            ? intl.get("settings.translation.serviceHint.baidu")
                             : selectedService === "deepl"
-                            ? "✓ DeepL 翻译质量最高，国内可用。免费版 50 万字符/月。"
+                            ? intl.get("settings.translation.serviceHint.deepl")
                             : selectedService === "mymemory"
-                            ? "✓ MyMemory 翻译无需配置，开箱即用。支持多种语言互译。"
+                            ? intl.get("settings.translation.serviceHint.mymemory")
                             : selectedService === "ollama"
-                            ? "✓ Ollama 本地运行，隐私安全。需安装 Ollama 并下载模型。"
+                            ? intl.get("settings.translation.serviceHint.ollama")
                             : selectedService === "libretranslate"
-                            ? "✓ LibreTranslate 开源免费，可自托管或使用公共实例。"
-                            : "请选择翻译服务"}
+                            ? intl.get("settings.translation.serviceHint.libretranslate")
+                            : intl.get("settings.translation.serviceHint.default")}
                     </MessageBar>
 
                     {/* LibreTranslate - Only show if selected or Auto */}
@@ -238,32 +241,32 @@ export default class TranslationServicesInline extends React.Component<
                                     marginTop: 16,
                                     marginBottom: 8,
                                 }}>
-                                LibreTranslate（开源翻译）
+                                {intl.get("settings.translation.libretranslateTitle")}
                             </Label>
 
                             <MessageBar messageBarType={MessageBarType.info} isMultiline={false}>
-                                开源翻译服务，可自托管或使用公共实例。完全免费，无限制。
+                                {intl.get("settings.translation.libretranslateDescription")}
                             </MessageBar>
 
                             <Stack horizontal tokens={{ childrenGap: 16 }} wrap>
                                 <div style={{ flex: 1, minWidth: 250 }}>
                                     <TextField
-                                        label="API 地址"
+                                        label={intl.get("settings.translation.apiUrl")}
                                         name="libretranslateApiUrl"
                                         value={localSettings.libretranslateApiUrl || ""}
                                         onChange={this.handleInputChange}
                                         placeholder="https://libretranslate.example.com"
-                                        description="LibreTranslate 服务器地址（公共实例或自托管）"
+                                        description={intl.get("settings.translation.libretranslateUrlHint")}
                                     />
                                 </div>
                                 <div style={{ flex: 1, minWidth: 200 }}>
                                     <TextField
-                                        label="API Key（可选）"
+                                        label={intl.get("settings.translation.apiKeyOptional")}
                                         name="libretranslateApiKey"
                                         value={localSettings.libretranslateApiKey || ""}
                                         onChange={this.handleInputChange}
                                         type="password"
-                                        description="部分公共实例需要 API Key"
+                                        description={intl.get("settings.translation.libretranslateApiKeyHint")}
                                     />
                                 </div>
                             </Stack>
@@ -272,7 +275,7 @@ export default class TranslationServicesInline extends React.Component<
                                 href="https://github.com/LibreTranslate/LibreTranslate"
                                 target="_blank"
                                 underline>
-                                自托管 LibreTranslate
+                                {intl.get("settings.translation.selfHostLibretranslate")}
                             </Link>
                         </>
                     )}
@@ -287,17 +290,17 @@ export default class TranslationServicesInline extends React.Component<
                                     marginTop: 16,
                                     marginBottom: 8,
                                 }}>
-                                DeepL 翻译
+                                {intl.get("settings.translation.deeplTitle")}
                             </Label>
 
                             <div style={{ flex: 1, minWidth: 300 }}>
                                 <TextField
-                                    label="API Key"
+                                    label={intl.get("settings.translation.apiKey")}
                                     name="deeplTranslateApiKey"
                                     value={localSettings.deeplTranslateApiKey || ""}
                                     onChange={this.handleInputChange}
                                     type="password"
-                                    description="从 https://www.deepl.com/pro-api 获取（免费版即可）"
+                                    description={intl.get("settings.translation.deeplApiKeyHint")}
                                 />
                             </div>
 
@@ -305,7 +308,7 @@ export default class TranslationServicesInline extends React.Component<
                                 href="https://www.deepl.com/pro-api"
                                 target="_blank"
                                 underline>
-                                获取 DeepL API Key
+                                {intl.get("settings.translation.getDeeplApiKey")}
                             </Link>
                         </>
                     )}
@@ -320,11 +323,11 @@ export default class TranslationServicesInline extends React.Component<
                                     marginTop: 8,
                                     marginBottom: 8,
                                 }}>
-                                百度翻译（需配置 API Key）
+                                {intl.get("settings.translation.baiduTitle")}
                             </Label>
 
                             <MessageBar messageBarType={MessageBarType.info} isMultiline={false}>
-                                百度翻译 API 在中国大陆稳定。免费额度 200万字符/月。
+                                {intl.get("settings.translation.baiduDescription")}
                             </MessageBar>
 
                             <Stack horizontal tokens={{ childrenGap: 16 }} wrap>
@@ -334,7 +337,7 @@ export default class TranslationServicesInline extends React.Component<
                                         name="baiduTranslateAppId"
                                         value={localSettings.baiduTranslateAppId || ""}
                                         onChange={this.handleInputChange}
-                                        description="从 https://fanyi-api.baidu.com/ 获取"
+                                        description={intl.get("settings.translation.baiduAppIdHint")}
                                     />
                                 </div>
                                 <div style={{ flex: 1, minWidth: 200 }}>
@@ -344,7 +347,7 @@ export default class TranslationServicesInline extends React.Component<
                                         type="password"
                                         value={localSettings.baiduTranslateSecret || ""}
                                         onChange={this.handleInputChange}
-                                        description="从 https://fanyi-api.baidu.com/ 获取"
+                                        description={intl.get("settings.translation.baiduSecretKeyHint")}
                                     />
                                 </div>
                             </Stack>
@@ -353,7 +356,7 @@ export default class TranslationServicesInline extends React.Component<
                                 href="https://fanyi-api.baidu.com/"
                                 target="_blank"
                                 underline>
-                                申请百度翻译 API
+                                {intl.get("settings.translation.applyBaiduApi")}
                             </Link>
                         </>
                     )}
@@ -399,7 +402,7 @@ export default class TranslationServicesInline extends React.Component<
                     {/* Test Result */}
                     {testResult && (
                         <MessageBar
-                            messageBarType={testResult.includes("成功") ? MessageBarType.success : MessageBarType.warning}
+                            messageBarType={isTestSuccess ? MessageBarType.success : MessageBarType.warning}
                             isMultiline={false}
                         >
                             {testResult}

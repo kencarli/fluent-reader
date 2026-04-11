@@ -166,6 +166,12 @@ async function onUpgradeItemDB(rawDb: lf.raw.BackStore) {
 
 
 export async function init() {
+    // Prevent duplicate initialization
+    if (dbInitialized) {
+        console.log('[DB] Already initialized, skipping...')
+        return
+    }
+
     console.log('[DB] Starting initialization...')
     let usedMemoryFallback = false;
 
@@ -229,44 +235,62 @@ export async function init() {
         if (error.code === 201) {
             console.warn('[DB] Database corrupted (error 201), deleting and recreating...')
             try {
-                // Delete existing corrupted databases
-                const deleteRequest1 = indexedDB.deleteDatabase('sourcesDB')
-                const deleteRequest2 = indexedDB.deleteDatabase('itemsDB')
-
+                // First close any existing connections
+                if (sourcesDB) {
+                    try { sourcesDB.close() } catch (e) {}
+                }
+                if (itemsDB) {
+                    try { itemsDB.close() } catch (e) {}
+                }
+                
+                // Delete existing corrupted databases with better error handling
                 await new Promise<void>((resolve, reject) => {
-                    let completed = 0
-                    const checkDone = () => {
-                        completed++
-                        if (completed === 2) resolve()
+                    let deleteCount = 0
+                    const checkComplete = () => {
+                        deleteCount++
+                        if (deleteCount === 2) {
+                            setTimeout(resolve, 1000) // Wait 1 second after both deletions complete
+                        }
                     }
-
-                    deleteRequest1.onsuccess = () => {
-                        console.log('[DB] sourcesDB deleted')
-                        checkDone()
+                    
+                    const req1 = indexedDB.deleteDatabase('sourcesDB')
+                    req1.onsuccess = () => {
+                        console.log('[DB] sourcesDB deleted successfully')
+                        checkComplete()
                     }
-                    deleteRequest1.onerror = () => {
-                        console.warn('[DB] Failed to delete sourcesDB')
-                        checkDone()
+                    req1.onerror = () => {
+                        console.warn('[DB] sourcesDB deletion failed, but continuing...')
+                        checkComplete()
                     }
-
-                    deleteRequest2.onsuccess = () => {
-                        console.log('[DB] itemsDB deleted')
-                        checkDone()
+                    req1.onblocked = () => {
+                        console.warn('[DB] sourcesDB deletion blocked, waiting...')
+                        setTimeout(() => checkComplete(), 2000)
                     }
-                    deleteRequest2.onerror = () => {
-                        console.warn('[DB] Failed to delete itemsDB')
-                        checkDone()
+                    
+                    const req2 = indexedDB.deleteDatabase('itemsDB')
+                    req2.onsuccess = () => {
+                        console.log('[DB] itemsDB deleted successfully')
+                        checkComplete()
+                    }
+                    req2.onerror = () => {
+                        console.warn('[DB] itemsDB deletion failed, but continuing...')
+                        checkComplete()
+                    }
+                    req2.onblocked = () => {
+                        console.warn('[DB] itemsDB deletion blocked, waiting...')
+                        setTimeout(() => checkComplete(), 2000)
                     }
                 })
-
-                // Wait a bit for deletion to complete
-                await new Promise(resolve => setTimeout(resolve, 500))
+                
+                console.log('[DB] Databases deleted, waiting for cleanup...')
+                await new Promise(resolve => setTimeout(resolve, 1000))
 
                 // Recreate schema objects (they were invalidated)
                 const freshSourcesSchema = createSourcesDBSchema()
                 const freshItemsSchema = createItemsDBSchema()
 
                 // Reconnect with fresh databases
+                console.log('[DB] Attempting to recreate databases...')
                 sourcesDB = await freshSourcesSchema.connect({
                     onUpgrade: onUpgradeSourceDB,
                     // @ts-ignore
@@ -284,10 +308,28 @@ export async function init() {
                 console.log('[DB] Items DB recreated successfully')
 
                 dbInitialized = true
-                console.log('[DB] Database recreation complete')
+                console.log('[DB] Database recreation complete - app will work with fresh database')
             } catch (recreateError) {
                 console.error('[DB] Failed to recreate database:', recreateError)
-                throw recreateError
+                // If recreation fails, fall back to memory database
+                console.log('[DB] Falling back to memory database...')
+                usedMemoryFallback = true
+                
+                const memorySourcesSchema = createSourcesDBSchema()
+                const memoryItemsSchema = createItemsDBSchema()
+
+                sourcesDB = await memorySourcesSchema.connect({
+                    onUpgrade: onUpgradeSourceDB
+                })
+                sources = sourcesDB.getSchema().table("sources")
+
+                itemsDB = await memoryItemsSchema.connect({
+                    onUpgrade: onUpgradeItemDB
+                })
+                items = itemsDB.getSchema().table("items")
+
+                dbInitialized = true
+                console.log('[DB] Memory database initialized as fallback')
             }
         } else if (error.code === 300 || error.code === 516) {
             // Error 300 or 516: Database version mismatch - use memory database

@@ -306,29 +306,56 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         }))
 
         // Create new abort controller if needed
-        const controller = useNewController ? new AbortController() : 
+        const controller = useNewController ? new AbortController() :
                           (this.state.checkAbortController || new AbortController())
-        
+
         if (useNewController) {
             this.setState({ checkAbortController: controller })
         }
 
         try {
-            const timeoutId = setTimeout(() => controller.abort(), 10000)
+            // Check if running in Tauri environment
+            // Tauri v2: Check for __TAURI__ object
+            const isTauri = typeof window !== 'undefined' && (
+                (window as any).__TAURI_INTERNALS__ !== undefined ||
+                (window as any).__TAURI__ !== undefined ||
+                (window as any).__TAURI_POST_MESSAGE__ !== undefined
+            )
 
-            const response = await fetch(source.url, {
-                signal: controller.signal,
-                method: 'HEAD',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            let responseOk = false
+
+            if (isTauri) {
+                // Use Tauri backend proxy to avoid CORS
+                try {
+                    const { fetchRSS } = await import('../../scripts/tauri-bridge')
+                    await fetchRSS(source.url)
+                    responseOk = true
+                } catch (e) {
+                    responseOk = false
                 }
-            })
-            clearTimeout(timeoutId)
+            } else {
+                // Direct fetch for browser/Electron environment
+                const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+                try {
+                    const response = await fetch(source.url, {
+                        signal: controller.signal,
+                        method: 'HEAD',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                        }
+                    })
+                    clearTimeout(timeoutId)
+                    responseOk = response.ok
+                } catch (e) {
+                    responseOk = false
+                }
+            }
 
             // Save status to settings (persistent storage)
-            const status = response.ok ? 'ok' : 'error'
+            const status = responseOk ? 'ok' : 'error'
             const timestamp = Date.now()
-            
+
             // Save to persistent storage
             const savedStatus = window.settings.getSourceStatus() || {}
             savedStatus[source.sid] = { status, timestamp }

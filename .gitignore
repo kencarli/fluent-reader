@@ -3,8 +3,66 @@ dist/*.js
 dist/*.js.map
 dist/*.html
 dist/*.LICENSE.txt
+dist/*.bak
 bin/*
 .DS_Store
 *.provisionprofile
 *.lock
 nul
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+src-tauri/capabilities/
+
+# Build outputs
+dist/
+
+# Test files
+*.test.js
+*.spec.js
+
+# Temporary files
+temp_*.css
+$null
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Rust
+*.rs.bk
+*.pdb
+Cargo.lock
+
+# Test scripts
+test-*.js
+test-*.html
+check-*.js
+diagnose-*.js
+debug-*.js
+quick-*.js
+mock-ollama-server.js
+fix-i18n.js
+
+# Documentation (keep only essential docs)
+DIGEST_FIX_SUMMARY.md
+OLLAMA_VERIFICATION_REPORT.md
+test-report.json
+
+# Rust installer
+rustup-init.exe
+
+# Qwen
+.qwen/
+QWEN.md

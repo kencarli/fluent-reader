@@ -25,8 +25,14 @@ export interface ArticleRating {
 }
 
 // @ts-ignore - lovefield types are incomplete
+let ratingsDBInitialized = false
+
+// @ts-ignore - lovefield types are incomplete
 export async function initRatingsDB(): Promise<void> {
-    if (db && ratings) return
+    // Prevent duplicate initialization
+    if (ratingsDBInitialized && db && ratings) {
+        return
+    }
 
     try {
         // Use lovefield's schema create with proper versioning
@@ -66,18 +72,40 @@ export async function initRatingsDB(): Promise<void> {
             }
             console.log('[RatingsDB] Initialized with IndexedDB')
         }
+
+        ratingsDBInitialized = true
     } catch (error: any) {
         console.error('[RatingsDB] Initialization failed:', error.code)
-        
-        // Error 300 or 516: Database version mismatch - use memory database
-        if (error.code === 300 || error.code === 516) {
-            console.log('[RatingsDB] Database version mismatch detected')
-            console.log('[RatingsDB] Using memory database...')
-            
-            // Fallback to memory database
+
+        // Error 201 = DUPLICATE_PRIMARY_KEY - database is corrupted
+        if (error.code === 201) {
+            console.warn('[RatingsDB] Database corrupted (error 201), deleting and recreating...')
             try {
-                const memorySchema = lf.schema.create("ratingsDB", 1)
-                memorySchema.createTable('Ratings')
+                // Close existing connection
+                if (db) {
+                    try { db.close() } catch (e) {}
+                }
+
+                // Delete corrupted database
+                await new Promise<void>((resolve, reject) => {
+                    const req = indexedDB.deleteDatabase('ratingsDB')
+                    req.onsuccess = () => {
+                        console.log('[RatingsDB] ratingsDB deleted successfully')
+                        setTimeout(resolve, 500)
+                    }
+                    req.onerror = () => {
+                        console.warn('[RatingsDB] ratingsDB deletion failed, but continuing...')
+                        resolve()
+                    }
+                    req.onblocked = () => {
+                        console.warn('[RatingsDB] ratingsDB deletion blocked, waiting...')
+                        setTimeout(() => resolve(), 2000)
+                    }
+                })
+
+                // Recreate with fresh schema
+                const freshSchema = lf.schema.create("ratingsDB", 1)
+                freshSchema.createTable('Ratings')
                     .addColumn('itemId', lf.Type.INTEGER)
                     .addPrimaryKey(['itemId'], false)
                     .addColumn('overallScore', lf.Type.NUMBER)
@@ -96,20 +124,62 @@ export async function initRatingsDB(): Promise<void> {
                     .addIndex('idx_overall_score', ['overallScore'], false, lf.Order.DESC)
 
                 // @ts-ignore
-                db = await memorySchema.connect()
+                db = await freshSchema.connect({ storeType: INDEXED_DB })
                 // @ts-ignore
                 ratings = db.getSchema().table('Ratings')
-                console.log('[RatingsDB] Memory database initialized successfully')
-                console.log('[RatingsDB] NOTE: Your existing ratings data in IndexedDB is safe')
-                console.log('[RatingsDB] NOTE: Ratings will not persist between sessions')
+
+                ratingsDBInitialized = true
+                console.log('[RatingsDB] Database recreated successfully')
                 return
-            } catch (memoryError: any) {
-                console.error('[RatingsDB] Memory database initialization failed:', memoryError)
-                throw memoryError
+            } catch (recreateError) {
+                console.error('[RatingsDB] Failed to recreate database:', recreateError)
+                // Fall through to memory database
             }
         }
-        
-        throw error
+
+        // Error 300 or 516: Database version mismatch - use memory database
+        if (error.code === 300 || error.code === 516) {
+            console.log('[RatingsDB] Database version mismatch detected')
+            console.log('[RatingsDB] Using memory database...')
+        } else {
+            console.log('[RatingsDB] Falling back to memory database...')
+        }
+
+        // Fallback to memory database
+        try {
+            const memorySchema = lf.schema.create("ratingsDB", 1)
+            memorySchema.createTable('Ratings')
+                .addColumn('itemId', lf.Type.INTEGER)
+                .addPrimaryKey(['itemId'], false)
+                .addColumn('overallScore', lf.Type.NUMBER)
+                .addColumn('industryScore', lf.Type.NUMBER)
+                .addColumn('industryName', lf.Type.STRING)
+                .addColumn('industryReason', lf.Type.STRING)
+                .addColumn('roleScore', lf.Type.NUMBER)
+                .addColumn('roleName', lf.Type.STRING)
+                .addColumn('roleReason', lf.Type.STRING)
+                .addColumn('qualityScore', lf.Type.NUMBER)
+                .addColumn('qualityReason', lf.Type.STRING)
+                .addColumn('reason', lf.Type.STRING)
+                .addColumn('ratedAt', lf.Type.DATE_TIME)
+                .addColumn('model', lf.Type.STRING)
+                .addNullable(['industryReason', 'roleReason', 'qualityReason', 'reason'])
+                .addIndex('idx_overall_score', ['overallScore'], false, lf.Order.DESC)
+
+            // @ts-ignore
+            db = await memorySchema.connect()
+            // @ts-ignore
+            ratings = db.getSchema().table('Ratings')
+            
+            ratingsDBInitialized = true
+            console.log('[RatingsDB] Memory database initialized successfully')
+            console.log('[RatingsDB] NOTE: Your existing ratings data in IndexedDB is safe')
+            console.log('[RatingsDB] NOTE: Ratings will not persist between sessions')
+            return
+        } catch (memoryError: any) {
+            console.error('[RatingsDB] Memory database initialization failed:', memoryError)
+            throw memoryError
+        }
     }
 }
 

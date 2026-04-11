@@ -1,4 +1,5 @@
 import * as React from "react"
+import intl from "react-intl-universal"
 import {
     Stack,
     IconButton,
@@ -62,7 +63,7 @@ export default class CollapsibleSection extends React.Component<
                                     fontSize: 14,
                                 },
                             }}
-                            ariaLabel={isCollapsed ? "展开" : "收起"}
+                            ariaLabel={isCollapsed ? intl.get("common.expand") : intl.get("common.collapse")}
                         />
                         <span
                             style={{

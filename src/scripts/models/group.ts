@@ -369,7 +369,7 @@ export function exportOPML(): AppThunk {
 export type GroupState = SourceGroup[]
 
 export function groupReducer(
-    state = window.settings.loadGroups(),
+    state = (typeof window !== 'undefined' && window.settings ? window.settings.loadGroups() : []) || [],
     action: SourceActionTypes | SourceGroupActionTypes
 ): GroupState {
     switch (action.type) {

@@ -1,6 +1,20 @@
 import { ArticleRating } from "./ratings-db"
 import { RSSItem } from "./models/item"
 import { IntegrationSettings } from "../schema-types"
+import { getCurrentLocale } from "./settings"
+
+// Load AI prompts dynamically
+const aiPrompts = require("./i18n/ai-prompts.json")
+
+// Check if running in Tauri environment
+function isTauri(): boolean {
+    // Tauri v2: Check for __TAURI__ object
+    return typeof window !== 'undefined' && (
+        (window as any).__TAURI_INTERNALS__ !== undefined ||
+        (window as any).__TAURI__ !== undefined ||
+        (window as any).__TAURI_POST_MESSAGE__ !== undefined
+    )
+}
 
 // Industry options
 export const INDUSTRY_OPTIONS = [
@@ -38,45 +52,29 @@ function buildRatingPrompt(
         const opt = INDUSTRY_OPTIONS.find(o => o.key === i)
         return opt ? opt.labelEn : i
     }).join(', ') || 'Hearing Healthcare'
-    
+
     const roles = config.ratingRoles?.map(r => {
         const opt = ROLE_OPTIONS.find(o => o.key === r)
         return opt ? opt.labelEn : r
     }).join(', ') || 'Hearing Aid Dispenser'
-    
+
     const truncatedContent = content.substring(0, 3000)
     
-    return `You are an expert content analyst for the hearing healthcare industry.
-
-Rate this article based on the following criteria:
-
-USER PROFILE:
-- Industries of interest: ${industries}
-- Roles of interest: ${roles}
-
-ARTICLE:
-Title: ${item.title}
-Content: ${truncatedContent}
-
-RATE ON SCALE 1-5 (1=lowest, 5=highest):
-
-1. Industry Relevance: How relevant is this to hearing healthcare, medical devices, consumer electronics, or research?
-2. Role Relevance: How useful is this for hearing aid dispensers, audiologists, researchers, distributors, or patients?
-3. Content Quality: Is the information accurate, deep, and timely?
-
-Output ONLY valid JSON (no other text):
-{
-    "industryScore": 4,
-    "industryName": "Hearing Healthcare",
-    "industryReason": "Brief explanation in Chinese",
-    "roleScore": 3,
-    "roleName": "Hearing Aid Dispenser",
-    "roleReason": "Brief explanation in Chinese",
-    "qualityScore": 4,
-    "qualityReason": "Brief explanation in Chinese",
-    "overallScore": 3.7,
-    "reason": "One sentence summary in Chinese"
-}`
+    // Get current language from settings
+    const currentLang = getCurrentLocale()
+    const langCode = currentLang.substring(0, 2).toLowerCase()
+    
+    // Get prompts based on language, fallback to English
+    const prompts = aiPrompts.rating as any
+    const systemPrompt = prompts.systemPrompt[langCode] || prompts.systemPrompt.en
+    const promptTemplate = prompts.ratingPromptTemplate[langCode] || prompts.ratingPromptTemplate.en
+    
+    // Replace placeholders
+    return promptTemplate
+        .replace('{industries}', industries)
+        .replace('{roles}', roles)
+        .replace('{title}', item.title)
+        .replace('{content}', truncatedContent)
 }
 
 export async function rateArticle(
@@ -131,6 +129,13 @@ Please configure at least one provider in Settings > Integrations > AI Services`
 
     const content = extractTextFromHtml(item.content)
     const prompt = buildRatingPrompt(item, content, config)
+    
+    // Get system prompt from buildRatingPrompt (it returns the full prompt now)
+    // We need to split it back - let's get system prompt separately
+    const currentLang = getCurrentLocale()
+    const langCode = currentLang.substring(0, 2).toLowerCase()
+    const prompts = aiPrompts.rating as any
+    const systemPrompt = prompts.systemPrompt[langCode] || prompts.systemPrompt.en
 
     const response = await fetch(apiUrl, {
         method: 'POST',
@@ -141,7 +146,7 @@ Please configure at least one provider in Settings > Integrations > AI Services`
         body: JSON.stringify(
             provider === 'ollama' ? {
                 model: model,
-                prompt: prompt,
+                prompt: systemPrompt + '\n\n' + prompt,  // Combine for Ollama
                 stream: false,
                 options: {
                     temperature: 0.1,
@@ -151,6 +156,7 @@ Please configure at least one provider in Settings > Integrations > AI Services`
             } : {
                 model: model,
                 messages: [
+                    { role: 'system', content: systemPrompt },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.1,

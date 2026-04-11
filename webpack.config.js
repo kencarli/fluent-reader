@@ -86,6 +86,23 @@ module.exports = [
                         to: "icons",
                         noErrorOnMissing: true,
                     },
+                    {
+                        from: "src/static/article",
+                        to: "article",
+                        noErrorOnMissing: true,
+                    },
+                    {
+                        from: "src/static/fontlist",
+                        to: "fontlist",
+                        toType: "file",
+                        noErrorOnMissing: true,
+                    },
+                    {
+                        from: "src/static/fonts.vbs",
+                        to: "fonts.vbs",
+                        toType: "file",
+                        noErrorOnMissing: true,
+                    },
                 ],
             }),
         ],

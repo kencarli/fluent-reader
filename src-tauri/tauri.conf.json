@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' tauri: ipc:; script-src 'self' 'unsafe-inline' 'unsafe-eval' tauri: ipc:; style-src 'self' 'unsafe-inline' https://static2.sharepointonline.com https://spoprod-a.akamaihd.net; img-src * data: file: blob: tauri: ipc:; font-src 'self' https://static2.sharepointonline.com https://spoprod-a.akamaihd.net file: tauri:; connect-src https: http: file: tauri: ipc: ws: wss:;"
+      "csp": "default-src 'self' tauri: ipc:; script-src 'self' 'unsafe-inline' 'unsafe-eval' tauri: ipc:; style-src 'self' 'unsafe-inline' https://static2.sharepointonline.com https://spoprod-a.akamaihd.net; img-src * data: file: blob: tauri: ipc:; font-src 'self' https://static2.sharepointonline.com https://spoprod-a.akamaihd.net file: tauri:; connect-src https: http: file: tauri: ipc: ws: wss:; frame-src 'self' tauri: ipc:;"
     }
   },
   "bundle": {

@@ -85,7 +85,7 @@ export default class CloudNoteServicesInline extends React.Component<
                     text: db.title[0]?.plain_text || "Untitled"
                 })),
                 isLoadingDatabases: false,
-                testMessage: `成功加载 ${dbs.length} 个数据库`,
+                testMessage: intl.get("settings.integrations.loadedDatabases", { count: dbs.length }),
                 testType: "notion"
             })
         } catch (err: unknown) {
@@ -243,7 +243,7 @@ export default class CloudNoteServicesInline extends React.Component<
                             <Stack.Item>
                                 <div style={{ paddingTop: 32 }}>
                                     <PrimaryButton
-                                        text="浏览..."
+                                        text={intl.get("settings.integrations.browse")}
                                         onClick={() => {
                                             // File picker can be implemented here
                                         }}
@@ -339,7 +339,7 @@ export default class CloudNoteServicesInline extends React.Component<
                         {localSettings.notionDatabaseId && Object.keys(this.state.notionProperties).length > 0 && (
                             <Stack tokens={{ childrenGap: 12 }} style={{ marginTop: 16 }}>
                                 <Label style={{ fontSize: 13, fontWeight: 600 }}>
-                                    属性映射
+                                    {intl.get("settings.integrations.propertyMappings")}
                                 </Label>
                                 <Stack horizontal tokens={{ childrenGap: 16 }} wrap>
                                     <Stack.Item grow>
@@ -411,7 +411,7 @@ export default class CloudNoteServicesInline extends React.Component<
                                 underline
                                 style={{ marginTop: 8 }}
                             >
-                                创建 Notion Integration →
+                                {intl.get("settings.integrations.createNotionIntegration")}
                             </Link>
                         )}
                     </div>

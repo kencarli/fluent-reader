@@ -5,13 +5,363 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; script-src-elem 'self' 'unsafe-inline'; img-src * data: file:; style-src 'self' 'unsafe-inline'; font-src 'self' https://static2.sharepointonline.com https://spoprod-a.akamaihd.net file:; connect-src https: http: file:;">
+    content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' tauri: ipc:; script-src * 'self' 'unsafe-inline' 'unsafe-eval' tauri: ipc:; style-src * 'self' 'unsafe-inline' tauri: ipc:; img-src * data: file: blob: tauri: ipc:; font-src * 'self' tauri: ipc:; connect-src * http: https: file: tauri: ipc: ws: wss:; frame-src * 'self' tauri: ipc:;">
   <title>Fluent Reader</title>
   <link rel="stylesheet" href="index.css">
+  <script>
+    // Initialize window.settings and window.utils for Tauri environment
+    (function() {
+      // Check if in Tauri environment (support both v1 and v2)
+      const isTauri = window.__TAURI_INTERNALS__ !== undefined || 
+                      window.__TAURI__ !== undefined ||
+                      window.__TAURI_POST_MESSAGE__ !== undefined;
+
+      // Helper function to invoke Tauri commands
+      function tauriInvoke(command, args = {}) {
+        if (window.__TAURI_INTERNALS__?.invoke) {
+          // Tauri v1
+          return window.__TAURI_INTERNALS__.invoke(command, args);
+        } else if (window.__TAURI__?.core?.invoke) {
+          // Tauri v2
+          return window.__TAURI__.core.invoke(command, args);
+        } else if (window.__TAURI_POST_MESSAGE__) {
+          // Fallback
+          return window.__TAURI_POST_MESSAGE__(command, args);
+        } else {
+          return Promise.reject(new Error('Tauri invoke method not available'));
+        }
+      }
+
+      if (isTauri && !window.settings) {
+        // Create a minimal settings bridge for Tauri
+        const settingsCache = {};
+
+        // Load settings from Tauri backend
+        tauriInvoke('get_all_settings').then(function(allSettings) {
+          Object.assign(settingsCache, allSettings);
+        }).catch(function(e) {
+          console.warn('[Settings] Failed to load settings:', e);
+        });
+        
+        window.settings = {
+          saveGroups: function(groups) {
+            tauriInvoke('set_setting', { key: 'groups', value: groups });
+          },
+          loadGroups: function() {
+            return settingsCache['groups'] || [];
+          },
+          getDefaultMenu: function() {
+            return settingsCache['defaultMenu'] !== false;
+          },
+          setDefaultMenu: function(state) {
+            tauriInvoke('set_setting', { key: 'defaultMenu', value: state });
+          },
+          getProxyStatus: function() {
+            return settingsCache['proxyEnabled'] === true;
+          },
+          toggleProxyStatus: function() {
+            var current = this.getProxyStatus();
+            tauriInvoke('set_setting', { key: 'proxyEnabled', value: !current });
+          },
+          getProxy: function() {
+            return settingsCache['proxy'] || '';
+          },
+          setProxy: function(address) {
+            tauriInvoke('set_setting', { key: 'proxy', value: address || null });
+          },
+          getDefaultView: function() {
+            return settingsCache['defaultView'] || 0;
+          },
+          setDefaultView: function(viewType) {
+            tauriInvoke('set_setting', { key: 'defaultView', value: viewType });
+          },
+          getViewConfigs: function(viewType) {
+            return settingsCache['viewConfigs_' + viewType] || {};
+          },
+          setViewConfigs: function(viewType, configs) {
+            tauriInvoke('set_setting', { key: 'viewConfigs_' + viewType, value: configs });
+          },
+          getThemeSettings: function() {
+            return settingsCache['themeSettings'] || {};
+          },
+          setThemeSettings: function(theme) {
+            tauriInvoke('set_setting', { key: 'themeSettings', value: theme });
+          },
+          shouldUseDarkColors: function() {
+            return settingsCache['shouldUseDarkColors'] === true;
+          },
+          addThemeUpdateListener: function(callback) {
+            // Not implemented for Tauri
+          },
+          getCurrentLocale: function() {
+            // Try localStorage first for synchronous access
+            try {
+              var cached = localStorage.getItem('localeSettings');
+              if (cached) return cached;
+            } catch (e) {}
+            return settingsCache['localeSettings'] || 'en-US';
+          },
+          setLocaleSettings: function(locale) {
+            // Save to localStorage for synchronous access
+            try {
+              localStorage.setItem('localeSettings', locale);
+            } catch (e) {}
+            tauriInvoke('set_setting', { key: 'localeSettings', value: locale });
+          },
+          getLocaleSettings: function() {
+            // Try localStorage first for synchronous access
+            try {
+              var cached = localStorage.getItem('localeSettings');
+              if (cached) return cached;
+            } catch (e) {}
+            return settingsCache['localeSettings'] || 'en-US';
+          },
+          getFetchInterval: function() {
+            return settingsCache['fetchInterval'] || 30;
+          },
+          setFetchInterval: function(interval) {
+            tauriInvoke('set_setting', { key: 'fetchInterval', value: interval });
+          },
+          getSearchEngine: function() {
+            return settingsCache['searchEngine'] || 0;
+          },
+          setSearchEngine: function(engine) {
+            tauriInvoke('set_setting', { key: 'searchEngine', value: engine });
+          },
+          getFilterType: function() {
+            return settingsCache['filterType'] !== undefined ? settingsCache['filterType'] : 0;
+          },
+          setFilterType: function(type) {
+            tauriInvoke('set_setting', { key: 'filterType', value: type });
+          },
+          getIntegrationSettings: function() {
+            // Try localStorage first for synchronous access
+            try {
+              var cached = localStorage.getItem('integrationSettings');
+              if (cached) return JSON.parse(cached);
+            } catch (e) {}
+            return settingsCache['integrationSettings'] || {};
+          },
+          setIntegrationSettings: function(settings) {
+            // Save to localStorage for synchronous access
+            try {
+              localStorage.setItem('integrationSettings', JSON.stringify(settings));
+            } catch (e) {}
+            tauriInvoke('set_setting', { key: 'integrationSettings', value: settings });
+          },
+          getServiceConfigs: function() {
+            return settingsCache['serviceConfigs'] || { type: 0 }; // SyncService.None
+          },
+          setServiceConfigs: function(configs) {
+            tauriInvoke('set_setting', { key: 'serviceConfigs', value: configs });
+          },
+          getSourceStatus: function() {
+            return settingsCache['sourceStatus'] || {};
+          },
+          setSourceStatus: function(status) {
+            tauriInvoke('set_setting', { key: 'sourceStatus', value: status });
+          },
+          getNeDBStatus: function() {
+            return settingsCache['neDBStatus'] !== undefined ? settingsCache['neDBStatus'] : false;
+          },
+          setNeDBStatus: function(status) {
+            tauriInvoke('set_setting', { key: 'neDBStatus', value: status });
+          },
+          getFont: function() {
+            return settingsCache['font'] || '';
+          },
+          setFont: function(font) {
+            tauriInvoke('set_setting', { key: 'font', value: font });
+          },
+          getFontSize: function() {
+            return settingsCache['fontSize'] || 14;
+          },
+          setFontSize: function(size) {
+            tauriInvoke('set_setting', { key: 'fontSize', value: size });
+          },
+          getAll: function() {
+            return Object.assign({}, settingsCache);
+          },
+          setAll: function(configs) {
+            var self = this;
+            Object.keys(configs).forEach(function(key) {
+              settingsCache[key] = configs[key];
+              tauriInvoke('set_setting', { key: key, value: configs[key] });
+            });
+          }
+        };
+        
+        console.log('[Settings] Tauri settings bridge initialized');
+      }
+      
+      // Initialize window.utils if not present
+      if (!window.utils) {
+        // Detect platform
+        var platform = 'win32';
+        if (navigator.userAgent.indexOf('Mac') !== -1) {
+          platform = 'darwin';
+        } else if (navigator.userAgent.indexOf('Linux') !== -1) {
+          platform = 'linux';
+        }
+        
+        window.utils = {
+          platform: platform,
+          addMainContextListener: function(callback) {
+            console.log('[Utils] Context menu listener registered (Tauri)');
+          },
+          initFontList: function() {
+            return Promise.resolve([]);
+          },
+          showOpenDialog: function(filters) {
+            // Convert filters to backend format
+            var backendFilters = [];
+            if (filters && Array.isArray(filters)) {
+              filters.forEach(function(f) {
+                if (f.name && f.extensions) {
+                  backendFilters.push([f.name, f.extensions]);
+                }
+              });
+            }
+            return tauriInvoke('show_open_dialog', {
+              filters: backendFilters.length > 0 ? backendFilters : null,
+              defaultPath: null
+            }).then(function(selected) {
+              if (selected) {
+                return tauriInvoke('read_file', {
+                  path: selected
+                });
+              }
+              return null;
+            }).catch(function(e) {
+              console.error('[Utils] showOpenDialog error:', e);
+              return null;
+            });
+          },
+          showSaveDialog: function(filters, defaultPath) {
+            // Convert filters to backend format
+            var backendFilters = [];
+            if (filters && Array.isArray(filters)) {
+              filters.forEach(function(f) {
+                if (f.name && f.extensions) {
+                  backendFilters.push([f.name, f.extensions]);
+                }
+              });
+            }
+            return tauriInvoke('show_save_dialog', {
+              filters: backendFilters.length > 0 ? backendFilters : null,
+              defaultPath: defaultPath || null
+            }).then(function(path) {
+              if (path) {
+                return {
+                  write: function(content, errorMsg) {
+                    return tauriInvoke('write_file', {
+                      path: path,
+                      content: content
+                    }).then(function() {
+                      return true;
+                    }).catch(function(e) {
+                      if (errorMsg) console.error(errorMsg, e);
+                      return false;
+                    });
+                  }
+                };
+              }
+              return null;
+            }).catch(function(e) {
+              console.error('[Utils] showSaveDialog error:', e);
+              return null;
+            });
+          },
+          // Window state methods
+          isFocused: function() {
+            return document.hasFocus();
+          },
+          isFullscreen: function() {
+            return !!document.fullscreenElement;
+          },
+          isMaximized: function() {
+            return false; // Tauri v2 doesn't have a direct API for this
+          },
+          addWindowStateListener: function(callback) {
+            // Listen for window focus/blur
+            window.addEventListener('focus', function() { callback('focus', true); });
+            window.addEventListener('blur', function() { callback('blur', false); });
+          },
+          addWebviewContextListener: function(callback) {},
+          addWebviewKeydownListener: function(callback) {},
+          addWebviewErrorListener: function(callback) {},
+          addHighlightCreatedListener: function(callback) {},
+          // Window control methods
+          closeWindow: function() {
+            tauriInvoke('close_window');
+          },
+          minimizeWindow: function() {
+            tauriInvoke('minimize_window');
+          },
+          maximizeWindow: function() {
+            tauriInvoke('maximize_window');
+          },
+          // System methods
+          getVersion: function() {
+            return '1.1.4';
+          },
+          openExternal: function(url, background) {
+            return tauriInvoke('open_url', { url: url });
+          },
+          writeClipboard: function(text) {
+            return tauriInvoke('write_clipboard', { text: text });
+          },
+          showErrorBox: function(title, content) {
+            alert(title + ': ' + content);
+          },
+          showMessage: function(title, message) {
+            return tauriInvoke('show_message_box', { 
+              title: title, 
+              message: message 
+            });
+          },
+          showMessagebox: function(title, message, confirm, cancel, defaultCancel, type) {
+            if (confirm('title: ' + title + '\n' + message)) {
+              return Promise.resolve(true);
+            }
+            return Promise.resolve(false);
+          },
+          // Cache methods
+          getCache: function(key) {
+            return tauriInvoke('get_cache_item', { key: key });
+          },
+          setCache: function(key, value, ttl) {
+            return tauriInvoke('set_cache_item', { key: key, value: value, ttl: ttl });
+          },
+          getCacheSize: function() {
+            return tauriInvoke('get_cache_size');
+          },
+          clearCache: function() {
+            return tauriInvoke('clear_cache');
+          },
+          // Image callback
+          imageCallback: function(type) {
+            console.log('[Utils] Image callback:', type);
+          },
+          // TouchBar (darwin only)
+          destroyTouchBar: function() {},
+          addTouchBarEventsListener: function(callback) {},
+          // Notion integration
+          getNotionDatabases: function(secret) {
+            return Promise.resolve([]);
+          },
+          getNotionDatabaseProperties: function(secret, databaseId) {
+            return Promise.resolve({});
+          }
+        };
+      }
+    })();
+  </script>
 </head>
 
-<body>
-  <div id="app" style="height: 100%;"></div>
+<body style="margin: 0; padding: 0; height: 100%; overflow: hidden;">
+  <div id="app" style="height: 100%; width: 100%;"></div>
+  <script src="index.js"></script>
 </body>
 
 </html>

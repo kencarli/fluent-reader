@@ -77,7 +77,12 @@ export async function parseRSS(url: string) {
     let result: Response
     try {
         // Check if running in Tauri environment
-        const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined
+        // Tauri v2: Check for __TAURI__ object or try to use the invoke function
+    const isTauri = typeof window !== 'undefined' && (
+        (window as any).__TAURI_INTERNALS__ !== undefined ||
+        (window as any).__TAURI__ !== undefined ||
+        (window as any).__TAURI_POST_MESSAGE__ !== undefined
+    )
 
         if (isTauri) {
             // Use Tauri backend proxy to avoid CORS

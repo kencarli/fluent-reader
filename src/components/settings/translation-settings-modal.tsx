@@ -88,44 +88,44 @@ export default class TranslationSettingsModal extends React.Component<
             if (service === "baidu" || service === "auto") {
                 if (tempSettings.baiduTranslateAppId && tempSettings.baiduTranslateSecret) {
                     success = true
-                    message = "百度翻译配置成功！"
+                    message = intl.get('settings.translation.baiduSuccess')
                 }
             }
 
             if (service === "deepl" || service === "auto") {
                 if (tempSettings.deeplTranslateApiKey) {
                     success = true
-                    message = "DeepL 配置成功！"
+                    message = intl.get('settings.translation.deeplSuccess')
                 }
             }
 
             if (service === "ollama" || service === "auto") {
                 if (tempSettings.ollamaApiUrl && tempSettings.ollamaModel) {
                     success = true
-                    message = "Ollama 配置成功！"
+                    message = intl.get('settings.translation.ollamaSuccess')
                 }
             }
 
             if (service === "libretranslate" || service === "auto") {
                 if (tempSettings.libretranslateApiUrl) {
                     success = true
-                    message = "LibreTranslate 配置成功！"
+                    message = intl.get('settings.translation.libretranslateSuccess')
                 }
             }
 
             if (service === "mymemory") {
                 success = true
-                message = "MyMemory 无需配置，可直接使用"
+                message = intl.get('settings.translation.mymemoryNoConfig')
             }
 
             if (!success) {
-                message = "请先配置 API 密钥"
+                message = intl.get('settings.translation.pleaseConfigureApi')
             }
 
             this.setState({ testResult: message, isTesting: false })
         } catch (error) {
             this.setState({
-                testResult: `测试失败：${error instanceof Error ? error.message : '未知错误'}`,
+                testResult: intl.get('settings.translation.testFailed', { error: error instanceof Error ? error.message : intl.get('settings.translation.unknownError') }),
                 isTesting: false
             })
         }
@@ -166,12 +166,12 @@ export default class TranslationSettingsModal extends React.Component<
                         
                         {/* Service Selection */}
                         <Dropdown
-                            label="翻译服务"
+                            label={intl.get('settings.translation.serviceLabel')}
                             selectedKey={selectedService}
                             options={[
-                                { key: "auto", text: "自动模式（推荐）" },
-                                { key: "baidu", text: "百度翻译" },
-                                { key: "deepl", text: "DeepL 翻译" },
+                                { key: "auto", text: intl.get('settings.translation.autoMode') },
+                                { key: "baidu", text: intl.get('settings.translation.baiduName') },
+                                { key: "deepl", text: intl.get('settings.translation.deeplName') },
                                 { key: "ollama", text: "Ollama" },
                                 { key: "libretranslate", text: "LibreTranslate" },
                                 { key: "mymemory", text: "MyMemory" },
@@ -180,7 +180,7 @@ export default class TranslationSettingsModal extends React.Component<
                         />
 
                         <MessageBar messageBarType={MessageBarType.info}>
-                            选择翻译服务后，需在下方配置相应的 API 密钥。
+                            {intl.get('settings.translation.serviceSelectionHint')}
                         </MessageBar>
 
                         {/* Translation Mode */}
@@ -281,8 +281,8 @@ export default class TranslationSettingsModal extends React.Component<
 
                         {/* Test and Save */}
                         {testResult && (
-                            <MessageBar 
-                                messageBarType={testResult.includes("成功") ? MessageBarType.success : MessageBarType.warning}
+                            <MessageBar
+                                messageBarType={testResult.includes("成功") || testResult.includes("Success") || testResult.includes("无需配置") ? MessageBarType.success : MessageBarType.warning}
                                 isMultiline={false}
                             >
                                 {testResult}

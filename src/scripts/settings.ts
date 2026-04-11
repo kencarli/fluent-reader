@@ -74,16 +74,21 @@ export function getThemeSettings(): ThemeSettings {
     return window.settings.getThemeSettings()
 }
 export function applyThemeSettings() {
-    loadTheme(window.settings.shouldUseDarkColors() ? darkTheme : lightTheme)
+    const shouldDark = typeof window !== 'undefined' && window.settings 
+        ? window.settings.shouldUseDarkColors() 
+        : false
+    loadTheme(shouldDark ? darkTheme : lightTheme)
 }
-if (window.settings) {
+if (typeof window !== 'undefined' && window.settings) {
     window.settings.addThemeUpdateListener(shouldDark => {
         loadTheme(shouldDark ? darkTheme : lightTheme)
     })
 }
 
 export function getCurrentLocale() {
-    let locale = window.settings.getCurrentLocale()
+    let locale = typeof window !== 'undefined' && window.settings 
+        ? window.settings.getCurrentLocale() 
+        : "en-US"
     if (locale in locales) return locale
     locale = locale.split("-")[0]
     return locale in locales ? locale : "en-US"

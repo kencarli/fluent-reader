@@ -11,11 +11,15 @@ import LogMenu from "./log-menu"
 import DigestView from "./utils/digest-view"
 
 
-const Root = ({ locale, dispatch }) =>
-    locale && (
+const Root = ({ locale, dispatch }) => {
+    // Always render the app, even during locale transition
+    // Use a default locale if not yet initialized
+    const effectiveLocale = locale || 'en-US'
+    
+    return (
         <div
             id="root"
-            key={locale}
+            key={effectiveLocale}
             onMouseDown={() => dispatch(closeContextMenu())}>
             <NavContainer />
             <PageContainer />
@@ -26,6 +30,7 @@ const Root = ({ locale, dispatch }) =>
             <ContextMenu />
         </div>
     )
+}
 
 const getLocale = (state: RootState) => ({
     locale: state.app.locale

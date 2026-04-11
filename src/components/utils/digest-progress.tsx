@@ -1,4 +1,5 @@
 import * as React from "react"
+import intl from "react-intl-universal"
 import { Spinner, SpinnerSize } from "@fluentui/react/lib/Spinner"
 import { Label } from "@fluentui/react/lib/Label"
 
@@ -9,7 +10,7 @@ type DigestProgressProps = {
 
 export default class DigestProgress extends React.Component<DigestProgressProps> {
     render() {
-        const { isGenerating, message = "正在生成 AI 摘要..." } = this.props
+        const { isGenerating, message = intl.get("digest.generating") } = this.props
 
         if (!isGenerating) {
             return null
@@ -44,12 +45,12 @@ export default class DigestProgress extends React.Component<DigestProgressProps>
                     }}>
                         {message}
                     </Label>
-                    <div style={{ 
-                        fontSize: '12px', 
+                    <div style={{
+                        fontSize: '12px',
                         opacity: 0.7,
                         marginTop: '4px'
                     }}>
-                        这可能需要几分钟时间...
+                        {intl.get("digest.takesTime")}
                     </div>
                 </div>
             </div>

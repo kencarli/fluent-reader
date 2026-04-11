@@ -16,7 +16,12 @@ const OPENAI_IMAGE_API = "https://api.openai.com/v1/images/generations"
 
 // Check if running in Tauri environment
 function isTauri(): boolean {
-    return typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined
+    // Tauri v2: Check for __TAURI__ object
+    return typeof window !== 'undefined' && (
+        (window as any).__TAURI_INTERNALS__ !== undefined ||
+        (window as any).__TAURI__ !== undefined ||
+        (window as any).__TAURI_POST_MESSAGE__ !== undefined
+    )
 }
 
 export interface BriefingResult {

@@ -38,7 +38,6 @@ type DigestViewState = {
     briefing: BriefingResult | null
     error: string | null
     pushSuccess: string | null
-    hasStartedGeneration: boolean  // Track if generation has started in this session
 }
 
 class DigestView extends React.Component<DigestViewProps, DigestViewState> {
@@ -49,8 +48,7 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
             pushing: false,
             briefing: null,
             error: null,
-            pushSuccess: null,
-            hasStartedGeneration: false
+            pushSuccess: null
         }
     }
 
@@ -73,9 +71,8 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
         if (stored) {
             try {
                 const result = JSON.parse(stored)
-                this.setState({ 
-                    briefing: result,
-                    hasStartedGeneration: false
+                this.setState({
+                    briefing: result
                 })
                 // Clear stored result after loading
                 sessionStorage.removeItem('digestResult')
@@ -83,15 +80,15 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
                 console.error('Failed to parse stored digest result:', e)
                 sessionStorage.removeItem('digestResult')
             }
-        } else if (!this.state.hasStartedGeneration && !this.state.briefing) {
+        } else if (!this.state.briefing) {
             // No stored result, auto-start generation
             this.generate()
         }
     }
 
     generate = async () => {
-        if (this.state.generating || this.state.hasStartedGeneration) return
-        
+        if (this.state.generating) return
+
         const settings = window.settings.getIntegrationSettings()
 
         // Check if any LLM provider is configured (including Ollama)
@@ -105,25 +102,23 @@ class DigestView extends React.Component<DigestViewProps, DigestViewState> {
             // Build detailed error message
             const missingServices = []
             if (!settings.openaiApiKey && !settings.nvidiaApiKey && !settings.deepseekApiKey && !settings.ollamaApiUrl) {
-                missingServices.push('OpenAI/NVIDIA/DeepSeek API Key 或 Ollama API 地址')
+                missingServices.push(intl.get("digest.missingApiConfig"))
             }
             if (settings.ollamaApiUrl && !settings.ollamaModel) {
-                missingServices.push('Ollama 模型名称')
+                missingServices.push(intl.get("digest.missingOllamaModel"))
             }
-            
+
             this.setState({
-                error: `未配置 AI 服务。请在设置 > 集成 > AI 服务中配置：\n${missingServices.join('、')}`,
-                hasStartedGeneration: true
+                error: intl.get("digest.noAIServiceConfigured", { services: missingServices.join('、') })
             })
             return
         }
 
-        this.setState({ 
-            generating: true, 
-            error: null, 
-            briefing: null, 
-            pushSuccess: null,
-            hasStartedGeneration: true
+        this.setState({
+            generating: true,
+            error: null,
+            briefing: null,
+            pushSuccess: null
         })
         try {
             const topics = settings.digestTopics ? settings.digestTopics.split(',').map(t => t.trim()) : []

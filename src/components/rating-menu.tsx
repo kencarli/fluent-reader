@@ -152,20 +152,20 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
             if (sourceIds.length === 0) {
                 // 理论上不会发生（上面已经处理）
                 itemList = Object.values(items).filter((i: any) => i._id && i.title)
-                scopeText = '全部文章'
+                scopeText = intl.get('rating.allArticles')
             } else if (sourceIds.length === 1) {
                 // 单个订阅源
                 const sourceId = sourceIds[0]
                 itemList = Object.values(items).filter((i: any) =>
                     i._id && i.title && i.source === sourceId
                 )
-                scopeText = '当前订阅源'
+                scopeText = intl.get('rating.currentSource')
             } else {
                 // 订阅组（多个源）
                 itemList = Object.values(items).filter((i: any) =>
                     i._id && i.title && sourceIds.includes(i.source)
                 )
-                scopeText = '当前订阅组'
+                scopeText = intl.get('rating.currentGroup')
             }
 
             // 按日期过滤
@@ -173,7 +173,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
             if (date) {
                 const now = new Date()
                 const days = Math.floor((now.getTime() - date.getTime()) / 86400000)
-                dateText = `（最近${days}天）`
+                dateText = intl.get('rating.recentDays', { days })
                 itemList = itemList.filter((i: any) => i.date >= date)
             }
 
@@ -184,7 +184,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
             const unratedItems = itemList.filter((i: any) => !ratedIdSet.has(i._id))
 
             if (unratedItems.length === 0) {
-                alert(`${scopeText}${dateText} 没有未评分的文章`)
+                alert(intl.get('rating.noUnratedArticles', { scope: scopeText, dateRange: dateText }))
                 setIsRating(false)
                 return
             }
@@ -201,7 +201,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
                 }
             )
 
-            alert(`评分完成！共评分 ${unratedItems.length} 篇文章（${scopeText}${dateText}）`)
+            alert(intl.get('rating.ratingCompleted', { count: unratedItems.length, scope: scopeText, dateRange: dateText }))
 
             // Refresh rating stats
             const newRatedIds = await getRatedArticleIds()
@@ -210,7 +210,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
             const ratedCount = itemList.filter((i: any) => newRatedIdSet.has(i._id)).length
             setRatingStats({ ratedCount, totalCount })
         } catch (error) {
-            alert(`评分失败：${error.message}`)
+            alert(intl.get('rating.ratingFailed', { error: error.message }))
         } finally {
             setIsRating(false)
             setRatingProgress({ completed: 0, total: 0 })
@@ -227,10 +227,10 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
     const getViewName = () => {
         const storeState = (window as any).__STORE__.getState()
         const feedId = storeState.page.feedId
-        if (feedId === ALL || feedId === 'all') return '全部文章'
-        if (feedId.startsWith('s-')) return '当前订阅源'
-        if (feedId.startsWith('g-')) return '当前订阅组'
-        return '未选择'
+        if (feedId === ALL || feedId === 'all') return intl.get('rating.allArticles')
+        if (feedId.startsWith('s-')) return intl.get('rating.currentSource')
+        if (feedId.startsWith('g-')) return intl.get('rating.currentGroup')
+        return intl.get('rating.notSelected')
     }
 
     const viewName = getViewName()
@@ -240,11 +240,11 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
             key: "section_filter",
             itemType: ContextualMenuItemType.Section,
             sectionProps: {
-                title: `⭐ 评分筛选 - ${viewName}（已评分：${ratingStats.ratedCount}/${ratingStats.totalCount}）`,
+                title: intl.get('rating.filterTitle', { viewName, rated: ratingStats.ratedCount, total: ratingStats.totalCount }),
                 items: [
                     {
                         key: "all",
-                        text: "○ 全部文章",
+                        text: intl.get('rating.filterAll'),
                         iconProps: { iconName: "Filter" },
                         onClick: () => {
                             handleFilterChange(0)
@@ -252,7 +252,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
                     },
                     {
                         key: "4star",
-                        text: "⭐⭐⭐⭐ 4 星 + (≥4.0)",
+                        text: intl.get('rating.filter4Star'),
                         iconProps: { iconName: "FavoriteStar" },
                         onClick: () => {
                             handleFilterChange(256)
@@ -260,7 +260,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
                     },
                     {
                         key: "3star",
-                        text: "⭐⭐⭐ 3 星 + (≥3.0)",
+                        text: intl.get('rating.filter3Star'),
                         iconProps: { iconName: "FavoriteStar" },
                         onClick: () => {
                             handleFilterChange(128)  // Use RatedOnly for 3+ stars
@@ -268,7 +268,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
                     },
                     {
                         key: "unrated",
-                        text: "○ 未评分",
+                        text: intl.get('rating.filterUnrated'),
                         iconProps: { iconName: "CircleRing" },
                         onClick: () => {
                             handleFilterChange(-1)  // Special value for unrated
@@ -285,11 +285,11 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
             key: "section_actions",
             itemType: ContextualMenuItemType.Section,
             sectionProps: {
-                title: `📊 评分操作 - ${viewName}`,
+                title: intl.get('rating.actionsTitle', { viewName }),
                 items: [
                     {
                         key: "rate_all",
-                        text: isRating ? `评分中... ${ratingProgress.completed}/${ratingProgress.total}` : "📊 评分所有文章",
+                        text: isRating ? intl.get('rating.ratingInProgress', { completed: ratingProgress.completed, total: ratingProgress.total }) : intl.get('rating.rateAll'),
                         iconProps: { iconName: isRating ? "Sync" : "FavoriteStar" },
                         disabled: isRating,
                         onClick: () => {
@@ -298,7 +298,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
                     },
                     {
                         key: "rate_1d",
-                        text: isRating ? `评分中...` : "🕐 评分最近 1 天",
+                        text: isRating ? intl.get('rating.ratingInProgress', { completed: ratingProgress.completed, total: ratingProgress.total }) : intl.get('rating.rateLastDays', { days: 1 }),
                         iconProps: { iconName: isRating ? "Sync" : "Clock" },
                         disabled: isRating,
                         onClick: () => {
@@ -309,7 +309,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
                     },
                     {
                         key: "rate_3d",
-                        text: isRating ? `评分中...` : "🕐 评分最近 3 天",
+                        text: isRating ? intl.get('rating.ratingInProgress', { completed: ratingProgress.completed, total: ratingProgress.total }) : intl.get('rating.rateLastDays', { days: 3 }),
                         iconProps: { iconName: isRating ? "Sync" : "Clock" },
                         disabled: isRating,
                         onClick: () => {
@@ -320,7 +320,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
                     },
                     {
                         key: "rate_7d",
-                        text: isRating ? `评分中...` : "🕐 评分最近 7 天",
+                        text: isRating ? intl.get('rating.ratingInProgress', { completed: ratingProgress.completed, total: ratingProgress.total }) : intl.get('rating.rateLastDays', { days: 7 }),
                         iconProps: { iconName: isRating ? "Sync" : "Clock" },
                         disabled: isRating,
                         onClick: () => {
@@ -331,7 +331,7 @@ export default function RatingMenu({ target, onDismiss, position, event }: Ratin
                     },
                     {
                         key: "settings",
-                        text: "⚙️ 评分设置...",
+                        text: intl.get('rating.settings'),
                         iconProps: { iconName: "Settings" },
                         onClick: openRatingSettings,
                     },

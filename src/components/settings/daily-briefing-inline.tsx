@@ -175,7 +175,7 @@ export default class DailyBriefingInline extends React.Component<
                         />
                         {groupSources.length > 0 && (
                             <DefaultButton
-                                text={isExpanded ? "收起" : `展开 (${groupSources.length})`}
+                                text={isExpanded ? intl.get('settings.integrations.collapse') : `${intl.get('settings.integrations.expand')} (${groupSources.length})`}
                                 onClick={() => this.toggleGroupExpand(index)}
                                 styles={{ root: { fontSize: 12 } }}
                             />
@@ -218,7 +218,7 @@ export default class DailyBriefingInline extends React.Component<
                 )}
                 {hasAutoPush && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ 自动推送
+                        ✓ {intl.get('settings.integrations.autoPushStatus')}
                     </Label>
                 )}
             </Stack>
@@ -275,17 +275,17 @@ export default class DailyBriefingInline extends React.Component<
                     {/* Source Selection */}
                     <div>
                         <Label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
-                            简报来源
+                            {intl.get('settings.integrations.briefingSource')}
                         </Label>
                         <Stack horizontal tokens={{ childrenGap: 16 }} style={{ marginBottom: 12 }}>
                             <Checkbox
                                 checked={selectedSourceType === 'all'}
-                                label="所有订阅源"
+                                label={intl.get('settings.integrations.allSources')}
                                 onChange={() => this.handleSourceTypeChange('all')}
                             />
                             <Checkbox
                                 checked={selectedSourceType === 'specific'}
-                                label="指定订阅源/组"
+                                label={intl.get('settings.integrations.specificSources')}
                                 onChange={() => this.handleSourceTypeChange('specific')}
                             />
                         </Stack>
@@ -294,7 +294,7 @@ export default class DailyBriefingInline extends React.Component<
                             <Stack horizontal tokens={{ childrenGap: 24 }} wrap>
                                 <div style={{ flex: 1, minWidth: 200 }}>
                                     <Label style={{ fontSize: 13, marginBottom: 8 }}>
-                                        订阅组
+                                        {intl.get('settings.integrations.sourceGroups')}
                                     </Label>
                                     <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--neutralLight)', padding: 8 }}>
                                         {groupList}
@@ -302,7 +302,7 @@ export default class DailyBriefingInline extends React.Component<
                                 </div>
                                 <div style={{ flex: 1, minWidth: 200 }}>
                                     <Label style={{ fontSize: 13, marginBottom: 8 }}>
-                                        订阅源
+                                        {intl.get('settings.integrations.sources')}
                                     </Label>
                                     <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--neutralLight)', padding: 8 }}>
                                         {sourceList}

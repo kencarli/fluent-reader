@@ -59,93 +59,93 @@ export default class AIServicesInline extends React.Component<
 
     handleTestOpenAI = async () => {
         if (!this.state.localSettings.openaiApiKey) {
-            this.setState({ testMessage: '请先输入 OpenAI API 密钥', isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterOpenAIKey'), isTesting: false })
             return
         }
-        
+
         this.setState({ isTesting: true, testMessage: null })
         try {
             const key = this.state.localSettings.openaiApiKey
             if (key.startsWith('sk-') && key.length > 20) {
-                this.setState({ testMessage: '✓ OpenAI API 密钥格式正确', isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.openAIKeyValid'), isTesting: false })
             } else {
-                this.setState({ testMessage: '⚠ API 密钥格式可能不正确，应以 sk- 开头', isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), isTesting: false })
             }
         } catch (error) {
-            this.setState({ testMessage: `测试失败：${error.message}`, isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), isTesting: false })
         }
     }
 
     handleTestNvidia = async () => {
         if (!this.state.localSettings.nvidiaApiKey) {
-            this.setState({ testMessage: '请先输入 NVIDIA API 密钥', isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterNVIDIAKey'), isTesting: false })
             return
         }
-        
+
         this.setState({ isTesting: true, testMessage: null })
         try {
             const key = this.state.localSettings.nvidiaApiKey
             if (key.length > 20) {
-                this.setState({ testMessage: '✓ NVIDIA API 密钥格式正确', isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.nvidiaKeyValid'), isTesting: false })
             } else {
-                this.setState({ testMessage: '⚠ API 密钥格式可能不正确', isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), isTesting: false })
             }
         } catch (error) {
-            this.setState({ testMessage: `测试失败：${error.message}`, isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), isTesting: false })
         }
     }
 
     handleTestDeepSeek = async () => {
         if (!this.state.localSettings.deepseekApiKey) {
-            this.setState({ testMessage: '请先输入 DeepSeek API 密钥', isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterDeepSeekKey'), isTesting: false })
             return
         }
-        
+
         this.setState({ isTesting: true, testMessage: null })
         try {
             const key = this.state.localSettings.deepseekApiKey
             if (key.length > 10) {
-                this.setState({ testMessage: '✓ DeepSeek API 密钥格式正确', isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.deepseekKeyValid'), isTesting: false })
             } else {
-                this.setState({ testMessage: '⚠ API 密钥格式可能不正确', isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), isTesting: false })
             }
         } catch (error) {
-            this.setState({ testMessage: `测试失败：${error.message}`, isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), isTesting: false })
         }
     }
 
     handleTestOllama = async () => {
         if (!this.state.localSettings.ollamaApiUrl) {
-            this.setState({ testMessage: '请先输入 Ollama API 地址', isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterOllamaUrl'), isTesting: false })
             return
         }
-        
+
         this.setState({ isTesting: true, testMessage: null })
         try {
             const controller = new AbortController()
             const timeoutId = setTimeout(() => controller.abort(), 5000)
-            
+
             const url = this.state.localSettings.ollamaApiUrl.replace(/\/$/, '')
             const response = await fetch(`${url}/api/tags`, {
                 method: 'GET',
                 signal: controller.signal,
             })
             clearTimeout(timeoutId)
-            
+
             if (response.ok) {
                 const data = await response.json()
                 const modelCount = data.models?.length || 0
-                this.setState({ 
-                    testMessage: `✓ Ollama 连接成功，已安装 ${modelCount} 个模型`, 
-                    isTesting: false 
+                this.setState({
+                    testMessage: intl.get('settings.integrations.ollamaConnected', { count: modelCount }),
+                    isTesting: false
                 })
             } else {
-                this.setState({ testMessage: `⚠ Ollama 响应异常：${response.status}`, isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.ollamaResponseAbnormal', { status: response.status }), isTesting: false })
             }
         } catch (error) {
-            this.setState({ 
-                testMessage: `⚠ Ollama 连接失败：${error.message}，请检查地址和网络`, 
-                isTesting: false 
+            this.setState({
+                testMessage: intl.get('settings.integrations.ollamaConnectionFailed', { error: error.message }),
+                isTesting: false
             })
         }
     }
@@ -161,22 +161,22 @@ export default class AIServicesInline extends React.Component<
             <Stack horizontal tokens={{ childrenGap: 8 }}>
                 {hasOpenAi && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ OpenAI
+                        {intl.get('settings.integrations.openAIStatus')}
                     </Label>
                 )}
                 {hasNvidia && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ NVIDIA
+                        {intl.get('settings.integrations.nvidiaStatus')}
                     </Label>
                 )}
                 {hasDeepseek && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ DeepSeek
+                        {intl.get('settings.integrations.deepseekStatus')}
                     </Label>
                 )}
                 {hasOllama && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
-                        ✓ Ollama
+                        {intl.get('settings.integrations.ollamaStatus')}
                     </Label>
                 )}
             </Stack>
@@ -206,7 +206,7 @@ export default class AIServicesInline extends React.Component<
                                 />
                             </div>
                             <PrimaryButton
-                                text={isTesting ? "测试中..." : "测试"}
+                                text={isTesting ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
                                 onClick={this.handleTestOpenAI}
                                 disabled={isTesting || !localSettings.openaiApiKey}
                             />
@@ -234,7 +234,7 @@ export default class AIServicesInline extends React.Component<
                                 />
                             </div>
                             <PrimaryButton
-                                text={isTesting ? "测试中..." : "测试"}
+                                text={isTesting ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
                                 onClick={this.handleTestNvidia}
                                 disabled={isTesting || !localSettings.nvidiaApiKey}
                             />
@@ -262,7 +262,7 @@ export default class AIServicesInline extends React.Component<
                                 />
                             </div>
                             <PrimaryButton
-                                text={isTesting ? "测试中..." : "测试"}
+                                text={isTesting ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
                                 onClick={this.handleTestDeepSeek}
                                 disabled={isTesting || !localSettings.deepseekApiKey}
                             />
@@ -280,7 +280,7 @@ export default class AIServicesInline extends React.Component<
                         <Stack horizontal tokens={{ childrenGap: 16 }} verticalAlign="end">
                             <div style={{ flex: 1 }}>
                                 <TextField
-                                    label="API 地址"
+                                    label={intl.get('settings.integrations.apiUrl')}
                                     name="ollamaApiUrl"
                                     value={localSettings.ollamaApiUrl || ""}
                                     onChange={this.handleInputChange}
@@ -291,13 +291,13 @@ export default class AIServicesInline extends React.Component<
                                 />
                             </div>
                             <PrimaryButton
-                                text={isTesting ? "测试中..." : "测试"}
+                                text={isTesting ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
                                 onClick={this.handleTestOllama}
                                 disabled={isTesting || !localSettings.ollamaApiUrl}
                             />
                             <div style={{ minWidth: 150 }}>
                                 <TextField
-                                    label="模型名称"
+                                    label={intl.get('settings.integrations.modelName')}
                                     name="ollamaModel"
                                     value={localSettings.ollamaModel || ""}
                                     onChange={this.handleInputChange}

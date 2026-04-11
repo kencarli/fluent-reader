@@ -7,8 +7,15 @@ import Root from "./components/root"
 import { applyThemeSettings } from "./scripts/settings"
 import { initApp, openTextMenu } from "./scripts/models/app"
 import { rootStore } from "./scripts/reducer"
+import { initWindowSettings } from "./scripts/init-settings"
 
-window.settings.setProxy()
+// Initialize window.settings for all environments
+initWindowSettings()
+
+// Initialize settings if available (Electron environment)
+if (typeof window !== 'undefined' && window.settings) {
+    window.settings.setProxy()
+}
 
 applyThemeSettings()
 initializeIcons("icons/") // 使用本地图标文件
@@ -26,14 +33,18 @@ registerIcons({
 
 rootStore.dispatch(initApp())
 
-window.utils.addMainContextListener((pos, text) => {
-    rootStore.dispatch(openTextMenu(pos, text))
-})
+if (typeof window !== 'undefined' && window.utils) {
+    window.utils.addMainContextListener((pos, text) => {
+        rootStore.dispatch(openTextMenu(pos, text))
+    })
+}
 
 window.fontList = [""]
-window.utils.initFontList().then(fonts => {
-    window.fontList.push(...fonts)
-})
+if (typeof window !== 'undefined' && window.utils) {
+    window.utils.initFontList().then(fonts => {
+        window.fontList.push(...fonts)
+    })
+}
 
 ReactDOM.render(
     <Provider store={rootStore}>

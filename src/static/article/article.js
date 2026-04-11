@@ -39,14 +39,211 @@ if (dir === "1") {
         document.scrollingElement.scrollLeft -= evt.deltaY;
     });
 }
+/**
+ * Fallback content extraction function
+ * Used when Mercury Parser fails or extracts too little content
+ * @param {string} html - Raw HTML content
+ * @returns {string} - Extracted article content
+ */
+function extractContentFallback(html) {
+    console.log('[Fallback] Starting content extraction...')
+    
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    
+    // Remove unwanted elements
+    const unwantedSelectors = [
+        'script', 'style', 'noscript', 'iframe', 
+        'svg', 'canvas', 'nav', 'footer', 'header',
+        '.ad', '.ads', '.advertisement', '.sidebar',
+        '.nav', '.navigation', '.menu', '.breadcrumb',
+        '.share', '.social', '.comments', '.comment',
+        '.related', '.recommended', '.newsletter',
+        '#ad', '#ads', '#sidebar', '#nav', '#footer', '#header'
+    ]
+    
+    unwantedSelectors.forEach(selector => {
+        doc.querySelectorAll(selector).forEach(el => el.remove())
+    })
+    
+    // Try to find main content container
+    const contentSelectors = [
+        'article',
+        '[role="main"]',
+        '.post-content', '.article-content', '.entry-content',
+        '.content', '.main-content', '.article-body',
+        '.post-body', '.story-body', '.article-text',
+        '#content', '#main', '#article', '#post',
+        '.container > .row > .col',
+        'main'
+    ]
+    
+    let contentElement = null
+    for (const selector of contentSelectors) {
+        contentElement = doc.querySelector(selector)
+        if (contentElement && contentElement.innerText.length > 100) {
+            console.log(`[Fallback] Found content with selector: ${selector}`)
+            break
+        }
+        contentElement = null
+    }
+    
+    // If no specific container found, use body
+    if (!contentElement) {
+        contentElement = doc.body
+        console.log('[Fallback] Using body as content container')
+    }
+    
+    // Clean up attributes and empty elements
+    contentElement.querySelectorAll('*').forEach(el => {
+        // Remove elements with very small text content (likely ads/widgets)
+        const text = el.innerText || ''
+        if (text.length < 10 && text.trim().length < 5) {
+            const childCount = el.children.length
+            if (childCount === 0) {
+                el.remove()
+            }
+        }
+    })
+    
+    // Get the cleaned HTML
+    let content = contentElement.innerHTML
+    
+    console.log(`[Fallback] Extracted content length: ${content.length}`)
+    return content
+}
+
 async function getArticle(url) {
     let article = getDecoded("a")
     console.log('getDecoded("a"):', article ? article.substring(0, 100) + '...' : 'null')
+
+    // If in Tauri iframe mode (m=1), wait for postMessage with full content
     if (get("m") === "1") {
-        return (await Mercury.parse(url, {html: article})).content || ""
-    } else {
-        return article
+        console.log('[Article] Mode m=1 detected, waiting for postMessage with full content...')
+        
+        // First, notify the parent window that we're ready to receive content
+        window.parent.postMessage({ type: 'articleReady' }, '*')
+        
+        return new Promise((resolve) => {
+            let received = false
+            window.addEventListener('message', async (event) => {
+                if (event.data && event.data.type === 'fullContent' && !received) {
+                    received = true
+                    console.log('[Article] Received full content via postMessage, length:', event.data.html.length)
+                    const { html, url: msgUrl, loadFull } = event.data
+
+                    let articleContent = html
+                    if (loadFull) {
+                        console.log('[Article] Running Mercury Parser on content...')
+                        let extractionAttempts = 0
+                        
+                        // Try Mercury Parser first
+                        try {
+                            const result = await Mercury.parse(msgUrl || url, { html: articleContent })
+                            articleContent = result.content || articleContent
+                            extractionAttempts++
+                            console.log(`[Article] Mercury Parser extraction attempt ${extractionAttempts}, length:`, articleContent.length)
+                        } catch (e) {
+                            console.error('[Article] Mercury Parser failed:', e)
+                        }
+
+                        // If Mercury extracted very little content, try fallback
+                        if (articleContent.length < 200) {
+                            console.log('[Article] Mercury extraction returned too little content, trying fallback...')
+                            articleContent = extractContentFallback(html)
+                            extractionAttempts++
+                            console.log(`[Article] Fallback extraction attempt ${extractionAttempts}, length:`, articleContent.length)
+                        }
+
+                        // If still too little content, the page likely requires JS rendering
+                        // Since the iframe's DOM only has article.html structure (not the actual content),
+                        // we should just use the original HTML directly
+                        if (articleContent.length < 200) {
+                            console.log('[Article] All extraction methods failed, using original HTML directly...')
+                            console.log('[Article] Original HTML length:', html.length)
+                            
+                            // Clean up the original HTML by removing script/style tags
+                            const parser = new DOMParser()
+                            const doc = parser.parseFromString(html, 'text/html')
+                            
+                            // Remove script and style tags
+                            doc.querySelectorAll('script, style, noscript').forEach(el => el.remove())
+                            
+                            // Try to find content containers in the original HTML
+                            const contentSelectors = [
+                                'article',
+                                '[role="main"]',
+                                '.post-content', '.article-content', '.entry-content',
+                                '.content', '.main-content', '.article-body',
+                                '.post', '.story', '.article-text',
+                                '#content', '#main-content', '#article', '#post',
+                                '.et_pb_post', '.wp-block-post-content',
+                                'main'
+                            ]
+                            
+                            let contentElement = null
+                            for (const selector of contentSelectors) {
+                                contentElement = doc.querySelector(selector)
+                                if (contentElement) {
+                                    const text = contentElement.innerText || ''
+                                    if (text.length > 50) {
+                                        console.log(`[Article] Found content container: ${selector}`)
+                                        articleContent = contentElement.innerHTML
+                                        break
+                                    }
+                                }
+                            }
+                            
+                            // If still no good content, use the entire body
+                            if (articleContent.length < 200) {
+                                console.log('[Article] Using entire body as content')
+                                articleContent = doc.body.innerHTML
+                            }
+                            
+                            extractionAttempts++
+                            console.log(`[Article] Final extraction attempt ${extractionAttempts}, length:`, articleContent.length)
+                        }
+
+                        // If final content is still too short, notify parent to load URL directly
+                        if (articleContent.length < 200) {
+                            console.log('[Article] Content still too short after all attempts, requesting direct URL load...')
+                            window.parent.postMessage({
+                                type: 'requestDirectLoad',
+                                url: msgUrl || url
+                            }, '*')
+                            // Return empty content to indicate failure
+                            resolve('')
+                            return
+                        }
+
+                        console.log('[Article] Final content length:', articleContent.length)
+                    }
+
+                    resolve(articleContent)
+                }
+            })
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                if (!received) {
+                    console.warn('[Article] Timeout waiting for postMessage, using fallback')
+                    resolve(article || '')
+                }
+            }, 5000)
+        })
     }
+
+    // Fallback: use decoded content from URL parameter (non-Tauri mode)
+    if (article) {
+        if (get("m") === "1") {
+            return (await Mercury.parse(url, {html: article})).content || ""
+        } else {
+            return article
+        }
+    }
+
+    console.warn('[Article] No content available')
+    return ""
 }
 document.documentElement.style.fontSize = get("s") + "px"
 let font = get("f")
