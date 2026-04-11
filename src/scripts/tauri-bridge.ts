@@ -26,6 +26,12 @@ export async function fetchMultipleRSS(urls: string[]): Promise<[string, string 
     })
 }
 
+// ==================== 网页内容获取 ====================
+
+export async function fetchWebpage(url: string): Promise<string> {
+    return await invoke<string>('fetch_webpage', { url })
+}
+
 // ==================== Ollama 代理 ====================
 
 export async function proxyOllama(url: string, method: string = 'POST', body?: any): Promise<any> {
@@ -150,8 +156,17 @@ export async function requestFocus(): Promise<void> {
 }
 
 export async function requestAttention(): Promise<void> {
-    await getCurrentWindow().setAlwaysOnTop(true)
-    setTimeout(() => getCurrentWindow().setAlwaysOnTop(false), 1000)
+    try {
+        const win = getCurrentWindow()
+        // 设置窗口置顶以吸引注意
+        await win.setAlwaysOnTop(true)
+        // 1秒后恢复
+        setTimeout(async () => {
+            await win.setAlwaysOnTop(false)
+        }, 1000)
+    } catch (error) {
+        console.warn('[Tauri] requestAttention failed:', error)
+    }
 }
 
 // ==================== 窗口拖拽（无标题栏模式）====================
