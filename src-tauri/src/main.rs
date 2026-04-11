@@ -140,25 +140,67 @@ async fn fetch_rss_feed(url: String) -> Result<String, String> {
 }
 
 async fn fetch_rss_direct(url: &str) -> Result<String, String> {
-    // 使用更像浏览器的 User-Agent 和请求头来绕过 Cloudflare 等保护
+    // 创建高度模拟浏览器的 HTTP 客户端
     let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        // 使用最新 Chrome 的 User-Agent
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .gzip(true)
+        .brotli(true)
+        .deflate(true)
+        // 启用 HTTP/2
+        .http2_prior_knowledge()
+        // 自动处理重定向
+        .redirect(reqwest::redirect::Policy::limited(10))
+        // 启用 Cookie 存储
+        .cookie_store(true)
+        // 设置合理超时
+        .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let response = client
+    // 第一次尝试：标准请求
+    let result = client
         .get(url)
-        .header("Accept", "application/rss+xml, application/xml, text/xml, text/html, */*;q=0.9")
+        // 完整的浏览器 Accept 头
+        .header("Accept", "application/rss+xml, application/xml, text/xml, application/atom+xml, text/html;q=0.9, */*;q=0.8")
         .header("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7")
-        .header("Accept-Encoding", "gzip, deflate, br")
+        .header("Accept-Encoding", "gzip, deflate, br, zstd")
         .header("Connection", "keep-alive")
         .header("Cache-Control", "max-age=0")
+        .header("Sec-Fetch-Dest", "empty")
+        .header("Sec-Fetch-Mode", "cors")
+        .header("Sec-Fetch-Site", "cross-site")
+        .header("Sec-Ch-Ua", "\"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\", \"Not-A.Brand\";v=\"99\"")
+        .header("Sec-Ch-Ua-Mobile", "?0")
+        .header("Sec-Ch-Ua-Platform", "\"Windows\"")
+        .header("Upgrade-Insecure-Requests", "1")
+        .header("DNT", "1")
         .send()
-        .await
-        .map_err(|e| format!("Failed to fetch RSS: {}", e))?;
+        .await;
+
+    // 如果第一次失败，等待后重试一次
+    let response = match result {
+        Ok(resp) => resp,
+        Err(_) => {
+            println!("[RSS] First attempt failed, retrying after delay...");
+            tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+            
+            client
+                .get(url)
+                .header("Accept", "application/rss+xml, application/xml, text/xml, application/atom+xml, text/html;q=0.9, */*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7")
+                .header("Accept-Encoding", "gzip, deflate, br")
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
+                .send()
+                .await
+                .map_err(|e| format!("Failed to fetch RSS after retry: {}", e))?
+        }
+    };
 
     let status = response.status();
+    
+    // 接受 200-299 的成功状态码
     if !status.is_success() {
         return Err(format!("HTTP {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
     }
@@ -167,6 +209,11 @@ async fn fetch_rss_direct(url: &str) -> Result<String, String> {
         .text()
         .await
         .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    // 验证响应内容是否为 XML/RSS
+    if !body.contains("<?xml") && !body.contains("<rss") && !body.contains("<feed") {
+        return Err("Response does not appear to be valid RSS/XML".to_string());
+    }
 
     // 清理 XML 内容,修复格式问题
     Ok(clean_rss_xml(&body))
@@ -330,21 +377,31 @@ async fn fetch_webpage(url: String) -> Result<String, String> {
 
 #[tauri::command]
 async fn fetch_multiple_feeds(urls: Vec<String>) -> Result<Vec<(String, Result<String, String>)>, String> {
-    // 使用更像浏览器的 User-Agent 和请求头
+    // 创建优化的 HTTP 客户端
     let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .gzip(true)
+        .brotli(true)
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .cookie_store(true)
+        .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| e.to_string())?;
 
     let mut results = Vec::new();
 
     for url in urls {
+        // 为每个 URL 实现带重试的抓取
         let result = async {
+            // 第一次尝试
             let response = client
                 .get(&url)
-                .header("Accept", "application/rss+xml, application/xml, text/xml, text/html, */*;q=0.9")
+                .header("Accept", "application/rss+xml, application/xml, text/xml, application/atom+xml, text/html;q=0.9, */*;q=0.8")
                 .header("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7")
+                .header("Accept-Encoding", "gzip, deflate, br")
+                .header("Sec-Fetch-Dest", "empty")
+                .header("Sec-Fetch-Mode", "cors")
+                .header("Sec-Fetch-Site", "cross-site")
                 .send()
                 .await
                 .map_err(|e| e.to_string())?;
@@ -359,14 +416,60 @@ async fn fetch_multiple_feeds(urls: Vec<String>) -> Result<Vec<(String, Result<S
                 .await
                 .map_err(|e| e.to_string())?;
 
+            // 验证 RSS 内容
+            if !body.contains("<?xml") && !body.contains("<rss") && !body.contains("<feed") {
+                return Err("Invalid RSS/XML response".to_string());
+            }
+
             // 清理 XML 内容
             Ok(clean_rss_xml(&body))
         }.await;
 
+        // 如果失败，等待后重试一次
+        let result = match result {
+            Ok(content) => Ok(content),
+            Err(e) => {
+                println!("[RSS] First attempt failed for {}: {}, retrying...", url, e);
+                tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+                
+                client
+                    .get(&url)
+                    .header("Accept", "application/rss+xml, application/xml, text/xml, text/html;q=0.9")
+                    .header("Accept-Language", "en-US,en;q=0.9")
+                    .header("Cache-Control", "no-cache")
+                    .header("Pragma", "no-cache")
+                    .send()
+                    .await
+                    .map_err(|e| e.to_string())
+                    .and_then(|response| {
+                        async move {
+                            let status = response.status();
+                            if !status.is_success() {
+                                return Err(format!("Retry failed: HTTP {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
+                            }
+                            
+                            let body = response.text().await.map_err(|e| e.to_string())?;
+                            
+                            if !body.contains("<?xml") && !body.contains("<rss") && !body.contains("<feed") {
+                                return Err("Invalid RSS/XML after retry".to_string());
+                            }
+                            
+                            Ok(clean_rss_xml(&body))
+                        }.await
+                    })
+            }
+        };
+
         match result {
             Ok(body) => results.push((url.clone(), Ok(body))),
-            Err(e) => results.push((url.clone(), Err(e))),
+            Err(e) => {
+                println!("[RSS] All attempts failed for {}: {}", url, e);
+                results.push((url.clone(), Err(e)))
+            }
         }
+        
+        // 在请求之间添加小延迟，避免被限流
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
 
     Ok(results)
