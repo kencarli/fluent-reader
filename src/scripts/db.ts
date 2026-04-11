@@ -172,6 +172,23 @@ export async function init() {
     try {
         // Use IndexedDB for persistent storage to prevent connection loss
         console.log('[DB] Attempting IndexedDB connection...')
+        
+        // Close existing connections if any
+        if (sourcesDB) {
+            try {
+                sourcesDB.close()
+            } catch (e) {
+                // Ignore close errors
+            }
+        }
+        if (itemsDB) {
+            try {
+                itemsDB.close()
+            } catch (e) {
+                // Ignore close errors
+            }
+        }
+        
         sourcesDB = await sdbSchema.connect({
             onUpgrade: onUpgradeSourceDB,
             // @ts-ignore - Lovefield types are incomplete

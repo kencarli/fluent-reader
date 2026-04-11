@@ -46,14 +46,17 @@ export class FeedFilter {
     constructor(type: FilterType = null, search = "", ratedItemIds?: number[], highRatedItemIds?: number[], unratedOnly?: boolean) {
         if (
             type === null &&
-            (type = window.settings.getFilterType()) === null
+            (type = window.settings?.getFilterType?.()) === null
         ) {
-            type = FilterType.Default | FilterType.CaseInsensitive
+            // Default: show all articles (including read), case insensitive
+            // FilterType.None = 0 means show all (no filtering)
+            // CaseInsensitive = 16 for search
+            type = FilterType.None | FilterType.CaseInsensitive
         }
         // Remove rating bits from saved filter type (rating filters are temporary)
         const RATING_MASK = 128 | 256  // RatedOnly | HighRated
         type = type & ~RATING_MASK
-        
+
         this.type = type
         this.search = search
         this.ratedItemIds = ratedItemIds
@@ -131,6 +134,11 @@ static toPredicates(filter: FeedFilter) {
 }
 
     static testItem(filter: FeedFilter, item: RSSItem) {
+        // Add null/undefined check for item
+        if (!item) {
+            return false
+        }
+        
         let type = filter.type
         let flag = true
         if (!(type & FilterType.ShowRead)) flag = flag && !item.hasRead
@@ -235,16 +243,41 @@ export class RSSFeed {
         }
 
         const predicates = FeedFilter.toPredicates(feed.filter)
+        
+        // Check if feed has valid source IDs
+        if (!feed.sids || feed.sids.length === 0) {
+            console.warn('[Feed] No source IDs in feed, returning empty result. Feed ID:', feed._id)
+            return []
+        }
+        
+        console.log('[Feed] Loading feed:', feed._id, 'sources:', feed.sids)
         predicates.push(db.items.source.in(feed.sids))
         try {
-            let items = (await db.itemsDB
+            // Build query with proper where clause
+            // Handle edge cases: empty predicates or single predicate
+            let query = db.itemsDB
                 .select()
                 .from(db.items)
-                .where(lf.op.and.apply(null, predicates))
+            
+            // Apply where clause based on predicates count
+            if (predicates.length === 0) {
+                // No filters - use a always-true predicate
+                query = query.where(db.items._id.isNotNull())
+            } else if (predicates.length === 1) {
+                // Single predicate
+                query = query.where(predicates[0])
+            } else {
+                // Multiple predicates
+                query = query.where(lf.op.and.apply(null, predicates))
+            }
+            
+            let items = (await query
                 .orderBy(db.items.date, lf.Order.DESC)
                 .skip(skip)
                 .limit(LOAD_QUANTITY)
                 .exec()) as RSSItem[]
+            
+            console.log('[Feed] Query returned', items.length, 'items for feed:', feed._id)
 
             // Apply rating filter in memory (since ratings are in a separate DB)
             if (feed.filter.unratedOnly) {
