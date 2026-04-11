@@ -146,9 +146,6 @@ async fn fetch_rss_direct(url: &str) -> Result<String, String> {
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
         .gzip(true)
         .brotli(true)
-        .deflate(true)
-        // 启用 HTTP/2
-        .http2_prior_knowledge()
         // 自动处理重定向
         .redirect(reqwest::redirect::Policy::limited(10))
         // 启用 Cookie 存储
@@ -156,7 +153,7 @@ async fn fetch_rss_direct(url: &str) -> Result<String, String> {
         // 设置合理超时
         .timeout(std::time::Duration::from_secs(30))
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e: reqwest::Error| e.to_string())?;
 
     // 第一次尝试：标准请求
     let result = client
@@ -194,7 +191,7 @@ async fn fetch_rss_direct(url: &str) -> Result<String, String> {
                 .header("Pragma", "no-cache")
                 .send()
                 .await
-                .map_err(|e| format!("Failed to fetch RSS after retry: {}", e))?
+                .map_err(|e: reqwest::Error| format!("Failed to fetch RSS after retry: {}", e))?
         }
     };
 
@@ -208,7 +205,7 @@ async fn fetch_rss_direct(url: &str) -> Result<String, String> {
     let body = response
         .text()
         .await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
+        .map_err(|e: reqwest::Error| format!("Failed to read response: {}", e))?;
 
     // 验证响应内容是否为 XML/RSS
     if !body.contains("<?xml") && !body.contains("<rss") && !body.contains("<feed") {
@@ -432,31 +429,32 @@ async fn fetch_multiple_feeds(urls: Vec<String>) -> Result<Vec<(String, Result<S
                 println!("[RSS] First attempt failed for {}: {}, retrying...", url, e);
                 tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
                 
-                client
+                let retry_result = client
                     .get(&url)
                     .header("Accept", "application/rss+xml, application/xml, text/xml, text/html;q=0.9")
                     .header("Accept-Language", "en-US,en;q=0.9")
                     .header("Cache-Control", "no-cache")
                     .header("Pragma", "no-cache")
                     .send()
-                    .await
-                    .map_err(|e| e.to_string())
-                    .and_then(|response| {
-                        async move {
-                            let status = response.status();
-                            if !status.is_success() {
-                                return Err(format!("Retry failed: HTTP {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")));
-                            }
-                            
-                            let body = response.text().await.map_err(|e| e.to_string())?;
+                    .await;
+                
+                match retry_result {
+                    Ok(response) => {
+                        let status = response.status();
+                        if !status.is_success() {
+                            Err(format!("Retry failed: HTTP {} - {}", status.as_u16(), status.canonical_reason().unwrap_or("Unknown")))
+                        } else {
+                            let body = response.text().await.map_err(|e: reqwest::Error| e.to_string())?;
                             
                             if !body.contains("<?xml") && !body.contains("<rss") && !body.contains("<feed") {
-                                return Err("Invalid RSS/XML after retry".to_string());
+                                Err("Invalid RSS/XML after retry".to_string())
+                            } else {
+                                Ok(clean_rss_xml(&body))
                             }
-                            
-                            Ok(clean_rss_xml(&body))
-                        }.await
-                    })
+                        }
+                    }
+                    Err(e) => Err(format!("Retry request failed: {}", e))
+                }
             }
         };
 
