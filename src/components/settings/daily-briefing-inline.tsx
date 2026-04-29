@@ -4,12 +4,12 @@ import {
     Label,
     Stack,
     TextField,
-    Toggle,
     Checkbox,
     DefaultButton,
     Dropdown,
     IDropdownOption,
 } from "@fluentui/react"
+import Switch from "../utils/switch"
 import { IntegrationSettings } from "../../schema-types"
 import { SourceState } from "../../scripts/models/source"
 import { SourceGroup } from "../../schema-types"
@@ -25,7 +25,7 @@ type DailyBriefingInlineProps = {
 type DailyBriefingInlineState = {
     localSettings: IntegrationSettings
     selectedSourceType: 'all' | 'specific'
-    expandedGroups: { [key: number]: boolean }
+    expandedGroups: Set<number>
 }
 
 export default class DailyBriefingInline extends React.Component<
@@ -39,7 +39,7 @@ export default class DailyBriefingInline extends React.Component<
         this.state = {
             localSettings: { ...props.settings },
             selectedSourceType: (hasSpecificSources || hasSpecificGroups) ? 'specific' : 'all',
-            expandedGroups: {},
+            expandedGroups: new Set(),
         }
     }
 
@@ -50,7 +50,7 @@ export default class DailyBriefingInline extends React.Component<
             this.setState({
                 localSettings: { ...this.props.settings },
                 selectedSourceType: (hasSpecificSources || hasSpecificGroups) ? 'specific' : 'all',
-                expandedGroups: {},
+                expandedGroups: new Set(),
             })
         }
     }
@@ -131,78 +131,105 @@ export default class DailyBriefingInline extends React.Component<
     }
 
     toggleGroupExpand = (groupIndex: number) => {
-        this.setState(prevState => ({
-            expandedGroups: {
-                ...prevState.expandedGroups,
-                [groupIndex]: !prevState.expandedGroups[groupIndex],
+        this.setState(prevState => {
+            const newExpanded = new Set(prevState.expandedGroups)
+            if (newExpanded.has(groupIndex)) {
+                newExpanded.delete(groupIndex)
+            } else {
+                newExpanded.add(groupIndex)
             }
-        }))
+            return { expandedGroups: newExpanded }
+        })
     }
 
     render() {
         const { localSettings, selectedSourceType, expandedGroups } = this.state
         const { sources, groups } = this.props
 
-        // Build source list
-        const sourceList: JSX.Element[] = []
-        Object.entries(sources).forEach(([idStr, source]) => {
-            const sourceId = source.sid
-            const isSelected = localSettings.digestSourceIds?.includes(sourceId) || false
-            sourceList.push(
-                <div key={sourceId} style={{ marginBottom: 4 }}>
-                    <Checkbox
-                        checked={isSelected}
-                        label={source.name}
-                        onChange={() => this.handleSourceToggle(sourceId)}
-                    />
-                </div>
-            )
-        })
+        // 构建树形结构: 组 + 不在任何组的单独源
+        const groupSids = new Set<number>()
+        groups.forEach(g => g.sids?.forEach(sid => groupSids.add(sid)))
 
-        // Build group list
-        const groupList: JSX.Element[] = groups.map((group, index) => {
-            const isSelected = localSettings.digestGroupIds?.includes(index) || false
-            const isExpanded = expandedGroups[index] || false
-            const groupSources = group.sids || []
+        const standaloneSourceIds = Object.keys(sources)
+            .map(Number)
+            .filter(sid => !groupSids.has(sid))
 
-            return (
-                <div key={index} style={{ marginBottom: 12 }}>
-                    <Stack horizontal horizontalAlign="space-between">
-                        <Checkbox
-                            checked={isSelected}
-                            label={group.name || `Group ${index + 1}`}
-                            onChange={() => this.handleGroupToggle(index)}
-                        />
-                        {groupSources.length > 0 && (
-                            <DefaultButton
-                                text={isExpanded ? intl.get('settings.integrations.collapse') : `${intl.get('settings.integrations.expand')} (${groupSources.length})`}
-                                onClick={() => this.toggleGroupExpand(index)}
-                                styles={{ root: { fontSize: 12 } }}
+        // 渲染树节点
+        const renderTree = () => {
+            const nodes: JSX.Element[] = []
+
+            // 渲染组
+            groups.forEach((group, groupIndex) => {
+                const isGroupSelected = localSettings.digestGroupIds?.includes(groupIndex) || false
+                const isExpanded = expandedGroups.has(groupIndex)
+                const groupSources = group.sids || []
+
+                nodes.push(
+                    <div key={`group-${groupIndex}`} style={{ marginBottom: 4 }}>
+                        <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 8 }}>
+                            <Checkbox
+                                checked={isGroupSelected}
+                                label={group.name || `Group ${groupIndex + 1}`}
+                                onChange={() => this.handleGroupToggle(groupIndex)}
+                                styles={{ root: { fontWeight: 600 } }}
                             />
+                            {groupSources.length > 0 && (
+                                <DefaultButton
+                                    text={isExpanded ? '▾' : `▸ (${groupSources.length})`}
+                                    onClick={() => this.toggleGroupExpand(groupIndex)}
+                                    styles={{ root: { minWidth: 32, height: 24, fontSize: 12, padding: '0 6px' } }}
+                                />
+                            )}
+                        </Stack>
+                        {isExpanded && !isGroupSelected && (
+                            <div style={{ marginLeft: 24, marginTop: 4 }}>
+                                {groupSources.map(sourceId => {
+                                    const source = sources[sourceId]
+                                    if (!source) return null
+                                    const isSourceSelected = localSettings.digestSourceIds?.includes(sourceId) || false
+                                    return (
+                                        <div key={sourceId} style={{ marginBottom: 2 }}>
+                                            <Checkbox
+                                                checked={isSourceSelected}
+                                                label={source.name}
+                                                onChange={() => this.handleSourceToggle(sourceId)}
+                                                styles={{ root: { fontSize: 13 } }}
+                                            />
+                                        </div>
+                                    )
+                                })}
+                            </div>
                         )}
-                    </Stack>
-                    {isExpanded && (
-                        <div style={{ marginLeft: 24, marginTop: 8 }}>
-                            {groupSources.map(sourceId => {
-                                const source = sources[sourceId]
-                                if (!source) return null
-                                const isSourceSelected = localSettings.digestSourceIds?.includes(sourceId) || false
-                                return (
-                                    <div key={sourceId} style={{ marginBottom: 4 }}>
-                                        <Checkbox
-                                            checked={isSourceSelected}
-                                            label={source.name}
-                                            onChange={() => this.handleSourceToggle(sourceId)}
-                                            disabled={isSelected}
-                                        />
-                                    </div>
-                                )
-                            })}
+                    </div>
+                )
+            })
+
+            // 渲染不在组中的单独源
+            if (standaloneSourceIds.length > 0) {
+                if (nodes.length > 0) {
+                    nodes.push(
+                        <div key="separator" style={{ borderTop: '1px solid var(--neutralLight)', margin: '8px 0' }} />
+                    )
+                }
+                standaloneSourceIds.forEach(sourceId => {
+                    const source = sources[sourceId]
+                    if (!source) return null
+                    const isSourceSelected = localSettings.digestSourceIds?.includes(sourceId) || false
+                    nodes.push(
+                        <div key={`source-${sourceId}`} style={{ marginBottom: 2 }}>
+                            <Checkbox
+                                checked={isSourceSelected}
+                                label={source.name}
+                                onChange={() => this.handleSourceToggle(sourceId)}
+                                styles={{ root: { fontSize: 13 } }}
+                            />
                         </div>
-                    )}
-                </div>
-            )
-        })
+                    )
+                })
+            }
+
+            return nodes.length > 0 ? nodes : <Label style={{ color: 'var(--neutralSecondaryAlt)', fontSize: 12 }}>暂无源</Label>
+        }
 
         const hasAutoPush = localSettings.autoPushEnabled || false
         const hasDalle = localSettings.dalleEnabled || false
@@ -240,10 +267,10 @@ export default class DailyBriefingInline extends React.Component<
                             onChange={this.handleInputChange}
                             style={{ width: 120 }}
                         />
-                        <Toggle
+                        <Switch
                             label={intl.get("settings.integrations.autoPushEnabled")}
                             checked={localSettings.autoPushEnabled || false}
-                            onChange={(e, checked) => {
+                            onChange={(checked) => {
                                 this.setState(
                                     prevState => {
                                         const newSettings = { ...prevState.localSettings, autoPushEnabled: checked }
@@ -255,10 +282,10 @@ export default class DailyBriefingInline extends React.Component<
                                 )
                             }}
                         />
-                        <Toggle
+                        <Switch
                             label={intl.get("settings.integrations.useDalle")}
                             checked={localSettings.dalleEnabled || false}
-                            onChange={(e, checked) => {
+                            onChange={(checked) => {
                                 this.setState(
                                     prevState => {
                                         const newSettings = { ...prevState.localSettings, dalleEnabled: checked }
@@ -291,24 +318,14 @@ export default class DailyBriefingInline extends React.Component<
                         </Stack>
 
                         {selectedSourceType === 'specific' && (
-                            <Stack horizontal tokens={{ childrenGap: 24 }} wrap>
-                                <div style={{ flex: 1, minWidth: 200 }}>
-                                    <Label style={{ fontSize: 13, marginBottom: 8 }}>
-                                        {intl.get('settings.integrations.sourceGroups')}
-                                    </Label>
-                                    <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--neutralLight)', padding: 8 }}>
-                                        {groupList}
-                                    </div>
+                            <div>
+                                <Label style={{ fontSize: 13, marginBottom: 8 }}>
+                                    {intl.get('settings.integrations.selectSources')}
+                                </Label>
+                                <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid var(--neutralLight)', padding: 8, borderRadius: 2 }}>
+                                    {renderTree()}
                                 </div>
-                                <div style={{ flex: 1, minWidth: 200 }}>
-                                    <Label style={{ fontSize: 13, marginBottom: 8 }}>
-                                        {intl.get('settings.integrations.sources')}
-                                    </Label>
-                                    <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--neutralLight)', padding: 8 }}>
-                                        {sourceList}
-                                    </div>
-                                </div>
-                            </Stack>
+                            </div>
                         )}
                     </div>
 

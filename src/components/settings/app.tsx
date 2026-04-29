@@ -15,7 +15,6 @@ import {
 import {
     Stack,
     Label,
-    Toggle,
     TextField,
     DefaultButton,
     ChoiceGroup,
@@ -25,6 +24,7 @@ import {
     PrimaryButton,
 } from "@fluentui/react"
 import DangerButton from "../utils/danger-button"
+import Switch from "../utils/switch"
 
 type AppTabProps = {
     setLanguage: (option: string) => void
@@ -225,9 +225,15 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                     <Label>{intl.get("app.enableProxy")}</Label>
                 </Stack.Item>
                 <Stack.Item>
-                    <Toggle
+                    <Switch
                         checked={this.state.pacStatus}
-                        onChange={this.toggleStatus}
+                        onChange={(checked) => {
+                            window.settings.toggleProxyStatus()
+                            this.setState({
+                                pacStatus: window.settings.getProxyStatus(),
+                                pacUrl: window.settings.getProxy(),
+                            })
+                        }}
                     />
                 </Stack.Item>
             </Stack>

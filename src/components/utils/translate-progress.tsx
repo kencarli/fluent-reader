@@ -50,7 +50,7 @@ export default class TranslateProgress extends React.Component<TranslateProgress
                 </div>
                 {completed === total && (
                     <Icon 
-                        iconName="StatusCheck" 
+                        iconName="CheckMark" 
                         style={{ 
                             fontSize: '20px',
                             color: '#4CAF50'

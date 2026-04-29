@@ -414,6 +414,19 @@ class Article extends React.Component<ArticleProps, ArticleState> {
 
     componentDidMount = () => {
         this.loadHighlights()
+        
+        // Auto-load full content if RSS content is too short (< 1000 chars)
+        // This handles cases where RSS feed only provides summaries
+        const contentLength = this.props.item.content?.length || 0
+        if (contentLength < 1000 && !this.state.loadFull) {
+            console.log(`[Article] Content too short (${contentLength} chars), auto-loading full content...`)
+            // Set loadFull state immediately so articleView() generates the correct URL
+            this.setState({ loadFull: true }, () => {
+                this.loadFull()
+            })
+            return
+        }
+        
         // Use iframe instead of webview for Tauri compatibility
         const articleFrame = document.getElementById("article") as HTMLIFrameElement
         if (articleFrame) {
@@ -752,16 +765,23 @@ class Article extends React.Component<ArticleProps, ArticleState> {
     }
 
     articleView = () => {
+        // Determine the content to use
         const content =
             this.state.showTranslation && this.state.translation
                 ? this.state.translation
-                : this.state.loadFull
+                : this.state.loadFull && this.state.fullContent
                     ? this.state.fullContent
                     : this.props.item.content
         
-        // For loadFull mode, use minimal URL (content will be sent via postMessage)
+        // For loadFull mode with content available, use minimal URL (content will be sent via postMessage)
         if (this.state.loadFull && this.state.fullContent) {
             return `article/article.html?u=${encodeURIComponent(this.props.item.link)}&m=1&itemId=${this.props.item._id}`
+        }
+        
+        // If loadFull is enabled but content is not available yet or failed,
+        // use regular mode with item.content to ensure iframe has something to display
+        if (this.state.loadFull && !this.state.fullContent) {
+            console.warn(`[articleView] loadFull is true but fullContent is empty, falling back to item.content`)
         }
         
         const a = encodeURIComponent(content)

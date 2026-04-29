@@ -40,6 +40,134 @@ if (dir === "1") {
     });
 }
 /**
+ * Smart main content extraction algorithm
+ * Uses text density and content density scoring to find the main content area
+ * Based on the Readability algorithm approach
+ * @param {Document} doc - Parsed HTML document
+ * @returns {string} - Extracted main content HTML
+ */
+function extractMainContent(doc) {
+    console.log('[SmartExtract] Starting smart content extraction...')
+
+    // Score all elements in the document
+    const candidates = []
+
+    // Score elements based on text density and content density
+    const allElements = doc.body.querySelectorAll('*')
+
+    allElements.forEach(element => {
+        const textContent = element.textContent || ''
+        const textLength = textContent.trim().length
+
+        // Skip elements with very little text
+        if (textLength < 200) return
+
+        // Skip leaf elements (P, H1-H6, SPAN, etc.) - we want containers
+        const leafTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'li', 'td', 'th', 'a', 'strong', 'em', 'b', 'i']
+        if (leafTags.includes(element.tagName.toLowerCase())) return
+
+        // Calculate text density
+        const htmlLength = element.innerHTML.length
+        const textRatio = textLength / Math.max(htmlLength, 1)
+
+        // Calculate content density (links ratio)
+        const links = element.querySelectorAll('a')
+        const linksTextLength = Array.from(links).reduce((sum, link) =>
+            sum + (link.textContent || '').length, 0
+        )
+        const linksRatio = linksTextLength / Math.max(textLength, 1)
+
+        // Count child elements (bonus for containers with multiple children)
+        const childCount = element.children.length
+        const childBonus = Math.min(childCount * 0.5, 10) // Max 10 points bonus
+
+        // Calculate score
+        // High text ratio is good, high links ratio is bad (likely navigation)
+        let score = textRatio * 100
+
+        // Bonus for having multiple child elements (container)
+        score += childBonus
+
+        // Penalize elements with many links (likely navigation/menu)
+        if (linksRatio > 0.3) {
+            score *= (1 - linksRatio)
+        }
+
+        // Bonus for semantic HTML elements
+        if (element.tagName === 'ARTICLE' || element.tagName === 'MAIN') {
+            score *= 1.5
+        }
+
+        // Bonus for common content class names
+        const className = element.className || ''
+        if (typeof className === 'string') {
+            if (className.includes('content') ||
+                className.includes('article') ||
+                className.includes('post') ||
+                className.includes('story') ||
+                className.includes('announcement') ||
+                className.includes('release') ||
+                className.includes('middle-content')) {
+                score *= 1.3
+            }
+
+            // Penalize navigation/header/footer
+            if (className.includes('nav') ||
+                className.includes('menu') ||
+                className.includes('header') ||
+                className.includes('footer') ||
+                className.includes('sidebar')) {
+                score *= 0.5
+            }
+        }
+
+        candidates.push({
+            element,
+            score,
+            textLength,
+            linksRatio,
+            childCount
+        })
+    })
+
+    // Sort by score descending
+    candidates.sort((a, b) => b.score - a.score)
+
+    // Log top candidates for debugging
+    console.log('[SmartExtract] Top 5 candidates:')
+    candidates.slice(0, 5).forEach((candidate, index) => {
+        const tagName = candidate.element.tagName
+        const className = candidate.element.className || ''
+        console.log(`  ${index + 1}. ${tagName}.${className.substring(0, 30)} - score: ${candidate.score.toFixed(2)}, text: ${candidate.textLength} chars, children: ${candidate.childCount}, links ratio: ${candidate.linksRatio.toFixed(2)}`)
+    })
+
+    // Return the best candidate's HTML
+    if (candidates.length > 0 && candidates[0].score > 10) {
+        const bestCandidate = candidates[0]
+        console.log(`[SmartExtract] Selected: ${bestCandidate.element.tagName} with score ${bestCandidate.score.toFixed(2)}`)
+
+        // Clean up the selected element
+        const content = bestCandidate.element.cloneNode(true)
+
+        // Remove any remaining unwanted elements
+        content.querySelectorAll('script, style, noscript, iframe, nav, footer, header').forEach(el => el.remove())
+
+        // Remove empty elements
+        content.querySelectorAll('*').forEach(el => {
+            if (!el.textContent.trim() && el.children.length === 0) {
+                el.remove()
+            }
+        })
+
+        return content.innerHTML
+    }
+
+    // Fallback to body if no good candidate found
+    console.log('[SmartExtract] No good candidate found, using body')
+    return doc.body.innerHTML
+}
+
+/**
  * Fallback content extraction function
  * Used when Mercury Parser fails or extracts too little content
  * @param {string} html - Raw HTML content
@@ -47,13 +175,13 @@ if (dir === "1") {
  */
 function extractContentFallback(html) {
     console.log('[Fallback] Starting content extraction...')
-    
+
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
-    
+
     // Remove unwanted elements
     const unwantedSelectors = [
-        'script', 'style', 'noscript', 'iframe', 
+        'script', 'style', 'noscript', 'iframe',
         'svg', 'canvas', 'nav', 'footer', 'header',
         '.ad', '.ads', '.advertisement', '.sidebar',
         '.nav', '.navigation', '.menu', '.breadcrumb',
@@ -61,11 +189,11 @@ function extractContentFallback(html) {
         '.related', '.recommended', '.newsletter',
         '#ad', '#ads', '#sidebar', '#nav', '#footer', '#header'
     ]
-    
+
     unwantedSelectors.forEach(selector => {
         doc.querySelectorAll(selector).forEach(el => el.remove())
     })
-    
+
     // Try to find main content container
     const contentSelectors = [
         'article',
@@ -75,25 +203,35 @@ function extractContentFallback(html) {
         '.post-body', '.story-body', '.article-text',
         '#content', '#main', '#article', '#post',
         '.container > .row > .col',
-        'main'
+        'main',
+        // Add selectors for press release/announcement pages
+        '.announcement--content', '.press-release', '.news-content',
+        '.pr-content', '.release-content', '.announcement-body'
     ]
-    
+
     let contentElement = null
+    let bestContentLength = 0
+    
+    // Try all selectors and pick the one with most content
     for (const selector of contentSelectors) {
-        contentElement = doc.querySelector(selector)
-        if (contentElement && contentElement.innerText.length > 100) {
-            console.log(`[Fallback] Found content with selector: ${selector}`)
-            break
+        const element = doc.querySelector(selector)
+        if (element) {
+            const textLength = element.innerText ? element.innerText.length : 0
+            console.log(`[Fallback] Selector "${selector}" found, text length: ${textLength}`)
+            if (textLength > bestContentLength) {
+                contentElement = element
+                bestContentLength = textLength
+                console.log(`[Fallback] New best content with selector: ${selector}, length: ${textLength}`)
+            }
         }
-        contentElement = null
     }
-    
-    // If no specific container found, use body
-    if (!contentElement) {
+
+    // If no specific container found or content is too small, use body
+    if (!contentElement || bestContentLength < 500) {
         contentElement = doc.body
-        console.log('[Fallback] Using body as content container')
+        console.log('[Fallback] Using body as content container, text length:', contentElement.innerText.length)
     }
-    
+
     // Clean up attributes and empty elements
     contentElement.querySelectorAll('*').forEach(el => {
         // Remove elements with very small text content (likely ads/widgets)
@@ -105,10 +243,10 @@ function extractContentFallback(html) {
             }
         }
     })
-    
+
     // Get the cleaned HTML
     let content = contentElement.innerHTML
-    
+
     console.log(`[Fallback] Extracted content length: ${content.length}`)
     return content
 }
@@ -136,7 +274,8 @@ async function getArticle(url) {
                     if (loadFull) {
                         console.log('[Article] Running Mercury Parser on content...')
                         let extractionAttempts = 0
-                        
+                        const originalHtmlLength = html.length
+
                         // Try Mercury Parser first
                         try {
                             const result = await Mercury.parse(msgUrl || url, { html: articleContent })
@@ -147,65 +286,56 @@ async function getArticle(url) {
                             console.error('[Article] Mercury Parser failed:', e)
                         }
 
-                        // If Mercury extracted very little content, try fallback
-                        if (articleContent.length < 200) {
-                            console.log('[Article] Mercury extraction returned too little content, trying fallback...')
+                        // If Mercury extracted significantly less content than original, or very little content, try fallback
+                        // Use relative threshold: if extracted content is less than 50% of original or less than 1000 chars
+                        const isExtractionInsufficient = articleContent.length < 1000 || 
+                            articleContent.length < originalHtmlLength * 0.5
+                        
+                        if (isExtractionInsufficient) {
+                            console.log(`[Article] Mercury extraction insufficient (${articleContent.length} vs original ${originalHtmlLength}), trying fallback...`)
                             articleContent = extractContentFallback(html)
                             extractionAttempts++
                             console.log(`[Article] Fallback extraction attempt ${extractionAttempts}, length:`, articleContent.length)
                         }
 
-                        // If still too little content, the page likely requires JS rendering
-                        // Since the iframe's DOM only has article.html structure (not the actual content),
-                        // we should just use the original HTML directly
-                        if (articleContent.length < 200) {
-                            console.log('[Article] All extraction methods failed, using original HTML directly...')
+                        // If still too little content, use smart content extraction
+                        // Check both absolute threshold and relative threshold
+                        const isStillInsufficient = articleContent.length < 1000 ||
+                            articleContent.length < originalHtmlLength * 0.3
+
+                        if (isStillInsufficient) {
+                            console.log('[Article] Fallback insufficient, using smart content extraction...')
                             console.log('[Article] Original HTML length:', html.length)
-                            
+
                             // Clean up the original HTML by removing script/style tags
                             const parser = new DOMParser()
                             const doc = parser.parseFromString(html, 'text/html')
-                            
-                            // Remove script and style tags
-                            doc.querySelectorAll('script, style, noscript').forEach(el => el.remove())
-                            
-                            // Try to find content containers in the original HTML
-                            const contentSelectors = [
-                                'article',
-                                '[role="main"]',
-                                '.post-content', '.article-content', '.entry-content',
-                                '.content', '.main-content', '.article-body',
-                                '.post', '.story', '.article-text',
-                                '#content', '#main-content', '#article', '#post',
-                                '.et_pb_post', '.wp-block-post-content',
-                                'main'
+
+                            // Remove unwanted elements
+                            const unwantedSelectors = [
+                                'script', 'style', 'noscript', 'iframe',
+                                'nav', 'header', 'footer',
+                                '.nav', '.navigation', '.menu', '.breadcrumb',
+                                '.sidebar', '.side-menu', '.main-nav',
+                                '.ad', '.ads', '.advertisement',
+                                '.share', '.social', '.comments',
+                                '.related', '.recommended', '.newsletter',
+                                '#nav', '#header', '#footer', '#sidebar'
                             ]
-                            
-                            let contentElement = null
-                            for (const selector of contentSelectors) {
-                                contentElement = doc.querySelector(selector)
-                                if (contentElement) {
-                                    const text = contentElement.innerText || ''
-                                    if (text.length > 50) {
-                                        console.log(`[Article] Found content container: ${selector}`)
-                                        articleContent = contentElement.innerHTML
-                                        break
-                                    }
-                                }
-                            }
-                            
-                            // If still no good content, use the entire body
-                            if (articleContent.length < 200) {
-                                console.log('[Article] Using entire body as content')
-                                articleContent = doc.body.innerHTML
-                            }
-                            
+                            unwantedSelectors.forEach(selector => {
+                                doc.querySelectorAll(selector).forEach(el => el.remove())
+                            })
+
+                            // Use greedy content extraction algorithm
+                            // Find the element with highest text density
+                            articleContent = extractMainContent(doc)
+
                             extractionAttempts++
-                            console.log(`[Article] Final extraction attempt ${extractionAttempts}, length:`, articleContent.length)
+                            console.log(`[Article] Smart extraction attempt ${extractionAttempts}, length:`, articleContent.length)
                         }
 
                         // If final content is still too short, notify parent to load URL directly
-                        if (articleContent.length < 200) {
+                        if (articleContent.length < 1000) {
                             console.log('[Article] Content still too short after all attempts, requesting direct URL load...')
                             window.parent.postMessage({
                                 type: 'requestDirectLoad',

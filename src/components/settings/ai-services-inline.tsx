@@ -19,7 +19,7 @@ type AIServicesInlineProps = {
 type AIServicesInlineState = {
     localSettings: IntegrationSettings
     testMessage: string | null
-    isTesting: boolean
+    testingService: 'none' | 'openai' | 'nvidia' | 'deepseek' | 'ollama'
 }
 
 export default class AIServicesInline extends React.Component<
@@ -31,7 +31,7 @@ export default class AIServicesInline extends React.Component<
         this.state = {
             localSettings: { ...props.settings },
             testMessage: null,
-            isTesting: false,
+            testingService: 'none',
         }
     }
 
@@ -59,68 +59,68 @@ export default class AIServicesInline extends React.Component<
 
     handleTestOpenAI = async () => {
         if (!this.state.localSettings.openaiApiKey) {
-            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterOpenAIKey'), isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterOpenAIKey'), testingService: 'none' })
             return
         }
 
-        this.setState({ isTesting: true, testMessage: null })
+        this.setState({ testingService: 'openai', testMessage: null })
         try {
             const key = this.state.localSettings.openaiApiKey
             if (key.startsWith('sk-') && key.length > 20) {
-                this.setState({ testMessage: intl.get('settings.integrations.openAIKeyValid'), isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.openAIKeyValid'), testingService: 'none' })
             } else {
-                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), testingService: 'none' })
             }
         } catch (error) {
-            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), testingService: 'none' })
         }
     }
 
     handleTestNvidia = async () => {
         if (!this.state.localSettings.nvidiaApiKey) {
-            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterNVIDIAKey'), isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterNVIDIAKey'), testingService: 'none' })
             return
         }
 
-        this.setState({ isTesting: true, testMessage: null })
+        this.setState({ testingService: 'nvidia', testMessage: null })
         try {
             const key = this.state.localSettings.nvidiaApiKey
             if (key.length > 20) {
-                this.setState({ testMessage: intl.get('settings.integrations.nvidiaKeyValid'), isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.nvidiaKeyValid'), testingService: 'none' })
             } else {
-                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), testingService: 'none' })
             }
         } catch (error) {
-            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), testingService: 'none' })
         }
     }
 
     handleTestDeepSeek = async () => {
         if (!this.state.localSettings.deepseekApiKey) {
-            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterDeepSeekKey'), isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterDeepSeekKey'), testingService: 'none' })
             return
         }
 
-        this.setState({ isTesting: true, testMessage: null })
+        this.setState({ testingService: 'deepseek', testMessage: null })
         try {
             const key = this.state.localSettings.deepseekApiKey
             if (key.length > 10) {
-                this.setState({ testMessage: intl.get('settings.integrations.deepseekKeyValid'), isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.deepseekKeyValid'), testingService: 'none' })
             } else {
-                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.apiKeyFormatWarning'), testingService: 'none' })
             }
         } catch (error) {
-            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.testFailed', { error: error.message }), testingService: 'none' })
         }
     }
 
     handleTestOllama = async () => {
         if (!this.state.localSettings.ollamaApiUrl) {
-            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterOllamaUrl'), isTesting: false })
+            this.setState({ testMessage: intl.get('settings.integrations.pleaseEnterOllamaUrl'), testingService: 'none' })
             return
         }
 
-        this.setState({ isTesting: true, testMessage: null })
+        this.setState({ testingService: 'ollama', testMessage: null })
         try {
             const controller = new AbortController()
             const timeoutId = setTimeout(() => controller.abort(), 5000)
@@ -137,21 +137,21 @@ export default class AIServicesInline extends React.Component<
                 const modelCount = data.models?.length || 0
                 this.setState({
                     testMessage: intl.get('settings.integrations.ollamaConnected', { count: modelCount }),
-                    isTesting: false
+                    testingService: 'none'
                 })
             } else {
-                this.setState({ testMessage: intl.get('settings.integrations.ollamaResponseAbnormal', { status: response.status }), isTesting: false })
+                this.setState({ testMessage: intl.get('settings.integrations.ollamaResponseAbnormal', { status: response.status }), testingService: 'none' })
             }
         } catch (error) {
             this.setState({
                 testMessage: intl.get('settings.integrations.ollamaConnectionFailed', { error: error.message }),
-                isTesting: false
+                testingService: 'none'
             })
         }
     }
 
     render() {
-        const { localSettings, testMessage, isTesting } = this.state
+        const { localSettings, testMessage, testingService } = this.state
         const hasOpenAi = !!localSettings.openaiApiKey
         const hasNvidia = !!localSettings.nvidiaApiKey
         const hasDeepseek = !!localSettings.deepseekApiKey
@@ -206,9 +206,9 @@ export default class AIServicesInline extends React.Component<
                                 />
                             </div>
                             <PrimaryButton
-                                text={isTesting ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
+                                text={testingService === 'openai' ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
                                 onClick={this.handleTestOpenAI}
-                                disabled={isTesting || !localSettings.openaiApiKey}
+                                disabled={testingService === 'openai' || !localSettings.openaiApiKey}
                             />
                         </Stack>
                         <Label style={{ fontSize: 11, color: "var(--neutralSecondary)", margin: '4px 0 0 0' }}>
@@ -234,9 +234,9 @@ export default class AIServicesInline extends React.Component<
                                 />
                             </div>
                             <PrimaryButton
-                                text={isTesting ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
+                                text={testingService === 'nvidia' ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
                                 onClick={this.handleTestNvidia}
-                                disabled={isTesting || !localSettings.nvidiaApiKey}
+                                disabled={testingService === 'nvidia' || !localSettings.nvidiaApiKey}
                             />
                         </Stack>
                         <Label style={{ fontSize: 11, color: "var(--neutralSecondary)", margin: '4px 0 0 0' }}>
@@ -262,9 +262,9 @@ export default class AIServicesInline extends React.Component<
                                 />
                             </div>
                             <PrimaryButton
-                                text={isTesting ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
+                                text={testingService === 'deepseek' ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
                                 onClick={this.handleTestDeepSeek}
-                                disabled={isTesting || !localSettings.deepseekApiKey}
+                                disabled={testingService === 'deepseek' || !localSettings.deepseekApiKey}
                             />
                         </Stack>
                         <Label style={{ fontSize: 11, color: "var(--neutralSecondary)", margin: '4px 0 0 0' }}>
@@ -290,11 +290,6 @@ export default class AIServicesInline extends React.Component<
                                     }}
                                 />
                             </div>
-                            <PrimaryButton
-                                text={isTesting ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
-                                onClick={this.handleTestOllama}
-                                disabled={isTesting || !localSettings.ollamaApiUrl}
-                            />
                             <div style={{ minWidth: 150 }}>
                                 <TextField
                                     label={intl.get('settings.integrations.modelName')}
@@ -307,6 +302,11 @@ export default class AIServicesInline extends React.Component<
                                     }}
                                 />
                             </div>
+                            <PrimaryButton
+                                text={testingService === 'ollama' ? intl.get('settings.integrations.testing') : intl.get('settings.integrations.test')}
+                                onClick={this.handleTestOllama}
+                                disabled={testingService === 'ollama' || !localSettings.ollamaApiUrl}
+                            />
                         </Stack>
                         <Label style={{ fontSize: 11, color: "var(--neutralSecondary)", margin: '4px 0 0 0' }}>
                             {intl.get("settings.integrations.ollamaUrlDescription")}

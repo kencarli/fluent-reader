@@ -3,13 +3,13 @@ import intl from "react-intl-universal"
 import {
     Label,
     Stack,
-    Toggle,
     Dropdown,
     IDropdownOption,
     Checkbox,
     MessageBar,
     MessageBarType,
 } from "@fluentui/react"
+import Switch from "../utils/switch"
 import { IntegrationSettings } from "../../schema-types"
 import CollapsibleSection from "./collapsible-section"
 import { INDUSTRY_OPTIONS, ROLE_OPTIONS } from "../../scripts/rating-service"
@@ -186,10 +186,10 @@ export default class ArticleRatingInline extends React.Component<
                     {/* 第一行：三个控件并排 - 始终显示 */}
                     <Stack horizontal tokens={{ childrenGap: 16 }} wrap verticalAlign="center">
                         <div style={{ minWidth: 140 }}>
-                            <Toggle
+                            <Switch
                                 label={intl.get('settings.rating.enableToggle')}
                                 checked={localSettings.ratingEnabled || false}
-                                onChange={(e, checked) => {
+                                onChange={(checked) => {
                                     this.setState(prevState => ({
                                         localSettings: {
                                             ...prevState.localSettings,
@@ -211,10 +211,10 @@ export default class ArticleRatingInline extends React.Component<
                         <div style={{ flex: 1 }} />
 
                         <div style={{ minWidth: 180 }}>
-                            <Toggle
+                            <Switch
                                 label={intl.get('settings.rating.autoRate')}
                                 checked={localSettings.ratingAutoRate || false}
-                                onChange={(e, checked) => {
+                                onChange={(checked) => {
                                     this.setState(prevState => ({
                                         localSettings: {
                                             ...prevState.localSettings,

@@ -133,7 +133,7 @@ async fn fetch_rss_feed(url: String) -> Result<String, String> {
         Ok(content) => Ok(content),
         Err(e) => {
             // 如果失败，尝试通过 rss2json API 获取
-            println!("[RSS] Direct fetch failed: {}, trying rss2json proxy", e);
+            eprintln!("[RSS] Direct fetch failed for {}, trying proxy", url);
             fetch_rss_via_proxy(&url).await
         }
     }
@@ -179,7 +179,7 @@ async fn fetch_rss_direct(url: &str) -> Result<String, String> {
     let response = match result {
         Ok(resp) => resp,
         Err(_) => {
-            println!("[RSS] First attempt failed, retrying after delay...");
+            eprintln!("[RSS] First attempt failed, retrying...");
             tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
             
             client
@@ -220,9 +220,7 @@ async fn fetch_rss_via_proxy(url: &str) -> Result<String, String> {
     // 使用 rss2json API 作为代理
     let encoded_url = urlencoding::encode(url);
     let api_url = format!("https://api.rss2json.com/v1/api.json?rss_url={}", encoded_url);
-    
-    println!("[RSS] Trying rss2json proxy: {}", api_url);
-    
+
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .build()
@@ -234,34 +232,26 @@ async fn fetch_rss_via_proxy(url: &str) -> Result<String, String> {
         .await
         .map_err(|e| format!("Failed to fetch via proxy: {}", e))?;
 
-    let status = response.status();
-    println!("[RSS] rss2json response status: {}", status);
-
     let body = response
         .text()
         .await
         .map_err(|e| format!("Failed to read proxy response: {}", e))?;
 
-    println!("[RSS] rss2json response length: {} bytes", body.len());
-
     // 将 JSON 转换回 RSS XML 格式
     let json: serde_json::Value = match serde_json::from_str(&body) {
         Ok(j) => j,
         Err(e) => {
-            println!("[RSS] Failed to parse JSON: {}", e);
-            println!("[RSS] Response preview: {}", &body[..body.len().min(500)]);
+            eprintln!("[RSS] Failed to parse JSON: {}", e);
             return Err(format!("Failed to parse JSON: {}", e));
         }
     };
-
-    println!("[RSS] rss2json status field: {:?}", json["status"]);
 
     if json["status"] == "ok" {
         // 构建简单的 RSS XML
         let title = json["feed"]["title"].as_str().unwrap_or("");
         let link = json["feed"]["link"].as_str().unwrap_or("");
         let description = json["feed"]["description"].as_str().unwrap_or("");
-        
+
         let mut xml = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
@@ -271,7 +261,7 @@ async fn fetch_rss_via_proxy(url: &str) -> Result<String, String> {
 "#, escape_xml(title), escape_xml(link), escape_xml(description));
 
         if let Some(items) = json["items"].as_array() {
-            println!("[RSS] Converting {} items from JSON to XML", items.len());
+            eprintln!("[RSS] Proxy converting {} items for {}", items.len(), url);
             for item in items {
                 let item_title = item["title"].as_str().unwrap_or("");
                 let item_link = item["link"].as_str().unwrap_or("");
@@ -279,7 +269,7 @@ async fn fetch_rss_via_proxy(url: &str) -> Result<String, String> {
                 let item_date = item["pubDate"].as_str().unwrap_or("");
                 let item_content = item["content"].as_str().unwrap_or("");
                 let item_author = item["author"].as_str().unwrap_or("");
-                
+
                 xml.push_str(&format!(r#"    <item>
       <title>{}</title>
       <link>{}</link>
@@ -288,9 +278,9 @@ async fn fetch_rss_via_proxy(url: &str) -> Result<String, String> {
       <author>{}</author>
       <pubDate>{}</pubDate>
     </item>
-"#, 
-                    escape_xml(item_title), 
-                    escape_xml(item_link), 
+"#,
+                    escape_xml(item_title),
+                    escape_xml(item_link),
                     escape_xml(item_desc),
                     item_content,
                     escape_xml(item_author),
@@ -300,11 +290,10 @@ async fn fetch_rss_via_proxy(url: &str) -> Result<String, String> {
         }
 
         xml.push_str("  </channel>\n</rss>");
-        println!("[RSS] Successfully converted to XML, {} bytes", xml.len());
         Ok(xml)
     } else {
         let error_msg = json["message"].as_str().unwrap_or("Unknown error");
-        println!("[RSS] rss2json API error: {}", error_msg);
+        eprintln!("[RSS] rss2json API error: {}", error_msg);
         Err(format!("rss2json API returned error: {}", error_msg))
     }
 }
@@ -426,7 +415,7 @@ async fn fetch_multiple_feeds(urls: Vec<String>) -> Result<Vec<(String, Result<S
         let result = match result {
             Ok(content) => Ok(content),
             Err(e) => {
-                println!("[RSS] First attempt failed for {}: {}, retrying...", url, e);
+                eprintln!("[RSS] First attempt failed for {}, retrying...", url);
                 tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
                 
                 let retry_result = client
@@ -461,7 +450,7 @@ async fn fetch_multiple_feeds(urls: Vec<String>) -> Result<Vec<(String, Result<S
         match result {
             Ok(body) => results.push((url.clone(), Ok(body))),
             Err(e) => {
-                println!("[RSS] All attempts failed for {}: {}", url, e);
+                eprintln!("[RSS] All attempts failed for {}: {}", url, e);
                 results.push((url.clone(), Err(e)))
             }
         }

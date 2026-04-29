@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' tauri: ipc:; script-src * 'self' 'unsafe-inline' 'unsafe-eval' tauri: ipc:; style-src * 'self' 'unsafe-inline' tauri: ipc:; img-src * data: file: blob: tauri: ipc:; font-src * 'self' tauri: ipc:; connect-src * http: https: file: tauri: ipc: ws: wss:; frame-src * 'self' tauri: ipc:;">
+    content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' tauri: ipc: blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval' tauri: ipc: blob:; style-src * 'self' 'unsafe-inline' tauri: ipc: blob:; img-src * data: file: blob: tauri: ipc:; font-src * 'self' tauri: ipc: file:; connect-src * http: https: file: tauri: ipc: ws: wss:; frame-src * 'self' tauri: ipc: data: blob:; worker-src * 'self' tauri: ipc: blob:;">
   <title>Fluent Reader</title>
   <link rel="stylesheet" href="index.css">
   <script>
@@ -61,7 +61,9 @@
           },
           toggleProxyStatus: function() {
             var current = this.getProxyStatus();
-            tauriInvoke('set_setting', { key: 'proxyEnabled', value: !current });
+            var newValue = !current;
+            settingsCache['proxyEnabled'] = newValue;
+            tauriInvoke('set_setting', { key: 'proxyEnabled', value: newValue });
           },
           getProxy: function() {
             return settingsCache['proxy'] || '';
@@ -283,9 +285,19 @@
             return false; // Tauri v2 doesn't have a direct API for this
           },
           addWindowStateListener: function(callback) {
+            // WindowStateListenerType enum values: Maximized=0, Focused=1, Fullscreen=2
+            var Maximized = 0;
+            var Focused = 1;
+            var Fullscreen = 2;
+            
             // Listen for window focus/blur
-            window.addEventListener('focus', function() { callback('focus', true); });
-            window.addEventListener('blur', function() { callback('blur', false); });
+            window.addEventListener('focus', function() { callback(Focused, true); });
+            window.addEventListener('blur', function() { callback(Focused, false); });
+            
+            // Listen for fullscreen changes
+            document.addEventListener('fullscreenchange', function() {
+              callback(Fullscreen, !!document.fullscreenElement);
+            });
           },
           addWebviewContextListener: function(callback) {},
           addWebviewKeydownListener: function(callback) {},
@@ -300,6 +312,12 @@
           },
           maximizeWindow: function() {
             tauriInvoke('maximize_window');
+          },
+          startDraggingWindow: function() {
+            tauriInvoke('start_dragging');
+          },
+          requestAttention: function() {
+            tauriInvoke('request_attention');
           },
           // System methods
           getVersion: function() {

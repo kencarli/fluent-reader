@@ -16,7 +16,6 @@ import {
     Dropdown,
     MessageBar,
     MessageBarType,
-    Toggle,
     IconButton,
     Spinner,
     SpinnerSize,
@@ -28,6 +27,7 @@ import {
 } from "../../scripts/models/source"
 import { urlTest } from "../../scripts/utils"
 import DangerButton from "../utils/danger-button"
+import Switch from "../utils/switch"
 
 type SourcesTabProps = {
     sources: SourceState
@@ -60,6 +60,7 @@ type SourcesTabState = {
     sourceEditOption?: string
     newSourceIcon?: string
     checkAbortController?: AbortController // For canceling ongoing checks
+    searchKeyword: string // 搜索关键词
 }
 
 const enum EditDropdownKeys {
@@ -81,6 +82,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
             sourceStatus: {},
             sourceStatusTimestamp: {},
             isCheckingAll: false,
+            searchKeyword: "",
         }
         this.selection = new Selection({
             getKey: s => (s as RSSSource).sid,
@@ -178,7 +180,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                     <Stack horizontal verticalAlign="center" tokens={{ childrenGap: 4 }}>
                         <IconButton
                             iconProps={{ 
-                                iconName: isChecking ? 'Refresh' : 'StatusCheck',
+                                iconName: isChecking ? 'Refresh' : 'CheckMark',
                                 style: { color: isChecking ? 'var(--neutralSecondary)' : undefined }
                             }}
                             title={intl.get("sources.checkStatus")}
@@ -420,6 +422,25 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
         }
     }
 
+    handleSearchChange = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
+        this.setState({ searchKeyword: newValue || "" })
+    }
+
+    getFilteredSources = (): RSSSource[] => {
+        const { searchKeyword } = this.state
+        const sources = Object.values(this.props.sources)
+        
+        if (!searchKeyword.trim()) {
+            return sources
+        }
+        
+        const keyword = searchKeyword.toLowerCase()
+        return sources.filter(source => 
+            source.name.toLowerCase().includes(keyword) ||
+            source.url.toLowerCase().includes(keyword)
+        )
+    }
+
     selectAllInvalidSources = () => {
         const sources = Object.values(this.props.sources)
         const invalidSids = sources
@@ -505,7 +526,7 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                         onClick={this.checkAllSources}
                         text={intl.get("sources.checkStatus")}
                         disabled={this.state.isCheckingAll}
-                        iconProps={{ iconName: this.state.isCheckingAll ? 'Refresh' : 'StatusCheck' }}
+                        iconProps={{ iconName: this.state.isCheckingAll ? 'Refresh' : 'CheckMark' }}
                     />
                 </Stack.Item>
                 <Stack.Item>
@@ -522,41 +543,64 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                 </Stack.Item>
             </Stack>
 
+             {/* 添加订阅源和搜索在同一行 */}
             <form onSubmit={this.addSource}>
-                <Stack horizontal verticalAlign="baseline">
-                    <Stack.Item>
-                        <Label htmlFor="newUrl" style={{ marginBottom: 0, marginRight: 8 }}>
-                            {intl.get("sources.add")}
-                        </Label>
-                    </Stack.Item>
-                    <Stack.Item grow>
-                        <TextField
-                            onGetErrorMessage={v =>
-                                urlTest(v.trim())
-                                    ? ""
-                                    : intl.get("sources.badUrl")
-                            }
-                            validateOnLoad={false}
-                            placeholder={intl.get("sources.inputUrl")}
-                            value={this.state.newUrl}
-                            id="newUrl"
-                            name="newUrl"
-                            onChange={this.handleInputChange}
-                        />
-                    </Stack.Item>
-                    <Stack.Item>
-                        <PrimaryButton
-                            disabled={!urlTest(this.state.newUrl.trim())}
-                            type="submit"
-                            text={intl.get("add")}
-                        />
-                    </Stack.Item>
+                <Stack horizontal verticalAlign="baseline" tokens={{ childrenGap: 16 }} style={{ marginBottom: 16 }}>
+                    {/* 添加订阅源 */}
+                    <Stack horizontal verticalAlign="baseline" tokens={{ childrenGap: 8 }}>
+                        <Stack.Item>
+                            <Label htmlFor="newUrl" style={{ marginBottom: 0 }}>
+                                {intl.get("sources.add")}
+                            </Label>
+                        </Stack.Item>
+                        <Stack.Item styles={{ root: { maxWidth: 300 } }}>
+                            <TextField
+                                onGetErrorMessage={v =>
+                                    urlTest(v.trim())
+                                        ? ""
+                                        : intl.get("sources.badUrl")
+                                }
+                                validateOnLoad={false}
+                                placeholder={intl.get("sources.inputUrl")}
+                                value={this.state.newUrl}
+                                id="newUrl"
+                                name="newUrl"
+                                onChange={this.handleInputChange}
+                            />
+                        </Stack.Item>
+                        <Stack.Item>
+                            <PrimaryButton
+                                disabled={!urlTest(this.state.newUrl.trim())}
+                                type="submit"
+                                text={intl.get("add")}
+                            />
+                        </Stack.Item>
+                    </Stack>
+
+                    {/* 分隔线 */}
+                    <div style={{ width: 1, height: 32, backgroundColor: 'var(--neutralLight)' }} />
+
+                    {/* 搜索输入框 */}
+                    <Stack horizontal verticalAlign="baseline" tokens={{ childrenGap: 8 }}>
+                        <Stack.Item>
+                            <Label style={{ marginBottom: 0 }}>
+                                {intl.get("search")}
+                            </Label>
+                        </Stack.Item>
+                        <Stack.Item styles={{ root: { maxWidth: 250 } }}>
+                            <TextField
+                                placeholder={intl.get("sources.searchPlaceholder")}
+                                value={this.state.searchKeyword}
+                                onChange={this.handleSearchChange}
+                            />
+                        </Stack.Item>
+                    </Stack>
                 </Stack>
             </form>
 
             <DetailsList
                 compact={Object.keys(this.props.sources).length >= 10}
-                items={Object.values(this.props.sources)}
+                items={this.getFilteredSources()}
                 columns={this.columns()}
                 getKey={s => s.sid}
                 setKey="selected"
@@ -708,9 +752,17 @@ class SourcesTab extends React.Component<SourcesTabProps, SourcesTabState> {
                             <Label>{intl.get("sources.hidden")}</Label>
                         </Stack.Item>
                         <Stack.Item>
-                            <Toggle
+                            <Switch
                                 checked={this.state.selectedSource.hidden}
-                                onChange={this.onToggleHidden}
+                                onChange={(checked) => {
+                                    this.props.toggleSourceHidden(this.state.selectedSource)
+                                    this.setState({
+                                        selectedSource: {
+                                            ...this.state.selectedSource,
+                                            hidden: checked,
+                                        } as RSSSource,
+                                    })
+                                }}
                             />
                         </Stack.Item>
                     </Stack>

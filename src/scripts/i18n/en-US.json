@@ -334,6 +334,8 @@
             "briefingSource": "Briefing Source",
             "allSources": "All Sources",
             "specificSources": "Specific Sources",
+            "selectSources": "Select sources (groups include all sub-sources, or select individual sources)",
+            "autoPushStatus": "✓ Auto Push",
             "createNotionIntegration": "Create Notion Integration",
             "aiServices": "AI Services",
             "pleaseEnterOpenAIKey": "Please enter OpenAI API key first",
@@ -549,7 +551,8 @@
         "briefingSource": "Briefing Source",
         "expand": "Expand",
         "allSources": "All Sources",
-        "specificSources": "Specific Sources"
+        "specificSources": "Specific Sources",
+        "selectSources": "Select sources (groups include all sub-sources, or select individual sources)"
     },
     "settings.translation": {
         "libretranslateReady": "LibreTranslate translation is ready",

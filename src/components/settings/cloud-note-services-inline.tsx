@@ -27,7 +27,9 @@ type CloudNoteServicesInlineState = {
     notionProperties: any
     isLoadingDatabases: boolean
     testMessage: string | null
-    testType: "obsidian" | "notion" | null
+    testType: "obsidian" | "notion" | "onenote" | "evernote" | null
+    onenoteNotebooks: { key: string, text: string }[]
+    isLoadingOneNoteNotebooks: boolean
 }
 
 export default class CloudNoteServicesInline extends React.Component<
@@ -43,6 +45,8 @@ export default class CloudNoteServicesInline extends React.Component<
             isLoadingDatabases: false,
             testMessage: null,
             testType: null,
+            onenoteNotebooks: [],
+            isLoadingOneNoteNotebooks: false,
         }
     }
 
@@ -185,10 +189,129 @@ export default class CloudNoteServicesInline extends React.Component<
         }
     }
 
+    handleLoadOneNoteNotebooks = async () => {
+        const { onenoteAccessToken } = this.state.localSettings
+        if (!onenoteAccessToken) {
+            this.setState({
+                testMessage: intl.get("settings.integrations.pleaseEnterOneNoteToken"),
+                testType: "onenote"
+            })
+            return
+        }
+        this.setState({ isLoadingOneNoteNotebooks: true })
+        try {
+            const response = await fetch("https://graph.microsoft.com/v1.0/me/onenote/notebooks", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${onenoteAccessToken}`,
+                },
+            })
+            if (!response.ok) {
+                throw new Error(`OneNote API Error: ${response.statusText}`)
+            }
+            const data = await response.json()
+            const notebooks = data.value.map((nb: any) => ({
+                key: nb.id,
+                text: nb.displayName
+            }))
+            this.setState({
+                onenoteNotebooks: notebooks,
+                isLoadingOneNoteNotebooks: false,
+                testMessage: intl.get("settings.integrations.loadedNotebooks", { count: notebooks.length }),
+                testType: "onenote"
+            })
+        } catch (err: unknown) {
+            let errorMessage = String(err)
+            if (err instanceof Error) {
+                errorMessage = err.message
+            }
+            this.setState({
+                isLoadingOneNoteNotebooks: false,
+                testMessage: `${intl.get("settings.integrations.errorLoadingNotebooks")}: ${errorMessage}`,
+                testType: "onenote"
+            })
+        }
+    }
+
+    handleOneNoteNotebookChange = (_, option?: IDropdownOption) => {
+        if (option) {
+            const notebookId = option.key as string
+            this.setState(
+                prevState => ({
+                    localSettings: {
+                        ...prevState.localSettings,
+                        onenoteNotebookId: notebookId,
+                    }
+                }),
+                () => {
+                    this.props.onChange(this.state.localSettings)
+                }
+            )
+        }
+    }
+
+    handleTestOneNote = async () => {
+        const { onenoteAccessToken, onenoteNotebookId } = this.state.localSettings
+        if (!onenoteAccessToken) {
+            this.setState({
+                testMessage: intl.get("settings.integrations.pleaseEnterOneNoteToken"),
+                testType: "onenote"
+            })
+            return
+        }
+        try {
+            const response = await fetch("https://graph.microsoft.com/v1.0/me/onenote/notebooks", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${onenoteAccessToken}`,
+                },
+            })
+            if (!response.ok) {
+                throw new Error(`OneNote API Error: ${response.statusText}`)
+            }
+            const message = onenoteNotebookId 
+                ? "OneNote connection successful!" 
+                : "OneNote token valid! Please select a notebook."
+            this.setState({
+                testMessage: message,
+                testType: "onenote"
+            })
+        } catch (error) {
+            this.setState({
+                testMessage: `OneNote connection failed: ${error.message}`,
+                testType: "onenote"
+            })
+        }
+    }
+
+    handleTestEvernote = async () => {
+        const { evernoteToken } = this.state.localSettings
+        if (!evernoteToken) {
+            this.setState({
+                testMessage: intl.get("settings.integrations.pleaseEnterEvernoteToken"),
+                testType: "evernote"
+            })
+            return
+        }
+        try {
+            this.setState({
+                testMessage: "Evernote token configured. Note: Full Evernote integration requires additional SDK setup.",
+                testType: "evernote"
+            })
+        } catch (error) {
+            this.setState({
+                testMessage: `Evernote connection failed: ${error.message}`,
+                testType: "evernote"
+            })
+        }
+    }
+
     render() {
-        const { localSettings, notionDatabases, isLoadingDatabases, testMessage, testType } = this.state
+        const { localSettings, notionDatabases, isLoadingDatabases, testMessage, testType, onenoteNotebooks, isLoadingOneNoteNotebooks } = this.state
         const hasObsidian = !!localSettings.obsidianVaultPath
         const hasNotion = !!localSettings.notionDatabaseId
+        const hasOneNote = !!localSettings.onenoteAccessToken && !!localSettings.onenoteNotebookId
+        const hasEvernote = !!localSettings.evernoteToken
 
         const statusIndicators = (
             <Stack horizontal tokens={{ childrenGap: 8 }}>
@@ -200,6 +323,16 @@ export default class CloudNoteServicesInline extends React.Component<
                 {hasNotion && (
                     <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
                         ✓ Notion
+                    </Label>
+                )}
+                {hasOneNote && (
+                    <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
+                        ✓ OneNote
+                    </Label>
+                )}
+                {hasEvernote && (
+                    <Label style={{ color: "var(--green)", fontSize: 12, margin: 0 }}>
+                        ✓ Evernote
                     </Label>
                 )}
             </Stack>
@@ -257,7 +390,7 @@ export default class CloudNoteServicesInline extends React.Component<
                                         <DefaultButton
                                             text={intl.get("settings.integrations.testConnection")}
                                             onClick={this.handleTestObsidian}
-                                            iconProps={{ iconName: "StatusCheck" }}
+                                            iconProps={{ iconName: "CheckMark" }}
                                         />
                                     </div>
                                 </Stack.Item>
@@ -327,7 +460,7 @@ export default class CloudNoteServicesInline extends React.Component<
                                             <DefaultButton
                                                 text={intl.get("settings.integrations.testConnection")}
                                                 onClick={this.handleTestNotion}
-                                                iconProps={{ iconName: "StatusCheck" }}
+                                                iconProps={{ iconName: "CheckMark" }}
                                             />
                                         </div>
                                     </Stack.Item>
@@ -413,6 +546,119 @@ export default class CloudNoteServicesInline extends React.Component<
                             >
                                 {intl.get("settings.integrations.createNotionIntegration")}
                             </Link>
+                        )}
+                    </div>
+
+                    {/* OneNote Section */}
+                    <div>
+                        <Label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                            {intl.get("settings.integrations.onenoteIntegration")}
+                        </Label>
+                        
+                        <Stack horizontal tokens={{ childrenGap: 16 }} wrap>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.integrations.onenoteAccessToken")}
+                                    name="onenoteAccessToken"
+                                    type="password"
+                                    value={localSettings.onenoteAccessToken || ""}
+                                    onChange={this.handleInputChange}
+                                    description={intl.get("settings.integrations.onenoteAccessTokenDescription")}
+                                    autoComplete="off"
+                                />
+                            </Stack.Item>
+                            <Stack.Item>
+                                <div style={{ paddingTop: 32 }}>
+                                    <PrimaryButton
+                                        text={intl.get("settings.integrations.loadNotebooks")}
+                                        onClick={this.handleLoadOneNoteNotebooks}
+                                        disabled={isLoadingOneNoteNotebooks || !localSettings.onenoteAccessToken}
+                                    />
+                                </div>
+                            </Stack.Item>
+                        </Stack>
+
+                        {onenoteNotebooks.length > 0 && (
+                            <Stack horizontal tokens={{ childrenGap: 16 }} wrap style={{ marginTop: 16 }}>
+                                <Stack.Item grow>
+                                    <Dropdown
+                                        label={intl.get("settings.integrations.notebook")}
+                                        selectedKey={localSettings.onenoteNotebookId || undefined}
+                                        options={onenoteNotebooks}
+                                        onChange={this.handleOneNoteNotebookChange}
+                                        placeholder={intl.get("settings.integrations.selectNotebookAfterLoading")}
+                                        style={{ width: 300 }}
+                                    />
+                                </Stack.Item>
+                                {hasOneNote && (
+                                    <Stack.Item>
+                                        <div style={{ paddingTop: 32 }}>
+                                            <DefaultButton
+                                                text={intl.get("settings.integrations.testConnection")}
+                                                onClick={this.handleTestOneNote}
+                                                iconProps={{ iconName: "CheckMark" }}
+                                            />
+                                        </div>
+                                    </Stack.Item>
+                                )}
+                            </Stack>
+                        )}
+
+                        {!hasOneNote && !localSettings.onenoteAccessToken && (
+                            <Label style={{ fontSize: 11, color: "var(--neutralSecondary)", marginTop: 8 }}>
+                                {intl.get("settings.integrations.onenoteSetupHint")}
+                            </Label>
+                        )}
+                    </div>
+
+                    {/* Evernote Section */}
+                    <div>
+                        <Label style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                            {intl.get("settings.integrations.evernoteIntegration")}
+                        </Label>
+                        
+                        <Stack horizontal tokens={{ childrenGap: 16 }} wrap>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.integrations.evernoteToken")}
+                                    name="evernoteToken"
+                                    type="password"
+                                    value={localSettings.evernoteToken || ""}
+                                    onChange={this.handleInputChange}
+                                    description={intl.get("settings.integrations.evernoteTokenDescription")}
+                                    autoComplete="off"
+                                />
+                            </Stack.Item>
+                            {localSettings.evernoteToken && (
+                                <Stack.Item>
+                                    <div style={{ paddingTop: 32 }}>
+                                        <DefaultButton
+                                            text={intl.get("settings.integrations.testConnection")}
+                                            onClick={this.handleTestEvernote}
+                                            iconProps={{ iconName: "CheckMark" }}
+                                        />
+                                    </div>
+                                </Stack.Item>
+                            )}
+                        </Stack>
+
+                        <Stack horizontal tokens={{ childrenGap: 16 }} wrap style={{ marginTop: 16 }}>
+                            <Stack.Item grow>
+                                <TextField
+                                    label={intl.get("settings.integrations.evernoteNotebookGuid")}
+                                    name="evernoteNotebookGuid"
+                                    value={localSettings.evernoteNotebookGuid || ""}
+                                    onChange={this.handleInputChange}
+                                    description={intl.get("settings.integrations.evernoteNotebookGuidDescription")}
+                                    placeholder="Notebook GUID"
+                                />
+                            </Stack.Item>
+                        </Stack>
+
+                        {!hasEvernote && !localSettings.evernoteToken && (
+                            <Label style={{ fontSize: 11, color: "var(--neutralSecondary)", marginTop: 8 }}>
+                                {intl.get("settings.integrations.evernoteSetupHint")}
+                            </Label>
                         )}
                     </div>
                 </Stack>

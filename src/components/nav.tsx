@@ -233,7 +233,7 @@ class Nav extends React.Component<NavProps, NavState> {
                             )
                                 e.stopPropagation()
                         }}>
-                        <Icon iconName="InboxCheck" />
+                        <Icon iconName="Mail" />
                     </a>
                     <a
                         className="btn"
@@ -241,7 +241,7 @@ class Nav extends React.Component<NavProps, NavState> {
                         title={intl.get("nav.notifications")}
                         onClick={this.props.logs}>
                         {this.props.state.logMenu.notify ? (
-                            <Icon iconName="RingerSolid" />
+                            <Icon iconName="Bell" />
                         ) : (
                             <Icon iconName="Ringer" />
                         )}
@@ -258,7 +258,7 @@ class Nav extends React.Component<NavProps, NavState> {
                             )
                                 e.stopPropagation()
                         }}>
-                        <Icon iconName="View" />
+                        <Icon iconName="Filter" />
                     </a>
                     <a
                         className="btn"
@@ -272,7 +272,7 @@ class Nav extends React.Component<NavProps, NavState> {
                             )
                                 e.stopPropagation()
                         }}>
-                        <Icon iconName="LightningBolt" />
+                        <Icon iconName="AllApps" />
                     </a>
                     <a
                         className="btn"

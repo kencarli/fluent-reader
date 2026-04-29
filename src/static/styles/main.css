@@ -121,6 +121,7 @@ body.darwin .menu .btn-group {
     height: 100%;
     background-color: var(--neutralLight);
     overflow: hidden;
+    -webkit-app-region: no-drag;
 }
 
 .settings-container .settings {

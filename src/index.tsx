@@ -18,15 +18,25 @@ if (typeof window !== 'undefined' && window.settings) {
 }
 
 applyThemeSettings()
-initializeIcons("icons/") // 使用本地图标文件
 
-// Only register custom icons that are not in Fluent UI
-registerIcons({
-    icons: {
-        'StatusCheck': '\uE930',
-        'markdownlogo': '\uF31B',
-    }
-} as any)
+// Prevent duplicate icon initialization
+const iconsInitializedKey = '__FLUENT_READER_ICONS_INITIALIZED__'
+if (!(window as any)[iconsInitializedKey]) {
+    // 使用本地图标文件
+    initializeIcons("icons/")
+    
+    // Only register custom icons that are not in Fluent UI
+    registerIcons({
+        icons: {
+            'markdownlogo': '\uF31B',
+        }
+    } as any)
+    
+    ;(window as any)[iconsInitializedKey] = true
+    console.log('[Icons] Initialized with local icons successfully')
+} else {
+    console.log('[Icons] Already initialized, skipping')
+}
 
 // Expose rootStore to window for use in containers
 ;(window as any).__STORE__ = rootStore
