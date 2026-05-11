@@ -778,12 +778,17 @@ export function initApp(): AppThunk {
                 await dispatch(initSources())
             })
             .then(async () => {
-                // Fetch new items from sources FIRST (background mode, won't dismiss items)
+                // 并行执行：立即初始化 Feed 显示已有数据
+                const initFeedsPromise = dispatch(initFeeds())
+                
+                // 同时在后台获取新文章（不阻塞 Feed 显示）
                 await dispatch(fetchItems(true))
-                // THEN initialize feeds with the fetched items
-                await dispatch(initFeeds())
-                // Then select all articles page with init=true to reload feeds
-                dispatch(selectAllArticles(true))
+                
+                // 等待 Feed 初始化完成
+                await initFeedsPromise
+                
+                // 选择所有文章页面（使用 false 避免重置 loaded 状态）
+                dispatch(selectAllArticles(false))
             })
             .then(() => {
                 dispatch(updateFavicon())

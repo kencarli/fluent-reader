@@ -83,9 +83,22 @@ class CardsFeed extends React.Component<FeedProps> {
     render() {
         if (!this.props.feed) {
             return (
-                <div className="empty">Loading feed...</div>
+                <div className="empty">
+                    <div className="loading-spinner" />
+                    <p>{intl.get("loading") || "Loading..."}</p>
+                </div>
             )
         }
+        
+        // 加载完成但没有文章时显示空状态
+        if (this.props.feed.loaded && (!this.props.items || this.props.items.length === 0)) {
+            return (
+                <div className="empty">
+                    <p>{intl.get("noArticles") || "No articles"}</p>
+                </div>
+            )
+        }
+        
         return (
             <FocusZone
                 as="div"
@@ -93,6 +106,13 @@ class CardsFeed extends React.Component<FeedProps> {
                 className="cards-feed-container"
                 shouldReceiveFocus={this.canFocusChild}
                 data-is-scrollable>
+                {/* 加载中时显示顶部提示 */}
+                {!this.props.feed.loaded && (
+                    <div className="loading-header">
+                        <div className="loading-spinner-small" />
+                        <span>{intl.get("loadingArticles") || "Loading articles..."}</span>
+                    </div>
+                )}
                 <List
                     className={AnimationClassNames.slideUpIn10}
                     items={this.flexFixItems()}

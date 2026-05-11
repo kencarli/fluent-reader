@@ -174,10 +174,11 @@ export async function init() {
 
     console.log('[DB] Starting initialization...')
     let usedMemoryFallback = false;
+    const startTime = Date.now()
 
     try {
         // Use IndexedDB for persistent storage to prevent connection loss
-        console.log('[DB] Attempting IndexedDB connection...')
+        console.log('[DB] Attempting IndexedDB connection (parallel)...')
         
         // Close existing connections if any
         if (sourcesDB) {
@@ -195,19 +196,25 @@ export async function init() {
             }
         }
         
-        sourcesDB = await sdbSchema.connect({
-            onUpgrade: onUpgradeSourceDB,
-            // @ts-ignore - Lovefield types are incomplete
-            storeType: INDEXED_DB
-        })
+        // 并行初始化 sourcesDB 和 itemsDB
+        const [sourcesResult, itemsResult] = await Promise.all([
+            sdbSchema.connect({
+                onUpgrade: onUpgradeSourceDB,
+                // @ts-ignore - Lovefield types are incomplete
+                storeType: INDEXED_DB
+            }),
+            idbSchema.connect({
+                onUpgrade: onUpgradeItemDB,
+                // @ts-ignore
+                storeType: INDEXED_DB
+            })
+        ])
+        
+        sourcesDB = sourcesResult
         sources = sourcesDB.getSchema().table("sources")
         console.log('[DB] Sources DB initialized')
 
-        itemsDB = await idbSchema.connect({
-            onUpgrade: onUpgradeItemDB,
-            // @ts-ignore
-            storeType: INDEXED_DB
-        })
+        itemsDB = itemsResult
         items = itemsDB.getSchema().table("items")
         console.log('[DB] Items DB initialized')
 
@@ -215,13 +222,17 @@ export async function init() {
         try {
             console.log('[DB] Running validation query...')
             const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
-            await sourcesDB.select().from(sources).limit(1).exec()
-            await itemsDB.select()
-                .from(items)
-                .where(items.date.gte(cutoff))
-                .orderBy(items.date, lf.Order.DESC)
-                .limit(1)
-                .exec()
+            
+            // 并行执行验证查询
+            await Promise.all([
+                sourcesDB.select().from(sources).limit(1).exec(),
+                itemsDB.select()
+                    .from(items)
+                    .where(items.date.gte(cutoff))
+                    .orderBy(items.date, lf.Order.DESC)
+                    .limit(1)
+                    .exec()
+            ])
             console.log('[DB] Database validation successful')
         } catch (validationError: any) {
             console.log('[DB] Database validation failed:', validationError.code)
@@ -229,7 +240,7 @@ export async function init() {
         }
 
         dbInitialized = true
-        console.log('[DB] Initialization complete with IndexedDB')
+        console.log(`[DB] Initialization complete with IndexedDB (${Date.now() - startTime}ms)`)
     } catch (error: any) {
         // Error 201 = DUPLICATE_PRIMARY_KEY - database is corrupted
         if (error.code === 201) {
@@ -332,35 +343,111 @@ export async function init() {
                 console.log('[DB] Memory database initialized as fallback')
             }
         } else if (error.code === 300 || error.code === 516) {
-            // Error 300 or 516: Database version mismatch - use memory database
-            console.log('[DB] Database version mismatch detected')
-            console.log('[DB] Using memory database...')
-            usedMemoryFallback = true;
-
+            console.log('[DB] Database version mismatch detected (error', error.code, ')')
+            console.log('[DB] Attempting to delete old database and recreate...')
+            
             try {
-                const memorySourcesSchema = createSourcesDBSchema();
-                const memoryItemsSchema = createItemsDBSchema();
-
+                if (sourcesDB) {
+                    try { sourcesDB.close() } catch (e) {}
+                }
+                if (itemsDB) {
+                    try { itemsDB.close() } catch (e) {}
+                }
+                
+                await new Promise<void>((resolve) => {
+                    let deleteCount = 0
+                    const checkComplete = () => {
+                        deleteCount++
+                        if (deleteCount === 2) {
+                            setTimeout(resolve, 1000)
+                        }
+                    }
+                    
+                    const req1 = indexedDB.deleteDatabase('sourcesDB')
+                    req1.onsuccess = () => {
+                        console.log('[DB] sourcesDB deleted successfully (version mismatch fix)')
+                        checkComplete()
+                    }
+                    req1.onerror = () => {
+                        console.warn('[DB] sourcesDB deletion failed, but continuing...')
+                        checkComplete()
+                    }
+                    req1.onblocked = () => {
+                        console.warn('[DB] sourcesDB deletion blocked, waiting...')
+                        setTimeout(() => checkComplete(), 2000)
+                    }
+                    
+                    const req2 = indexedDB.deleteDatabase('itemsDB')
+                    req2.onsuccess = () => {
+                        console.log('[DB] itemsDB deleted successfully (version mismatch fix)')
+                        checkComplete()
+                    }
+                    req2.onerror = () => {
+                        console.warn('[DB] itemsDB deletion failed, but continuing...')
+                        checkComplete()
+                    }
+                    req2.onblocked = () => {
+                        console.warn('[DB] itemsDB deletion blocked, waiting...')
+                        setTimeout(() => checkComplete(), 2000)
+                    }
+                })
+                
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                
+                const freshSourcesSchema = createSourcesDBSchema()
+                const freshItemsSchema = createItemsDBSchema()
+                
+                console.log('[DB] Attempting to recreate databases after version mismatch...')
+                sourcesDB = await freshSourcesSchema.connect({
+                    onUpgrade: onUpgradeSourceDB,
+                    // @ts-ignore
+                    storeType: INDEXED_DB
+                })
+                sources = sourcesDB.getSchema().table("sources")
+                console.log('[DB] Sources DB recreated successfully after version fix')
+                
+                itemsDB = await freshItemsSchema.connect({
+                    onUpgrade: onUpgradeItemDB,
+                    // @ts-ignore
+                    storeType: INDEXED_DB
+                })
+                items = itemsDB.getSchema().table("items")
+                console.log('[DB] Items DB recreated successfully after version fix')
+                
+                dbInitialized = true
+                console.log('[DB] Database recreation complete after version mismatch fix')
+            } catch (recreateError) {
+                console.error('[DB] Failed to recreate database after version mismatch:', recreateError)
+                console.log('[DB] Falling back to memory database as last resort...')
+                usedMemoryFallback = true
+                
+                const memorySourcesSchema = createSourcesDBSchema()
+                const memoryItemsSchema = createItemsDBSchema()
+                
                 sourcesDB = await memorySourcesSchema.connect({
                     onUpgrade: onUpgradeSourceDB
                 })
                 sources = sourcesDB.getSchema().table("sources")
-
+                
                 itemsDB = await memoryItemsSchema.connect({
                     onUpgrade: onUpgradeItemDB
                 })
                 items = itemsDB.getSchema().table("items")
-
+                
                 dbInitialized = true
-                console.log('[DB] Memory database initialized successfully')
-                console.log('[DB] NOTE: Your existing data in IndexedDB is safe')
-                console.log('[DB] NOTE: Data will not persist between sessions')
-            } catch (memoryError: any) {
-                console.error('[DB] Memory database initialization failed:', memoryError)
-                throw memoryError
+                console.log('[DB] Memory database initialized as fallback')
+                console.log('[DB] WARNING: Data will NOT persist between sessions!')
+                
+                if (typeof window !== 'undefined' && window.utils && window.utils.showErrorBox) {
+                    setTimeout(() => {
+                        window.utils.showErrorBox(
+                            "数据库警告",
+                            "应用正在使用临时内存数据库，关闭后数据将丢失。\n\n这通常是因为 IndexedDB 出现问题。\n\n建议：\n1. 重启应用\n2. 如果问题持续，尝试清除应用数据"
+                        )
+                    }, 1000)
+                }
             }
         } else {
-            // Other errors - log and throw
             console.error('[DB] Initialization failed:', error)
             console.error('[DB] Error message:', error.message)
             console.error('[DB] Error code:', error.code)
@@ -371,27 +458,22 @@ export async function init() {
         }
     }
 
-    await initHighlightsDB();
-
-    // Initialize ratings database
-    try {
-        await initRatingsDB()
-        console.log("Ratings DB initialized successfully")
-    } catch (error) {
-        console.error("Failed to initialize ratings DB:", error)
-    }
-
-    // Initialize vector database for semantic search
-    try {
-        await initVectorDB()
-        console.log("Vector DB initialized successfully")
-    } catch (error) {
-        console.error("Failed to initialize vector DB:", error)
-    }
-
+    // 并行初始化其他数据库
+    const initPromises = [
+        initHighlightsDB().then(() => console.log("[DB] Highlights DB initialized successfully")),
+        initRatingsDB().then(() => console.log("[DB] Ratings DB initialized successfully")).catch(err => console.error("[DB] Failed to initialize Ratings DB:", err)),
+        initVectorDB().then(() => console.log("[DB] Vector DB initialized successfully")).catch(err => console.error("[DB] Failed to initialize Vector DB:", err))
+    ]
+    
+    // 等待所有数据库初始化完成，但不阻塞主流程
+    await Promise.allSettled(initPromises)
+    
+    // NeDB 迁移（需要主数据库初始化完成）
     if (window.settings.getNeDBStatus()) {
         await migrateNeDB()
     }
+    
+    console.log(`[DB] All databases initialized (total: ${Date.now() - startTime}ms)`)
 }
 
 async function migrateNeDB() {
