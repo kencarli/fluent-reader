@@ -18,6 +18,7 @@
     "enable_semantic": "Enable Semantic Search",
     "disable_semantic": "Disable Semantic Search",
     "loadMore": "Load more",
+    "noArticles": "No articles",
     "dangerButton": "Confirm {action}?",
     "confirmMarkAll": "Do you really want to mark all articles on this page as read?",
     "confirm": "Confirm",
@@ -261,6 +262,10 @@
         "shortcuts": "Shortcuts",
         "openSource": "Open source",
         "feedback": "Feedback",
+        "backgroundMode": "Background Mode",
+        "enableBackground": "Enable Background Mode",
+        "backgroundDescription": "Hide to system tray when closing window instead of exiting the application",
+        "trayIcon": "System Tray Icon",
         "integrations": {
             "name": "Integrations",
             "obsidianIntegration": "Obsidian Integration",
@@ -394,6 +399,11 @@
             "serviceHint": {
                 "auto": "Auto-detect translation service",
                 "default": "Select a translation service",
+                "google": "Google Translate requires no configuration, works out of the box.",
+                "baidu": "Baidu Translate API requires configuration.",
+                "deepl": "DeepL provides high-quality translations.",
+                "mymemory": "MyMemory requires no configuration, works out of the box.",
+                "ollama": "Ollama runs locally for privacy.",
                 "libretranslate": "LibreTranslate is an open-source, self-hosted translation API. You can use public instances or host your own."
             },
             "appId": "App ID",
@@ -423,6 +433,7 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
+                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory",
@@ -432,6 +443,7 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
+                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory"
@@ -565,6 +577,7 @@
         "configured": "✓ Configured",
         "serviceName": {
             "auto": "Auto",
+            "google": "Google",
             "baidu": "Baidu",
             "deepl": "DeepL",
             "mymemory": "MyMemory",
@@ -573,6 +586,7 @@
         },
         "serviceOption": {
             "auto": "Auto (recommended)",
+            "google": "Google Translate",
             "baidu": "Baidu Translate",
             "deepl": "DeepL Translate",
             "mymemory": "MyMemory Translate",
@@ -581,6 +595,7 @@
         },
         "serviceHint": {
             "auto": "Auto mode: Prioritize configured services, failover automatically.",
+            "google": "Google Translate requires no configuration, works out of the box.",
             "baidu": "Baidu Translate is stable in mainland China. API Key required.",
             "deepl": "DeepL has the highest translation quality.",
             "mymemory": "MyMemory requires no configuration, works out of the box.",
@@ -607,6 +622,7 @@
         "pleaseConfigureApi": "Please configure API key first",
         "serviceLabel": "Translation Service",
         "autoMode": "Auto mode (recommended)",
+        "googleName": "Google Translate",
         "baiduName": "Baidu Translate",
         "deeplName": "DeepL Translate",
         "serviceSelectionHint": "After selecting a translation service, you need to configure the corresponding API key below."

@@ -136,6 +136,13 @@
           setFilterType: function(type) {
             tauriInvoke('set_setting', { key: 'filterType', value: type });
           },
+          getBackgroundMode: function() {
+            return settingsCache['backgroundMode'] !== false;
+          },
+          setBackgroundMode: function(enabled) {
+            settingsCache['backgroundMode'] = enabled;
+            tauriInvoke('set_setting', { key: 'backgroundMode', value: enabled });
+          },
           getIntegrationSettings: function() {
             // Try localStorage first for synchronous access
             try {
@@ -305,7 +312,8 @@
           addHighlightCreatedListener: function(callback) {},
           // Window control methods
           closeWindow: function() {
-            tauriInvoke('close_window');
+            // 使用 plugin:window|close 触发 close-requested 事件（不绕过前端拦截器）
+            tauriInvoke('plugin:window|close', { label: 'main' });
           },
           minimizeWindow: function() {
             tauriInvoke('minimize_window');
@@ -379,7 +387,6 @@
 
 <body style="margin: 0; padding: 0; height: 100%; overflow: hidden;">
   <div id="app" style="height: 100%; width: 100%;"></div>
-  <script src="index.js"></script>
 </body>
 
 </html>

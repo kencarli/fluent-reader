@@ -265,9 +265,12 @@
 .magazine-feed>.empty,
 .compact-feed>.empty {
     width: 100%;
-    height: calc(100vh - 64px);
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
     display: flex;
-    justify-content: space-around;
+    justify-content: center;
     align-items: center;
     color: var(--neutralSecondary);
     font-size: 14px;
@@ -311,4 +314,38 @@
     border-radius: 50%;
     border-top-color: var(--primaryColor);
     animation: spin 0.8s ease-in-out infinite;
+}
+
+/* 导航栏加载提示 */
+nav .loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--neutralSecondary);
+    font-size: 14px;
+    padding: 4px 0;
+    background-color: var(--neutralLighter);
+    border-bottom: 1px solid var(--neutralLight);
+    width: 100%;
+    flex-shrink: 0;
+    order: 0;
+}
+
+/* 标题位置的加载提示 */
+nav .title.loading-indicator {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--neutralSecondary);
+    font-size: 12px;
+    padding: 0 4px;
+    background-color: transparent;
+    border-bottom: none;
+    width: auto;
+    max-width: 280px;
+    flex-shrink: 0;
+    overflow: hidden;
+    white-space: nowrap;
 }

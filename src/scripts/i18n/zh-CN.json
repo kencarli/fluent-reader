@@ -18,6 +18,7 @@
     "enable_semantic": "启用语义搜索",
     "disable_semantic": "停用语义搜索",
     "loadMore": "加载更多",
+    "noArticles": "无文章",
     "dangerButton": "确认{action}？",
     "confirmMarkAll": "确认将本页所有文章标为已读？",
     "confirm": "确认",
@@ -153,6 +154,10 @@
         "shortcuts": "快捷键",
         "openSource": "开源项目",
         "feedback": "反馈",
+        "backgroundMode": "后台运行",
+        "enableBackground": "启用后台运行模式",
+        "backgroundDescription": "关闭窗口时隐藏到系统托盘，而不是退出应用",
+        "trayIcon": "系统托盘图标",
         "integrations": {
             "name": "集成",
             "obsidianIntegration": "Obsidian 集成",
@@ -297,6 +302,11 @@
             "serviceHint": {
                 "auto": "Auto-detect translation service",
                 "default": "Select a translation service",
+                "google": "Google Translate requires no configuration, works out of the box.",
+                "baidu": "Baidu Translate API requires configuration.",
+                "deepl": "DeepL provides high-quality translations.",
+                "mymemory": "MyMemory requires no configuration, works out of the box.",
+                "ollama": "Ollama runs locally for privacy.",
                 "libretranslate": "LibreTranslate 是一个开源的、自托管的翻译 API。您可以使用公共实例或自行托管。"
             },
             "appId": "应用 ID",
@@ -339,6 +349,7 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
+                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory"
@@ -347,6 +358,7 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
+                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory"
@@ -602,6 +614,7 @@
         "configured": "✓ 已配置",
         "serviceName": {
             "auto": "自动",
+            "google": "Google",
             "baidu": "百度",
             "deepl": "DeepL",
             "mymemory": "MyMemory",
@@ -611,6 +624,7 @@
         },
         "serviceOption": {
             "auto": "自动（推荐）",
+            "google": "Google 翻译",
             "baidu": "百度翻译",
             "deepl": "DeepL 翻译",
             "mymemory": "MyMemory 翻译",
@@ -619,6 +633,7 @@
         },
         "serviceHint": {
             "auto": "自动模式：优先使用已配置的服务，失败时自动切换。",
+            "google": "Google 翻译无需配置，开箱即用。",
             "baidu": "百度翻译在中国大陆稳定。需配置 API Key。",
             "deepl": "DeepL 翻译质量最高。",
             "mymemory": "MyMemory 无需配置，开箱即用。",
@@ -645,6 +660,7 @@
         "pleaseConfigureApi": "请先配置 API 密钥",
         "serviceLabel": "翻译服务",
         "autoMode": "自动模式（推荐）",
+        "googleName": "Google 翻译",
         "baiduName": "百度翻译",
         "deeplName": "DeepL 翻译",
         "serviceSelectionHint": "选择翻译服务后，需在下方配置相应的 API 密钥。"

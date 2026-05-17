@@ -9,6 +9,7 @@ import { WindowStateListenerType } from "../schema-types"
 type NavProps = {
     state: AppState
     itemShown: boolean
+    hasArticles: boolean
     menu: () => void
     search: () => void
     markAllRead: () => void
@@ -175,45 +176,6 @@ class Nav extends React.Component<NavProps, NavState> {
     render() {
         return (
             <nav className={this.getClassNames()}>
-                <div className="btn-group">
-                    <a
-                        className="btn hide-wide"
-                        title={intl.get("nav.menu")}
-                        onClick={this.props.menu}>
-                        <Icon
-                            iconName={
-                                window.utils.platform === "darwin"
-                                    ? "SidePanel"
-                                    : "GlobalNavButton"
-                            }
-                        />
-                    </a>
-                </div>
-                <span
-                    className="title"
-                    onDoubleClick={() => {
-                        // 双击标题栏最大化/还原窗口
-                        const utils = window.utils as any
-                        if (utils.isTauri && utils.maximizeWindow) {
-                            utils.maximizeWindow()
-                        }
-                    }}
-                    onMouseDown={(e) => {
-                        // 拖拽窗口（仅在 Tauri 环境下）
-                        const utils = window.utils as any
-                        if (utils.isTauri && utils.startDraggingWindow && e.buttons === 1) {
-                            // 延迟执行，避免与点击冲突
-                            const timer = setTimeout(() => {
-                                utils.startDraggingWindow()
-                            }, 100)
-                            const clearTimer = () => {
-                                clearTimeout(timer)
-                                document.removeEventListener('mouseup', clearTimer)
-                            }
-                            document.addEventListener('mouseup', clearTimer)
-                        }
-                    }}
-                >{this.props.state.title}</span>
                 <div className="btn-group" style={{ float: "right" }}>
                     <a
                         className={"btn" + this.fetching()}
@@ -339,6 +301,58 @@ class Nav extends React.Component<NavProps, NavState> {
                         <Icon iconName="Cancel" />
                     </a>
                 </div>
+                <div className="btn-group">
+                    <a
+                        className="btn hide-wide"
+                        title={intl.get("nav.menu")}
+                        onClick={this.props.menu}>
+                        <Icon
+                            iconName={
+                                window.utils.platform === "darwin"
+                                    ? "SidePanel"
+                                    : "GlobalNavButton"
+                            }
+                        />
+                    </a>
+                </div>
+                {/* 标题或加载提示 */}
+                {!this.props.state.feedInit ? (
+                    <div className="title loading-indicator">
+                        <div className="loading-spinner-small" />
+                        <span>{intl.get("loadingArticles") || "Loading articles..."}</span>
+                    </div>
+                ) : (
+                    <span
+                        className="title"
+                        onDoubleClick={() => {
+                            // 双击标题栏最大化/还原窗口
+                            const utils = window.utils as any
+                            if (utils.isTauri && utils.maximizeWindow) {
+                                utils.maximizeWindow()
+                            }
+                        }}
+                        onMouseDown={(e) => {
+                            // 拖拽窗口（仅在 Tauri 环境下）
+                            const utils = window.utils as any
+                            if (utils.isTauri && utils.startDraggingWindow && e.buttons === 1) {
+                                // 延迟执行，避免与点击冲突
+                                const timer = setTimeout(() => {
+                                    utils.startDraggingWindow()
+                                }, 100)
+                                const clearTimer = () => {
+                                    clearTimeout(timer)
+                                    document.removeEventListener('mouseup', clearTimer)
+                                }
+                                document.addEventListener('mouseup', clearTimer)
+                            }
+                        }}
+                    >
+                        {this.props.state.title}
+                        {this.props.state.feedInit && !this.props.hasArticles && (
+                            <span className="empty-status">（{intl.get("noArticles") || "No articles"}）</span>
+                        )}
+                    </span>
+                )}
                 {/* 菜单加载进度条 */}
                 {!this.canFetch() && (
                     <ProgressIndicator

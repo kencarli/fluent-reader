@@ -231,6 +231,14 @@ nav .progress .ms-ProgressIndicator-itemName {
     text-overflow: ellipsis;
     overflow: hidden;
     color: var(--black);
+    text-align: right;
+}
+
+.empty-status {
+    font-size: 12px;
+    color: var(--neutralSecondary);
+    margin-left: 4px;
+    white-space: nowrap;
 }
 body.darwin #root > nav span.title {
     max-width: 220px;

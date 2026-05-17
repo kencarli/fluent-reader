@@ -66,7 +66,7 @@ export default class TranslationServicesInline extends React.Component<
             prevState => {
                 const newSettings = {
                     ...prevState.localSettings,
-                    translationService: option.key as "baidu" | "mymemory" | "deepl" | "libretranslate" | "ollama" | "auto"
+                    translationService: option.key as "baidu" | "mymemory" | "deepl" | "libretranslate" | "ollama" | "google" | "auto"
                 }
                 return { localSettings: newSettings }
             },
@@ -168,6 +168,7 @@ export default class TranslationServicesInline extends React.Component<
                 )}
                 <Label style={{ color: "var(--neutralSecondary)", fontSize: 12, margin: 0 }}>
                     {selectedService === "auto" ? intl.get("settings.translation.serviceName.auto") :
+                     selectedService === "google" ? intl.get("settings.translation.serviceName.google") :
                      selectedService === "libretranslate" ? intl.get("settings.translation.serviceName.libretranslate") :
                      selectedService === "baidu" ? intl.get("settings.translation.serviceName.baidu") :
                      selectedService === "deepl" ? intl.get("settings.translation.serviceName.deepl") :
@@ -191,6 +192,7 @@ export default class TranslationServicesInline extends React.Component<
                                 selectedKey={selectedService}
                                 options={[
                                     { key: "auto", text: intl.get("settings.translation.serviceOption.auto") },
+                                    { key: "google", text: intl.get("settings.translation.serviceOption.google") },
                                     { key: "baidu", text: intl.get("settings.translation.serviceOption.baidu") },
                                     { key: "deepl", text: intl.get("settings.translation.serviceOption.deepl") },
                                     { key: "ollama", text: intl.get("settings.translation.serviceOption.ollama") },
@@ -218,6 +220,8 @@ export default class TranslationServicesInline extends React.Component<
                     <MessageBar messageBarType={MessageBarType.info}>
                         {selectedService === "auto"
                             ? intl.get("settings.translation.serviceHint.auto")
+                            : selectedService === "google"
+                            ? intl.get("settings.translation.serviceHint.google")
                             : selectedService === "baidu"
                             ? intl.get("settings.translation.serviceHint.baidu")
                             : selectedService === "deepl"
@@ -230,6 +234,25 @@ export default class TranslationServicesInline extends React.Component<
                             ? intl.get("settings.translation.serviceHint.libretranslate")
                             : intl.get("settings.translation.serviceHint.default")}
                     </MessageBar>
+
+                    {/* Google Translate - No configuration needed */}
+                    {(selectedService === "google" || selectedService === "auto") && (
+                        <>
+                            <Label
+                                style={{
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    marginTop: 16,
+                                    marginBottom: 8,
+                                }}>
+                                {intl.get("settings.translation.google")}
+                            </Label>
+
+                            <MessageBar messageBarType={MessageBarType.success} isMultiline={false}>
+                                {intl.get("settings.translation.googleTestSuccess")}
+                            </MessageBar>
+                        </>
+                    )}
 
                     {/* LibreTranslate - Only show if selected or Auto */}
                     {(selectedService === "libretranslate" || selectedService === "auto") && (

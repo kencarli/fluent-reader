@@ -95,7 +95,7 @@ export interface IntegrationSettings {
     deeplTranslateApiKey?: string
     libretranslateApiUrl?: string
     libretranslateApiKey?: string
-    translationService?: "baidu" | "mymemory" | "deepl" | "libretranslate" | "ollama" | "auto"
+    translationService?: "baidu" | "mymemory" | "deepl" | "libretranslate" | "ollama" | "google" | "auto"
     translationMode?: "full" | "bilingual"
     ollamaApiUrl?: string
     ollamaModel?: string

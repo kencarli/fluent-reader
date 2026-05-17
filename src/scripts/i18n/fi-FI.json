@@ -236,6 +236,7 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
+                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory"
@@ -244,6 +245,7 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
+                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory"
@@ -251,6 +253,11 @@
             "serviceHint": {
                 "auto": "Auto-detect translation service",
                 "default": "Select a translation service",
+                "google": "Google Translate requires no configuration, works out of the box.",
+                "baidu": "Baidu Translate API requires configuration.",
+                "deepl": "DeepL provides high-quality translations.",
+                "mymemory": "MyMemory requires no configuration, works out of the box.",
+                "ollama": "Ollama runs locally for privacy.",
                 "libretranslate": "LibreTranslate on avoimen lähdekoodin itse isännöity käännös API. Voit käyttää julkisia instansseja tai isännöidä omaasi."
             },
             "libretranslateTitle": "LibreTranslate",

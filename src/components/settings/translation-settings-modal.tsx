@@ -65,7 +65,7 @@ export default class TranslationSettingsModal extends React.Component<
         this.setState(prevState => ({
             tempSettings: {
                 ...prevState.tempSettings,
-                translationService: option.key as "baidu" | "mymemory" | "deepl" | "libretranslate" | "ollama" | "auto"
+                translationService: option.key as "baidu" | "mymemory" | "deepl" | "libretranslate" | "ollama" | "google" | "auto"
             },
         }))
     }
@@ -84,6 +84,11 @@ export default class TranslationSettingsModal extends React.Component<
         try {
             let success = false
             let message = ""
+
+            if (service === "google" || service === "auto") {
+                success = true
+                message = intl.get('settings.translation.googleTestSuccess')
+            }
 
             if (service === "baidu" || service === "auto") {
                 if (tempSettings.baiduTranslateAppId && tempSettings.baiduTranslateSecret) {
@@ -170,6 +175,7 @@ export default class TranslationSettingsModal extends React.Component<
                             selectedKey={selectedService}
                             options={[
                                 { key: "auto", text: intl.get('settings.translation.autoMode') },
+                                { key: "google", text: intl.get('settings.translation.serviceOption.google') },
                                 { key: "baidu", text: intl.get('settings.translation.baiduName') },
                                 { key: "deepl", text: intl.get('settings.translation.deeplName') },
                                 { key: "ollama", text: "Ollama" },

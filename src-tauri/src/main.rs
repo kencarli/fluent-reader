@@ -131,7 +131,7 @@ async fn fetch_rss_feed(url: String) -> Result<String, String> {
     
     match result {
         Ok(content) => Ok(content),
-        Err(e) => {
+        Err(_e) => {
             // 如果失败，尝试通过 rss2json API 获取
             eprintln!("[RSS] Direct fetch failed for {}, trying proxy", url);
             fetch_rss_via_proxy(&url).await
@@ -414,7 +414,7 @@ async fn fetch_multiple_feeds(urls: Vec<String>) -> Result<Vec<(String, Result<S
         // 如果失败，等待后重试一次
         let result = match result {
             Ok(content) => Ok(content),
-            Err(e) => {
+            Err(_e) => {
                 eprintln!("[RSS] First attempt failed for {}, retrying...", url);
                 tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
                 

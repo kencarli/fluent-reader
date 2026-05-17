@@ -229,7 +229,10 @@ async function unreadCount(sources: SourceState): Promise<SourceState> {
         .groupBy(db.items.source)
         .exec()
     for (let row of rows) {
-        sources[row["source"]].unreadCount = row["COUNT(_id)"]
+        const sourceId = row["source"]
+        if (sources[sourceId]) {
+            sources[sourceId].unreadCount = row["COUNT(_id)"]
+        }
     }
     return sources
 }
@@ -260,8 +263,10 @@ export function initSources(): AppThunk<Promise<void>> {
             .exec()) as RSSSource[]
         const state: SourceState = {}
         for (let source of sources) {
-            source.unreadCount = 0
-            state[source.sid] = source
+            if (source && source.sid !== undefined) {
+                source.unreadCount = 0
+                state[source.sid] = source
+            }
         }
         await unreadCount(state)
         dispatch(fixBrokenGroups(state))

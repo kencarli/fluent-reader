@@ -34,9 +34,17 @@ function initWindowUtils() {
                     (window as any).__TAURI__ !== undefined ||
                     (window as any).__TAURI_POST_MESSAGE__ !== undefined
 
-    // 如果 window.utils 已经存在（index.html 中已初始化），则跳过
+    // 如果 window.utils 已经存在（index.html 中已初始化），则只覆盖必要的 Tauri 方法
     if (window.utils) {
-        console.log('[Utils] Already initialized, skipping')
+        console.log('[Utils] Already initialized, overriding window control methods')
+        if (isTauri) {
+            const utils = window.utils as any
+            utils.closeWindow = () => import('./tauri-bridge').then(m => m.closeWindow())
+            utils.minimizeWindow = () => import('./tauri-bridge').then(m => m.minimizeWindow())
+            utils.maximizeWindow = () => import('./tauri-bridge').then(m => m.maximizeWindow())
+            utils.startDraggingWindow = () => import('./tauri-bridge').then(m => m.startDragging())
+            utils.openExternal = (url: string, _background?: boolean) => import('./tauri-bridge').then(m => m.openExternal(url))
+        }
         return
     }
 
