@@ -154,10 +154,6 @@
         "shortcuts": "快捷键",
         "openSource": "开源项目",
         "feedback": "反馈",
-        "backgroundMode": "后台运行",
-        "enableBackground": "启用后台运行模式",
-        "backgroundDescription": "关闭窗口时隐藏到系统托盘，而不是退出应用",
-        "trayIcon": "系统托盘图标",
         "integrations": {
             "name": "集成",
             "obsidianIntegration": "Obsidian 集成",
@@ -302,11 +298,6 @@
             "serviceHint": {
                 "auto": "Auto-detect translation service",
                 "default": "Select a translation service",
-                "google": "Google Translate requires no configuration, works out of the box.",
-                "baidu": "Baidu Translate API requires configuration.",
-                "deepl": "DeepL provides high-quality translations.",
-                "mymemory": "MyMemory requires no configuration, works out of the box.",
-                "ollama": "Ollama runs locally for privacy.",
                 "libretranslate": "LibreTranslate 是一个开源的、自托管的翻译 API。您可以使用公共实例或自行托管。"
             },
             "appId": "应用 ID",
@@ -349,7 +340,6 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
-                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory"
@@ -358,7 +348,6 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
-                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory"

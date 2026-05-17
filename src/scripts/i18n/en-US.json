@@ -262,10 +262,6 @@
         "shortcuts": "Shortcuts",
         "openSource": "Open source",
         "feedback": "Feedback",
-        "backgroundMode": "Background Mode",
-        "enableBackground": "Enable Background Mode",
-        "backgroundDescription": "Hide to system tray when closing window instead of exiting the application",
-        "trayIcon": "System Tray Icon",
         "integrations": {
             "name": "Integrations",
             "obsidianIntegration": "Obsidian Integration",
@@ -399,11 +395,6 @@
             "serviceHint": {
                 "auto": "Auto-detect translation service",
                 "default": "Select a translation service",
-                "google": "Google Translate requires no configuration, works out of the box.",
-                "baidu": "Baidu Translate API requires configuration.",
-                "deepl": "DeepL provides high-quality translations.",
-                "mymemory": "MyMemory requires no configuration, works out of the box.",
-                "ollama": "Ollama runs locally for privacy.",
                 "libretranslate": "LibreTranslate is an open-source, self-hosted translation API. You can use public instances or host your own."
             },
             "appId": "App ID",
@@ -433,7 +424,6 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
-                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory",
@@ -443,7 +433,6 @@
                 "auto": "Auto",
                 "baidu": "Baidu",
                 "deepl": "DeepL",
-                "google": "Google",
                 "ollama": "Ollama",
                 "libretranslate": "LibreTranslate",
                 "mymemory": "MyMemory"

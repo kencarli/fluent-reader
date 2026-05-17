@@ -99,21 +99,6 @@ const settingsBridge = {
         }
     },
 
-    getBackgroundMode: (): boolean => {
-        if (ipcRenderer) {
-            return ipcRenderer.sendSync("get-background-mode")
-        } else {
-            return getFromStorage("backgroundMode", true)
-        }
-    },
-    setBackgroundMode: (enabled: boolean) => {
-        if (ipcRenderer) {
-            ipcRenderer.invoke("set-background-mode", enabled)
-        } else {
-            setToStorage("backgroundMode", enabled)
-        }
-    },
-
     getDefaultView: (): ViewType => {
         if (ipcRenderer) {
             return ipcRenderer.sendSync("get-view")

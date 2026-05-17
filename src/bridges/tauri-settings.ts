@@ -99,15 +99,6 @@ const tauriSettingsBridge = {
         saveSettingToTauri('proxy', address)
     },
 
-    // Background Mode
-    getBackgroundMode: (): boolean => {
-        return settingsCache['backgroundMode'] ?? true
-    },
-    setBackgroundMode: (enabled: boolean) => {
-        settingsCache['backgroundMode'] = enabled
-        saveSettingToTauri('backgroundMode', enabled)
-    },
-
     // View
     getDefaultView: (): any => {
         return settingsCache['defaultView'] || 0 // ViewType.Cards

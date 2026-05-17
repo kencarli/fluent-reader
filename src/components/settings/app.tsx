@@ -34,7 +34,6 @@ type AppTabProps = {
 }
 
 type AppTabState = {
-    backgroundMode: boolean
     pacStatus: boolean
     pacUrl: string
     themeSettings: ThemeSettings
@@ -47,7 +46,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
     constructor(props) {
         super(props)
         this.state = {
-            backgroundMode: window.settings.getBackgroundMode() ?? true,
             pacStatus: window.settings.getProxyStatus(),
             pacUrl: window.settings.getProxy(),
             themeSettings: getThemeSettings(),
@@ -197,24 +195,6 @@ class AppTab extends React.Component<AppTabProps, AppTabState> {
                 onChange={this.onThemeChange}
                 selectedKey={this.state.themeSettings}
             />
-
-            <Stack horizontal verticalAlign="baseline">
-                <Stack.Item grow>
-                    <Label>{intl.get("settings.backgroundMode")}</Label>
-                </Stack.Item>
-                <Stack.Item>
-                    <Switch
-                        checked={this.state.backgroundMode}
-                        onChange={(checked) => {
-                            window.settings.setBackgroundMode(checked)
-                            this.setState({ backgroundMode: checked })
-                        }}
-                    />
-                </Stack.Item>
-            </Stack>
-            <span className="settings-hint">
-                {intl.get("settings.backgroundDescription")}
-            </span>
 
             <Label>{intl.get("app.fetchInterval")}</Label>
             <Stack horizontal>
